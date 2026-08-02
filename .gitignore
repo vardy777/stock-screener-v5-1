@@ -1,0 +1,21 @@
+# Local Python runtimes and caches
+.venv/
+.uv-cache/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Secrets and machine-local agent state
+v3/.env
+.hermes/
+
+# Runtime, market-data and generated research artifacts
+data/
+phase1/data/
+v3/data/
+v4/data/
+
+# Logs and temporary files
+*.log
+*.tmp
+

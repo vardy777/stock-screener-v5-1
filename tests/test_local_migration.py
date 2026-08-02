@@ -1,0 +1,130 @@
+import json
+import os
+import unittest
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+from v3.push import build_afternoon_card, build_morning_card, send_wechat
+from v3.scripts import afternoon_push, morning_push
+
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+class LocalRuntimeMigrationTests(unittest.TestCase):
+    def test_runtime_files_have_no_hermes_dependency(self):
+        for relative in (
+            "start_dashboard.py",
+            "main.py",
+            "v2/config.py",
+            "v3/config.py",
+        ):
+            content = (ROOT / relative).read_text(encoding="utf-8").lower()
+            self.assertNotIn("hermes", content, relative)
+
+    def test_windows_tasks_include_both_required_pushes(self):
+        content = (
+            ROOT / "phase1" / "scripts" / "register_v4_snapshot_tasks.ps1"
+        ).read_text(encoding="utf-8")
+        self.assertIn("AStock-V4-Push-Morning-0925", content)
+        self.assertIn('At = "09:25"', content)
+        self.assertIn("AStock-V4-Push-Confirm-145020", content)
+        self.assertIn('At = "14:50:20"', content)
+
+    def test_legacy_caches_resolve_inside_project(self):
+        from v3 import config
+
+        for path in (config.PE_PB_CACHE, config.WIN_RATE, config.MARKET_DB):
+            resolved = Path(path).resolve()
+            self.assertTrue(resolved.is_relative_to(ROOT))
+            self.assertTrue(resolved.exists())
+
+    def test_morning_card_is_observation_not_buy_instruction(self):
+        card = build_morning_card(
+            [{"code": "000001", "name": "测试", "score": 88, "pct_chg": 1.2}],
+            {"mode_label": "neutral"},
+            [{"code": "600000", "name": "持仓", "buy_price": 10.0}],
+        )
+        self.assertIn("000001", card)
+        self.assertIn("尾盘确认", card)
+        self.assertIn("早盘不买入", card)
+        self.assertIn("09:30待卖持仓", card)
+
+    def test_afternoon_card_only_confirms_v4_tradable_top1(self):
+        card = build_afternoon_card(
+            [
+                {
+                    "code": "000001", "name": "测试", "score": 90,
+                    "v4_tradable": True, "v4_shadow_confidence": 0.7,
+                    "v4_block_reasons": [],
+                },
+                {
+                    "code": "000002", "name": "观察", "score": 89,
+                    "v4_tradable": False, "v4_shadow_confidence": 0.6,
+                    "v4_block_reasons": ["精度优先仅允许Top1"],
+                },
+            ],
+            {"mode_label": "neutral"},
+            [],
+        )
+        self.assertIn("唯一确认Top1", card)
+        self.assertIn("000001", card)
+        self.assertIn("精度优先仅允许Top1", card)
+
+    @patch("v3.push.PUSHPLUS_TOKEN", "test-token")
+    def test_pushplus_requires_api_acceptance(self):
+        response = MagicMock()
+        response.__enter__.return_value.read.return_value = json.dumps(
+            {"code": 500, "msg": "rejected"}
+        ).encode("utf-8")
+        with patch("v3.push.urllib.request.urlopen", return_value=response):
+            self.assertFalse(send_wechat("test", "body"))
+        response.__enter__.return_value.read.return_value = json.dumps(
+            {"code": 200, "msg": "ok"}
+        ).encode("utf-8")
+        with patch("v3.push.urllib.request.urlopen", return_value=response):
+            self.assertTrue(send_wechat("test", "body"))
+
+    @patch("v3.push.PUSHPLUS_TOKEN", "test-token")
+    def test_pushplus_dry_run_never_calls_network(self):
+        with patch.dict(os.environ, {"PUSHPLUS_DRY_RUN": "true"}):
+            with patch("v3.push.urllib.request.urlopen") as urlopen:
+                self.assertTrue(send_wechat("test", "body"))
+                urlopen.assert_not_called()
+
+    def test_morning_job_generates_candidates_before_push(self):
+        engine = MagicMock()
+        engine.screen_today.return_value = [
+            {"code": "000001", "name": "测试", "score": 88, "pct_chg": 1.0}
+        ]
+        engine._get_market_state.return_value = {"mode_label": "neutral"}
+        engine.positions = []
+        with patch.object(morning_push, "SimulationEngine", return_value=engine):
+            with patch.object(morning_push, "TradingCalendar") as calendar:
+                calendar.return_value.is_open.return_value = True
+                with patch.object(morning_push, "send_wechat", return_value=True) as send:
+                    self.assertEqual(morning_push.main(), 0)
+        engine.screen_today.assert_called_once_with()
+        send.assert_called_once()
+
+    def test_afternoon_job_recalculates_before_confirmation(self):
+        engine = MagicMock()
+        engine.screen_today.return_value = [
+            {
+                "code": "000001", "name": "测试", "score": 88,
+                "v4_tradable": False, "v4_block_reasons": ["研究准入未通过"],
+            }
+        ]
+        engine._get_market_state.return_value = {"mode_label": "neutral"}
+        engine.positions = []
+        with patch.object(afternoon_push, "SimulationEngine", return_value=engine):
+            with patch.object(afternoon_push, "TradingCalendar") as calendar:
+                calendar.return_value.is_open.return_value = True
+                with patch.object(afternoon_push, "send_wechat", return_value=True) as send:
+                    self.assertEqual(afternoon_push.main(), 0)
+        engine.screen_today.assert_called_once_with()
+        send.assert_called_once()
+
+
+if __name__ == "__main__":
+    unittest.main()

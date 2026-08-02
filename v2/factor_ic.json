@@ -1,0 +1,28 @@
+{
+  "ic_values": {
+    "momentum_1d": -0.016,
+    "momentum_5d": 0.029,
+    "momentum_10d": 0.044,
+    "momentum_20d": 0.047,
+    "breakthrough_1d": 0.059,
+    "volume_ratio": -0.005,
+    "volatility_20d": 0.037,
+    "turn_rate": -0.006,
+    "rsi_14d": 0.05,
+    "amount_stability": -0.059,
+    "up_down_vol_ratio": 0.029,
+    "vol_price_sync": 0.016,
+    "log_market_cap": 0.016,
+    "pe_ttm": 0.0,
+    "pb_mrq": 0.0,
+    "momentum_accel": -0.041,
+    "overnight_gap": 0.026,
+    "chan_breakout": 0.05,
+    "price_vs_poc": 0.013,
+    "sector_strength": 0.03,
+    "dist_to_20d_high": 0.04
+  },
+  "weights": {},
+  "history": [],
+  "last_updated": "2026-06-18"
+}
