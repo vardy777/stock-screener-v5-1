@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -240,6 +241,9 @@ def save_signal_features(
     frame.to_csv(temporary, index=False)
     temporary.replace(output)
     if metadata is not None:
+        metadata = dict(metadata)
+        metadata["data_file"] = output.name
+        metadata["data_sha256"] = hashlib.sha256(output.read_bytes()).hexdigest()
         manifest = output.with_suffix(output.suffix + ".meta.json")
         manifest_temporary = manifest.with_suffix(manifest.suffix + ".tmp")
         manifest_temporary.write_text(

@@ -8,6 +8,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
+from decision_policy import market_is_risk_off, market_regime_score
 from strategy_spec import DEFAULT_SPEC, StrategySpec, TradeCostModel
 from .dataset import FEATURE_COLUMNS
 from .model import create_model
@@ -28,26 +29,38 @@ class SelectionPolicy:
         if self.max_positions != 1:
             raise ValueError("V4 selection policy is fixed to Top1")
 
+    def to_dict(self) -> dict:
+        return {
+            "max_positions": self.max_positions,
+            "minimum_predicted_return": self.minimum_predicted_return,
+            "minimum_positive_probability": self.minimum_positive_probability,
+            "maximum_large_loss_probability": self.maximum_large_loss_probability,
+            "minimum_regime_score": self.minimum_regime_score,
+            "score_column": self.score_column,
+        }
+
+    @classmethod
+    def from_dict(cls, value: dict) -> "SelectionPolicy":
+        value = value if isinstance(value, dict) else {}
+        return cls(
+            max_positions=int(value.get("max_positions", 1)),
+            minimum_predicted_return=value.get("minimum_predicted_return", 0.0),
+            minimum_positive_probability=value.get("minimum_positive_probability"),
+            maximum_large_loss_probability=value.get("maximum_large_loss_probability"),
+            minimum_regime_score=value.get("minimum_regime_score"),
+            score_column=str(value.get("score_column", "predicted_return")),
+        )
+
 
 def _market_regime_score(day: pd.DataFrame) -> float:
     """Combine breadth, intraday market return and opening gap into [-1, 1]."""
 
     if day.empty:
         return -1.0
-    breadth = float(day["market_breadth"].iloc[0])
-    market_return = float(day["market_mean_signal_return"].iloc[0])
-    market_gap = float(day.get("market_mean_gap", pd.Series([0.0])).iloc[0])
-    breadth_component = np.clip((breadth - 0.50) / 0.18, -1.0, 1.0)
-    return_component = np.clip(market_return / 0.012, -1.0, 1.0)
-    gap_component = np.clip(market_gap / 0.008, -1.0, 1.0)
-    return float(
-        np.clip(
-            0.50 * breadth_component
-            + 0.35 * return_component
-            + 0.15 * gap_component,
-            -1.0,
-            1.0,
-        )
+    return market_regime_score(
+        float(day["market_breadth"].iloc[0]),
+        float(day["market_mean_signal_return"].iloc[0]),
+        float(day.get("market_mean_gap", pd.Series([0.0])).iloc[0]),
     )
 
 
@@ -58,9 +71,9 @@ def _risk_off(day: pd.DataFrame) -> bool:
         return True
     breadth = float(day["market_breadth"].iloc[0])
     market_return = float(day["market_mean_signal_return"].iloc[0])
-    return (
-        _market_regime_score(day) < -0.35
-        or (breadth < 0.42 and market_return < -0.003)
+    market_gap = float(day.get("market_mean_gap", pd.Series([0.0])).iloc[0])
+    return market_is_risk_off(
+        breadth, market_return, market_gap
     )
 
 
@@ -642,6 +655,85 @@ def build_precision_coverage_report(trades: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=columns)
 
 
+def fit_final_model_and_policy(
+    dataset: pd.DataFrame,
+    spec: StrategySpec = DEFAULT_SPEC,
+    *,
+    model_kind: str = "auto",
+    market_filter: bool = True,
+    max_train_rows: int = 500_000,
+    validation_fraction: float = 0.20,
+    require_strict: bool = True,
+):
+    """Fit the exact model artifact and its trailing, untouched policy.
+
+    The returned model is deliberately *not* refitted on the validation rows;
+    therefore the absolute thresholds learned on validation remain calibrated
+    to the exact model that is published.
+    """
+
+    data = dataset.copy()
+    data["date"] = pd.to_datetime(data["date"], errors="coerce").dt.normalize()
+    data = data.dropna(subset=["date", "net_return"])
+    if require_strict:
+        missing_controls = [
+            column
+            for column in ("eligible_entry", "valid_label", "strict_row")
+            if column not in data.columns
+        ]
+        if missing_controls:
+            raise ValueError(
+                "生产训练数据缺少控制列: " + ", ".join(missing_controls)
+            )
+    for column in ("eligible_entry", "valid_label"):
+        if column in data.columns:
+            data = data[data[column] == 1]
+    if require_strict:
+        data = data[data["strict_row"].fillna(False).astype(bool)]
+    data = data.sort_values(["date", "code"])
+    dates = pd.Index(sorted(data["date"].unique()))
+    if len(dates) < 80:
+        raise ValueError("严格日期不足80个，不能拟合生产模型与独立阈值")
+
+    # The newest signal label is embargoed.  A trailing validation period then
+    # remains completely outside the model fit.
+    trainable = data[data["date"] < pd.Timestamp(dates[-1])].copy()
+    train_dates = pd.Index(sorted(trainable["date"].unique()))
+    validation_days = max(20, int(len(train_dates) * validation_fraction))
+    validation_days = min(validation_days, max(20, len(train_dates) // 3))
+    validation_start = pd.Timestamp(train_dates[-validation_days])
+    fit_rows = trainable[trainable["date"] < validation_start].copy()
+    validation = trainable[trainable["date"] >= validation_start].copy()
+    if fit_rows["date"].nunique() < 60 or len(fit_rows) < 500:
+        raise ValueError("生产模型拟合区间不足")
+    if validation["date"].nunique() < 20:
+        raise ValueError("生产阈值验证区间不足")
+
+    model = create_model(FEATURE_COLUMNS, kind=model_kind)
+    model.fit(_sample_training_rows(fit_rows, max_train_rows))
+    predictions = model.predict(validation)
+    for column in predictions.columns:
+        validation[column] = predictions[column]
+    _add_calibrated_selection_score(validation, validation)
+    policy, diagnostics = _derive_precision_policy(
+        validation, spec, market_filter=market_filter
+    )
+    if not diagnostics.get("validation_policy_robust", False):
+        raise ValueError("最新独立验证区间没有稳健正期望策略，拒绝发布")
+    diagnostics.update(
+        {
+            "fit_rows": int(len(fit_rows)),
+            "fit_start": str(fit_rows["date"].min())[:10],
+            "fit_end": str(fit_rows["date"].max())[:10],
+            "validation_rows": int(len(validation)),
+            "validation_start": str(validation["date"].min())[:10],
+            "validation_end": str(validation["date"].max())[:10],
+            "embargoed_date": str(pd.Timestamp(dates[-1]))[:10],
+        }
+    )
+    return model, policy, diagnostics, fit_rows
+
+
 def run_walk_forward(
     dataset: pd.DataFrame,
     spec: StrategySpec = DEFAULT_SPEC,
@@ -655,6 +747,7 @@ def run_walk_forward(
     max_train_rows: int = 500_000,
     optimize_precision: bool = True,
     validation_fraction: float = 0.20,
+    frozen_policies: Optional[Dict[str, SelectionPolicy]] = None,
 ):
     data = dataset.copy()
     data["date"] = pd.to_datetime(data["date"], errors="coerce").dt.normalize()
@@ -723,31 +816,39 @@ def run_walk_forward(
             "validation_average_net_return": 0.0,
             "validation_profit_factor": 0.0,
         }
+        policy_key = str(test["date"].min())[:10]
+        frozen_policy = (frozen_policies or {}).get(policy_key)
         if optimize_precision and not validation.empty:
             validation_predictions = model.predict(validation)
             for column in validation_predictions.columns:
                 validation[column] = validation_predictions[column]
             _add_calibrated_selection_score(validation, validation)
-            learned_policy, policy_validation = _derive_precision_policy(
-                validation, spec, market_filter=market_filter
-            )
-            learned_minimum = learned_policy.minimum_predicted_return
-            if learned_minimum is None:
-                learned_minimum = minimum_predicted_return
-            policy = SelectionPolicy(
-                max_positions=1,
-                minimum_predicted_return=max(
-                    float(minimum_predicted_return), float(learned_minimum)
-                ),
-                minimum_positive_probability=(
-                    learned_policy.minimum_positive_probability
-                ),
-                maximum_large_loss_probability=(
-                    learned_policy.maximum_large_loss_probability
-                ),
-                minimum_regime_score=learned_policy.minimum_regime_score,
-                score_column=learned_policy.score_column,
-            )
+            if frozen_policy is None:
+                learned_policy, policy_validation = _derive_precision_policy(
+                    validation, spec, market_filter=market_filter
+                )
+                learned_minimum = learned_policy.minimum_predicted_return
+                if learned_minimum is None:
+                    learned_minimum = minimum_predicted_return
+                policy = SelectionPolicy(
+                    max_positions=1,
+                    minimum_predicted_return=max(
+                        float(minimum_predicted_return), float(learned_minimum)
+                    ),
+                    minimum_positive_probability=(
+                        learned_policy.minimum_positive_probability
+                    ),
+                    maximum_large_loss_probability=(
+                        learned_policy.maximum_large_loss_probability
+                    ),
+                    minimum_regime_score=learned_policy.minimum_regime_score,
+                    score_column=learned_policy.score_column,
+                )
+        if frozen_policy is not None:
+            policy = frozen_policy
+            policy_validation["policy_frozen_from_normal"] = True
+        else:
+            policy_validation["policy_frozen_from_normal"] = False
 
         predictions = model.predict(test)
         for column in predictions.columns:
@@ -812,6 +913,9 @@ def run_walk_forward(
     daily = pd.concat(all_daily, ignore_index=True) if all_daily else pd.DataFrame()
     summary = calculate_metrics(trades, daily, spec.initial_capital)
     summary["precision_optimized"] = bool(optimize_precision)
+    summary["frozen_policy_windows"] = int(
+        sum(bool(row.get("policy_frozen_from_normal")) for row in window_rows)
+    )
     summary["outer_scored_rows"] = int(sum(len(frame) for frame in all_scored))
     windows = pd.DataFrame(window_rows)
     if not windows.empty:

@@ -12,7 +12,7 @@ ROOT = BASE.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(BASE))
 
-from overnight import load_or_build_dataset, run_rule_backtest
+from overnight import load_research_dataset, run_rule_backtest
 from strategy_spec import DEFAULT_SPEC
 
 
@@ -40,6 +40,9 @@ def main() -> int:
     parser.add_argument("--minimum-score", type=float, default=0.55)
     parser.add_argument("--no-market-filter", action="store_true")
     parser.add_argument("--cache", type=Path, default=None)
+    parser.add_argument(
+        "--dataset-mode", choices=["proxy", "strict"], default="proxy"
+    )
     parser.add_argument("--report-dir", type=Path, default=None)
     parser.add_argument(
         "--stress",
@@ -49,13 +52,18 @@ def main() -> int:
     args = parser.parse_args()
 
     cache = args.cache or (BASE / "data" / "overnight" / "dataset.csv.gz")
-    dataset, metadata = load_or_build_dataset(
-        BASE / "data" / "daily",
-        cache,
-        DEFAULT_SPEC,
-        rebuild=args.rebuild,
-        max_stocks=args.max_stocks,
-    )
+    try:
+        dataset, metadata, selected_cache = load_research_dataset(
+            BASE / "data" / "daily",
+            cache,
+            spec=DEFAULT_SPEC,
+            dataset_mode=args.dataset_mode,
+            rebuild=args.rebuild,
+            max_stocks=args.max_stocks,
+        )
+    except (OSError, TypeError, ValueError, RuntimeError) as exc:
+        print(f"拒绝回测: {exc}")
+        return 2
     if dataset.empty:
         print("没有可用样本")
         return 1
@@ -87,9 +95,13 @@ def main() -> int:
     default_cache = BASE / "data" / "overnight" / "dataset.csv.gz"
     if args.report_dir is not None:
         report = args.report_dir
-    elif cache.resolve() == default_cache.resolve():
+    elif cache.resolve() == default_cache.resolve() and args.dataset_mode == "proxy":
         report = BASE / "data" / "overnight" / (
             "rule_report_stress" if args.stress else "rule_report"
+        )
+    elif args.dataset_mode == "strict":
+        report = BASE / "data" / "overnight" / (
+            "rule_report_strict_stress" if args.stress else "rule_report_strict"
         )
     else:
         report = BASE / "data" / "overnight" / (
@@ -104,6 +116,9 @@ def main() -> int:
             "historical_st_status_available", False
         ),
         "research_only": metadata.get("strict_1450_rows", 0) == 0,
+        "dataset_mode": metadata.get("dataset_mode", args.dataset_mode),
+        "dataset_sha256": metadata.get("dataset_sha256", ""),
+        "lineage_verified": bool(metadata.get("lineage_verified", False)),
         "stress_slippage": bool(args.stress),
     })
     _save_csv_atomic(trades, report / "trades.csv")

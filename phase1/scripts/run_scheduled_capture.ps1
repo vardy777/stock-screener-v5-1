@@ -25,10 +25,10 @@ $utf8Encoding = New-Object System.Text.UTF8Encoding($false)
 $env:PYTHONIOENCODING = "utf-8"
 try {
     if ($Mode -eq "signal") {
-        $pythonArguments = '"phase1\scripts\capture_signal_features.py"'
+        $pythonArguments = '-X utf8 "phase1\scripts\capture_signal_features.py"'
     }
     else {
-        $pythonArguments = '"phase1\scripts\capture_execution_snapshot.py" {0}' -f $Mode
+        $pythonArguments = '-X utf8 "phase1\scripts\capture_execution_snapshot.py" {0}' -f $Mode
     }
     $startInfo = New-Object System.Diagnostics.ProcessStartInfo
     $startInfo.FileName = $python

@@ -2,6 +2,7 @@
 """Capture the full-market feature vector during 14:49:00-14:49:59."""
 
 import json
+import hashlib
 import sys
 from pathlib import Path
 
@@ -25,6 +26,9 @@ def main() -> int:
     started_at = TradingClock.now()
     status = TradingClock.action_status("signal", now=started_at)
     if not status.allowed:
+        if TradingCalendar().is_open(started_at.date()) is not True:
+            print(f"非开放交易日，跳过信号采集: {started_at.date().isoformat()}")
+            return 0
         print(f"拒绝采集: {status.reason}")
         return 2
     context_path = BASE / "data" / "overnight" / "live_feature_context.csv.gz"
@@ -64,13 +68,16 @@ def main() -> int:
         / f"{captured_at:%Y-%m-%d_%H%M%S}.csv"
     )
     manifest = {
-        "contract_version": "strict-signal-snapshot-v1",
+        "contract_version": "strict-signal-snapshot-v2",
         "captured_at": captured_at.isoformat(timespec="seconds"),
         "expected_context_codes": int(len(context)),
         "strict_feature_rows": int(len(features)),
         "strict_feature_coverage": float(coverage),
         "minimum_coverage": 0.95,
         "causal_quote_time_required": True,
+        "expected_universe_sha256": hashlib.sha256(
+            "\n".join(sorted(context["code"].astype(str).str.zfill(6))).encode("utf-8")
+        ).hexdigest(),
         "fetch": fetch_report,
     }
     save_signal_features(features, output, manifest)

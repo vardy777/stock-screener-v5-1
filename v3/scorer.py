@@ -21,21 +21,24 @@ class UltraShortScorer:
             col = factor  # 因子列名
             raw = f'{factor}_raw' if f'{factor}_raw' in df.columns else None
 
-            values = df[raw].values if raw and raw in df.columns else (
-                df[col].values if col in df.columns else None
+            values = df[raw] if raw and raw in df.columns else (
+                df[col] if col in df.columns else None
             )
 
             if values is None:
                 df[f'{col}_norm'] = 50.0
                 continue
 
-            # 百分位排名 0~100
-            n = len(values)
-            if n > 1:
-                ranks = np.argsort(np.argsort(values))
-                normed = ranks / (n - 1) * 100
-            else:
-                normed = np.array([50.0])
+            # 使用平均秩处理并列值；常量因子必须保持中性，不能按输入/代码
+            # 顺序凭空制造0~100分差异。
+            numeric = pd.to_numeric(values, errors='coerce').replace(
+                [np.inf, -np.inf], np.nan
+            )
+            valid = numeric.dropna()
+            normed = pd.Series(50.0, index=df.index, dtype=float)
+            if len(valid) > 1 and valid.nunique(dropna=True) > 1:
+                ranks = valid.rank(method='average')
+                normed.loc[valid.index] = (ranks - 1.0) / (len(valid) - 1.0) * 100.0
 
             # 反转权重: 市值因子越小越好
             if factor == 'log_market_cap':

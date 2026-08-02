@@ -3,6 +3,7 @@
 from .dataset import FEATURE_COLUMNS, build_dataset, load_or_build_dataset
 from .backtesting import (
     build_precision_coverage_report,
+    fit_final_model_and_policy,
     run_rule_backtest,
     run_walk_forward,
 )
@@ -14,12 +15,14 @@ from .live_features import (
     save_signal_features,
 )
 from .archive_refresh import merge_archive, validate_archive
+from .pipeline import load_research_dataset, rebuild_labeled_datasets
 
 __all__ = [
     "FEATURE_COLUMNS",
     "build_dataset",
     "load_or_build_dataset",
     "build_precision_coverage_report",
+    "fit_final_model_and_policy",
     "run_rule_backtest",
     "run_walk_forward",
     "build_execution_labels",
@@ -30,4 +33,6 @@ __all__ = [
     "compute_live_features",
     "save_live_feature_context",
     "save_signal_features",
+    "load_research_dataset",
+    "rebuild_labeled_datasets",
 ]

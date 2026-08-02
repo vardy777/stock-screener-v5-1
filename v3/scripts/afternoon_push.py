@@ -4,13 +4,14 @@
 import logging
 import os
 import sys
-from datetime import date
+from datetime import datetime, time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from v3.push import build_afternoon_card, send_wechat
 from v3.simulation import SimulationEngine
 from v4.calendar import TradingCalendar
+from v4.execution import CHINA_TZ
 
 
 logging.basicConfig(
@@ -21,13 +22,25 @@ logging.basicConfig(
 logger = logging.getLogger("afternoon_push_v3")
 
 
+def _now() -> datetime:
+    return datetime.now(CHINA_TZ)
+
+
+def _in_window(current: datetime) -> bool:
+    return time(14, 50) <= current.timetz().replace(tzinfo=None) <= time(14, 51, 59)
+
+
 def main() -> int:
-    current_date = date.today()
+    current = _now()
+    current_date = current.date()
     today = current_date.strftime("%Y-%m-%d")
     calendar = TradingCalendar()
     if calendar.is_open(current_date) is not True:
         logger.info("非开放交易日，跳过尾盘推送: %s", today)
-        return 2
+        return 0
+    if not _in_window(current):
+        logger.error("不在14:50-14:51:59买入确认窗口，拒绝迟到推送: %s", current.isoformat())
+        return 3
     logger.info("=== V4 14:50尾盘确认 %s ===", today)
 
     engine = SimulationEngine()
@@ -43,7 +56,11 @@ def main() -> int:
         logger.warning("无真实候选或行情不可用，今日空仓")
 
     card = build_afternoon_card(candidates[:3], market_state, positions)
-    sent = send_wechat(f"🎯 V4 14:50尾盘确认 {today}", card)
+    sent = send_wechat(
+        f"🎯 V4 14:50尾盘确认 {today}",
+        card,
+        message_key=f"v4-afternoon:{today}",
+    )
     if sent is False:
         logger.error("推送失败")
         return 1

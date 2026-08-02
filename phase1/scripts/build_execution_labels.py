@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(BASE))
 
 from overnight.execution_labels import build_execution_labels, save_execution_labels
+from market_universe import list_universe_codes
 from strategy_spec import DEFAULT_SPEC
 
 
@@ -34,9 +35,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    universe = sorted(
-        path.stem.zfill(6) for path in (BASE / "data" / "daily").glob("*.csv")
-    )
+    universe = list_universe_codes(BASE / "data" / "daily")
     labels, metadata = build_execution_labels(
         args.snapshot_root,
         DEFAULT_SPEC,
@@ -55,4 +54,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

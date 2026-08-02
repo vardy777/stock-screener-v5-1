@@ -43,22 +43,39 @@ class LiveFeatureStore:
         temporary.replace(STORE_PATH)
 
     @staticmethod
-    def get(code: str, *, maximum_age_seconds: int = 120) -> Optional[Dict[str, Any]]:
+    def load_all(
+        *, maximum_age_seconds: int = 120, now: Optional[datetime] = None
+    ) -> Dict[str, Dict[str, Any]]:
         try:
             with STORE_PATH.open("r", encoding="utf-8") as handle:
                 payload = json.load(handle)
             as_of = datetime.fromisoformat(payload["as_of"])
             if as_of.tzinfo is None:
                 as_of = as_of.replace(tzinfo=CHINA_TZ)
-            age = abs((TradingClock.now() - as_of.astimezone(CHINA_TZ)).total_seconds())
-            if age > maximum_age_seconds:
-                return None
-            features = payload.get("rows", {}).get(str(code).zfill(6))
-            if not isinstance(features, dict):
-                return None
-            if any(name not in features for name in FEATURE_COLUMNS):
-                return None
-            return features
+            current = now or TradingClock.now()
+            if current.tzinfo is None:
+                current = current.replace(tzinfo=CHINA_TZ)
+            age = (
+                current.astimezone(CHINA_TZ) - as_of.astimezone(CHINA_TZ)
+            ).total_seconds()
+            # Future-dated features are non-causal.  Do not use abs(age): that
+            # would silently accept a feature snapshot created after a decision.
+            if not 0 <= age <= maximum_age_seconds:
+                return {}
+            rows = payload.get("rows", {})
+            if not isinstance(rows, dict):
+                return {}
+            return {
+                str(code).zfill(6): features
+                for code, features in rows.items()
+                if isinstance(features, dict)
+                and all(name in features for name in FEATURE_COLUMNS)
+            }
         except (OSError, ValueError, TypeError, KeyError):
-            return None
+            return {}
 
+    @staticmethod
+    def get(code: str, *, maximum_age_seconds: int = 120) -> Optional[Dict[str, Any]]:
+        return LiveFeatureStore.load_all(
+            maximum_age_seconds=maximum_age_seconds
+        ).get(str(code).zfill(6))

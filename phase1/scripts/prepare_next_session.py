@@ -43,9 +43,12 @@ def main() -> int:
     args = parser.parse_args()
     as_of = date.fromisoformat(args.as_of)
     calendar = TradingCalendar()
-    if not calendar.verified or calendar.is_open(as_of) is not True:
-        print(f"拒绝维护: {as_of.isoformat()}不是已核验的开放交易日")
+    if not calendar.verified:
+        print("拒绝维护: 交易日历未核验")
         return 2
+    if calendar.is_open(as_of) is not True:
+        print(f"非开放交易日，跳过维护: {as_of.isoformat()}")
+        return 0
     next_session = calendar.next_open(as_of)
     if next_session is None:
         print("拒绝维护: 交易日历没有覆盖下一开放交易日")

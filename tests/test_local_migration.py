@@ -1,10 +1,12 @@
 import json
 import os
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from v3.push import build_afternoon_card, build_morning_card, send_wechat
+from v3 import dashboard
 from v3.scripts import afternoon_push, morning_push
 
 
@@ -30,6 +32,32 @@ class LocalRuntimeMigrationTests(unittest.TestCase):
         self.assertIn('At = "09:25"', content)
         self.assertIn("AStock-V4-Push-Confirm-145020", content)
         self.assertIn('At = "14:50:20"', content)
+        self.assertIn("-LogonType S4U", content)
+        self.assertIn("-StartWhenAvailable", content)
+
+    def test_dashboard_get_state_never_triggers_market_screening(self):
+        engine = MagicMock()
+        engine.load_candidates_from_file.return_value = [
+            {"code": "000001", "strategy": "追高", "v4_tradable": False}
+        ]
+        engine.load_market_state_from_file.return_value = {
+            "mode_label": "neutral", "data_valid": False
+        }
+        engine.get_state.return_value = {
+            "account": {}, "positions": [], "candidates": [],
+            "trade_history": [], "daily_records": [],
+            "market_state": {"mode_label": "unavailable"},
+            "sector_ranks": {"top": []}, "sentiment": {}, "time": "",
+        }
+        runtime = MagicMock()
+        runtime.system_state.return_value = {
+            "readiness": {"trade_enabled": False},
+            "clock": {"buy": {"allowed": False}},
+        }
+        with patch.object(dashboard, "SimulationEngine", return_value=engine):
+            with patch("v4.runtime.V4Runtime", return_value=runtime):
+                dashboard._fresh_engine_state(force=True)
+        engine.screen_today.assert_not_called()
 
     def test_legacy_caches_resolve_inside_project(self):
         from v3 import config
@@ -78,12 +106,33 @@ class LocalRuntimeMigrationTests(unittest.TestCase):
             {"code": 500, "msg": "rejected"}
         ).encode("utf-8")
         with patch("v3.push.urllib.request.urlopen", return_value=response):
-            self.assertFalse(send_wechat("test", "body"))
+            with patch("v3.push.time.sleep"):
+                self.assertFalse(send_wechat("test", "body"))
         response.__enter__.return_value.read.return_value = json.dumps(
             {"code": 200, "msg": "ok"}
         ).encode("utf-8")
         with patch("v3.push.urllib.request.urlopen", return_value=response):
             self.assertTrue(send_wechat("test", "body"))
+
+    @patch("v3.push.PUSHPLUS_TOKEN", "test-token")
+    def test_pushplus_message_key_suppresses_duplicate_delivery(self):
+        response = MagicMock()
+        response.__enter__.return_value.read.return_value = json.dumps(
+            {"code": 200, "msg": "ok"}
+        ).encode("utf-8")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            receipt = Path(temp_dir) / "receipts.json"
+            with patch("v3.push.PUSH_RECEIPT_PATH", receipt):
+                with patch(
+                    "v3.push.urllib.request.urlopen", return_value=response
+                ) as urlopen:
+                    self.assertTrue(
+                        send_wechat("test", "body", message_key="morning:2026-08-03")
+                    )
+                    self.assertTrue(
+                        send_wechat("test", "body", message_key="morning:2026-08-03")
+                    )
+                    self.assertEqual(urlopen.call_count, 1)
 
     @patch("v3.push.PUSHPLUS_TOKEN", "test-token")
     def test_pushplus_dry_run_never_calls_network(self):
@@ -102,8 +151,9 @@ class LocalRuntimeMigrationTests(unittest.TestCase):
         with patch.object(morning_push, "SimulationEngine", return_value=engine):
             with patch.object(morning_push, "TradingCalendar") as calendar:
                 calendar.return_value.is_open.return_value = True
-                with patch.object(morning_push, "send_wechat", return_value=True) as send:
-                    self.assertEqual(morning_push.main(), 0)
+                with patch.object(morning_push, "_in_window", return_value=True):
+                    with patch.object(morning_push, "send_wechat", return_value=True) as send:
+                        self.assertEqual(morning_push.main(), 0)
         engine.screen_today.assert_called_once_with()
         send.assert_called_once()
 
@@ -120,8 +170,9 @@ class LocalRuntimeMigrationTests(unittest.TestCase):
         with patch.object(afternoon_push, "SimulationEngine", return_value=engine):
             with patch.object(afternoon_push, "TradingCalendar") as calendar:
                 calendar.return_value.is_open.return_value = True
-                with patch.object(afternoon_push, "send_wechat", return_value=True) as send:
-                    self.assertEqual(afternoon_push.main(), 0)
+                with patch.object(afternoon_push, "_in_window", return_value=True):
+                    with patch.object(afternoon_push, "send_wechat", return_value=True) as send:
+                        self.assertEqual(afternoon_push.main(), 0)
         engine.screen_today.assert_called_once_with()
         send.assert_called_once()
 

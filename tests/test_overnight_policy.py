@@ -9,7 +9,7 @@ from phase1.overnight.backtesting import (
     calculate_metrics,
 )
 from phase1.overnight.dataset import FEATURE_COLUMNS
-from phase1.overnight.model import RidgeSignalModel
+from phase1.overnight.model import LightGBMSignalModel, RidgeSignalModel
 from v3.dashboard import build_html
 
 
@@ -42,6 +42,21 @@ class OvernightPolicyTests(unittest.TestCase):
         )
         for column in predicted.columns[1:]:
             self.assertTrue(predicted[column].between(0.0, 1.0).all())
+
+    def test_lightgbm_handles_single_class_risk_targets(self):
+        rng = np.random.default_rng(7)
+        rows = 140
+        frame = pd.DataFrame(
+            {feature: rng.normal(size=rows) for feature in FEATURE_COLUMNS}
+        )
+        frame["net_return"] = np.full(rows, 0.002)
+        frame["target_1pct"] = 0
+        frame["large_loss"] = 0
+        model = LightGBMSignalModel(FEATURE_COLUMNS).fit(frame)
+        predicted = model.predict(frame.head(5))
+        self.assertTrue((predicted["predicted_positive_probability"] == 1.0).all())
+        self.assertTrue((predicted["predicted_hit_probability"] == 0.0).all())
+        self.assertTrue((predicted["predicted_large_loss_probability"] == 0.0).all())
 
     def test_precision_coverage_report_separates_win_and_one_percent_hit(self):
         trades = pd.DataFrame(

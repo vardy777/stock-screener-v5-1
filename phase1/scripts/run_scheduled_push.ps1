@@ -31,7 +31,7 @@ $env:PYTHONIOENCODING = "utf-8"
 try {
     $startInfo = New-Object System.Diagnostics.ProcessStartInfo
     $startInfo.FileName = $python
-    $startInfo.Arguments = ('"{0}"' -f $script)
+    $startInfo.Arguments = ('-X utf8 "{0}"' -f $script)
     $startInfo.WorkingDirectory = $projectRoot
     $startInfo.UseShellExecute = $false
     $startInfo.CreateNoWindow = $true

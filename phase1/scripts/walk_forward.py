@@ -2,7 +2,10 @@
 """Genuine date-ordered walk-forward validation."""
 
 import argparse
+import csv
+import hashlib
 import json
+import math
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -14,9 +17,10 @@ sys.path.insert(0, str(BASE))
 
 from overnight import (
     build_precision_coverage_report,
-    load_or_build_dataset,
+    load_research_dataset,
     run_walk_forward,
 )
+from overnight.backtesting import SelectionPolicy
 from strategy_spec import DEFAULT_SPEC
 
 
@@ -37,6 +41,53 @@ def _save_json_atomic(value, path: Path) -> None:
     temporary.replace(path)
 
 
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _optional_float(value):
+    if value in (None, "", "None", "nan"):
+        return None
+    parsed = float(value)
+    if not math.isfinite(parsed):
+        raise ValueError("frozen policy contains a non-finite threshold")
+    return parsed
+
+
+def _load_frozen_policies(path: Path):
+    if not path.exists():
+        return {}
+    policies = {}
+    with path.open("r", encoding="utf-8-sig", newline="") as handle:
+        for row in csv.DictReader(handle):
+            key = str(row.get("test_start", ""))[:10]
+            if not key:
+                continue
+            policies[key] = SelectionPolicy(
+                max_positions=1,
+                minimum_predicted_return=_optional_float(
+                    row.get("policy_minimum_predicted_return")
+                ),
+                minimum_positive_probability=_optional_float(
+                    row.get("policy_minimum_positive_probability")
+                ),
+                maximum_large_loss_probability=_optional_float(
+                    row.get("policy_maximum_large_loss_probability")
+                ),
+                minimum_regime_score=_optional_float(
+                    row.get("policy_minimum_regime_score")
+                ),
+                score_column=str(
+                    row.get("policy_score_column") or "predicted_return"
+                ),
+            )
+    return policies
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--rebuild", action="store_true")
@@ -54,18 +105,26 @@ def main() -> int:
         help="关闭训练窗口内的胜率/覆盖率策略选择",
     )
     parser.add_argument("--cache", type=Path, default=None)
+    parser.add_argument(
+        "--dataset-mode", choices=["proxy", "strict"], default="proxy"
+    )
     parser.add_argument("--report-dir", type=Path, default=None)
     parser.add_argument("--stress", action="store_true", help="买卖滑点均按0.10%")
     args = parser.parse_args()
 
     cache = args.cache or (BASE / "data" / "overnight" / "dataset.csv.gz")
-    dataset, metadata = load_or_build_dataset(
-        BASE / "data" / "daily",
-        cache,
-        DEFAULT_SPEC,
-        rebuild=args.rebuild,
-        max_stocks=args.max_stocks,
-    )
+    try:
+        dataset, metadata, selected_cache = load_research_dataset(
+            BASE / "data" / "daily",
+            cache,
+            spec=DEFAULT_SPEC,
+            dataset_mode=args.dataset_mode,
+            rebuild=args.rebuild,
+            max_stocks=args.max_stocks,
+        )
+    except (OSError, TypeError, ValueError, RuntimeError) as exc:
+        print(f"拒绝Walk-Forward: {exc}")
+        return 2
     if dataset.empty:
         print("没有可用样本")
         return 1
@@ -83,6 +142,35 @@ def main() -> int:
         if args.stress
         else DEFAULT_SPEC
     )
+    if args.dataset_mode == "strict":
+        normal_report = BASE / "data" / "overnight" / "wf_report_strict"
+    else:
+        normal_report = BASE / "data" / "overnight" / "wf_report"
+    frozen_policies = {}
+    normal_summary_hash = ""
+    normal_window_hash = ""
+    if args.stress:
+        normal_window_path = normal_report / "window_stats.csv"
+        normal_summary_path = normal_report / "summary.json"
+        try:
+            frozen_policies = _load_frozen_policies(normal_window_path)
+        except (OSError, TypeError, ValueError) as exc:
+            print(f"拒绝压力测试: 冻结策略无效: {exc}")
+            return 2
+        if not frozen_policies or not normal_summary_path.exists() or not normal_window_path.exists():
+            print("拒绝压力测试: 必须先生成同数据口径的普通Walk-Forward报告")
+            return 2
+        try:
+            normal_summary = json.loads(normal_summary_path.read_text(encoding="utf-8"))
+        except (OSError, TypeError, ValueError) as exc:
+            print(f"拒绝压力测试: 普通报告无效: {exc}")
+            return 2
+        normal_window_hash = _sha256(normal_window_path)
+        if normal_summary.get("window_stats_sha256") != normal_window_hash:
+            print("拒绝压力测试: 普通报告与窗口策略文件血缘不一致")
+            return 2
+        normal_summary_hash = _sha256(normal_summary_path)
+
     trades, daily, windows, importance, summary = run_walk_forward(
         dataset,
         run_spec,
@@ -94,11 +182,16 @@ def main() -> int:
         market_filter=not args.no_market_filter,
         max_train_rows=args.max_train_rows,
         optimize_precision=not args.no_precision_optimization,
+        frozen_policies=frozen_policies or None,
     )
 
     default_cache = BASE / "data" / "overnight" / "dataset.csv.gz"
     if args.report_dir is not None:
         report = args.report_dir
+    elif args.dataset_mode == "strict":
+        report = BASE / "data" / "overnight" / (
+            "wf_report_strict_stress" if args.stress else "wf_report_strict"
+        )
     elif cache.resolve() == default_cache.resolve():
         report = BASE / "data" / "overnight" / (
             "wf_report_stress" if args.stress else "wf_report"
@@ -122,14 +215,44 @@ def main() -> int:
         "minimum_buy_universe_coverage": float(
             metadata.get("minimum_buy_universe_coverage", 0.0)
         ),
+        "point_in_time_universe_verified": bool(
+            metadata.get("point_in_time_universe_verified", False)
+        ),
+        "point_in_time_security_name_verified": bool(
+            metadata.get("point_in_time_security_name_verified", False)
+        ),
         "strict_dataset_ready": bool(metadata.get("strict_dataset_ready", False)),
         "volume_unit": metadata.get("volume_unit", "unknown"),
         "volume_unit_verified": bool(metadata.get("volume_unit_verified", False)),
         "research_only": not bool(metadata.get("strict_dataset_ready", False)),
         "stress_slippage": bool(args.stress),
+        "dataset_mode": metadata.get("dataset_mode", args.dataset_mode),
+        "dataset_path": str(selected_cache),
+        "dataset_sha256": metadata.get("dataset_sha256", ""),
+        "lineage_verified": bool(metadata.get("lineage_verified", False)),
+        "normal_report_sha256": normal_summary_hash,
+        "normal_window_stats_sha256": normal_window_hash,
+        "stress_policy_frozen": bool(
+            args.stress
+            and summary.get("frozen_policy_windows", 0)
+            == summary.get("total_windows", 0)
+        ),
+        "walk_forward_config": {
+            "train_months": args.train_months,
+            "test_months": args.test_months,
+            "embargo_days": args.embargo_days,
+            "model": args.model,
+            "minimum_predicted_return": args.minimum_predicted_return,
+            "market_filter": not args.no_market_filter,
+            "max_train_rows": args.max_train_rows,
+            "precision_optimization": not args.no_precision_optimization,
+        },
     })
     summary["acceptance_pass"] = bool(
-        not summary["research_only"]
+        not args.stress
+        and summary["dataset_mode"] == "strict"
+        and summary["lineage_verified"]
+        and not summary["research_only"]
         and summary.get("proxy_trade_rate", 1.0) == 0.0
         and summary.get("strict_buy_trade_rate", 0.0) == 1.0
         and summary.get("strict_sell_trade_rate", 0.0) == 1.0
@@ -139,6 +262,8 @@ def main() -> int:
         and summary.get("calendar_verified_trade_rate", 0.0) == 1.0
         and summary.get("calendar_verified", False)
         and summary.get("minimum_buy_universe_coverage", 0.0) >= 0.95
+        and summary.get("point_in_time_universe_verified", False)
+        and summary.get("point_in_time_security_name_verified", False)
         and summary.get("volume_unit_verified", False)
         and summary.get("trades", 0) >= 500
         and summary.get("win_rate_ci_low_95", 0.0) > 0.50
@@ -154,6 +279,7 @@ def main() -> int:
     _save_csv_atomic(
         build_precision_coverage_report(trades), report / "precision_coverage.csv"
     )
+    summary["window_stats_sha256"] = _sha256(report / "window_stats.csv")
     _save_json_atomic(summary, report / "summary.json")
 
     for row in windows.itertuples(index=False):

@@ -10,6 +10,7 @@ uses the first 14:50-14:51 bar instead.
 from __future__ import annotations
 
 import json
+import hashlib
 from dataclasses import asdict
 from datetime import time
 from pathlib import Path
@@ -18,6 +19,7 @@ from typing import Iterable, Optional, Tuple
 import numpy as np
 import pandas as pd
 
+from market_universe import is_eligible_a_share
 from strategy_spec import DEFAULT_SPEC, StrategySpec
 
 
@@ -49,8 +51,7 @@ PRECISE_BUY_END = time(14, 51, 59)
 
 
 def is_eligible_code(code: str) -> bool:
-    code = str(code).zfill(6)
-    return not code.startswith(("688", "8", "4"))
+    return is_eligible_a_share(code)
 
 
 def _rolling_ratio(current: pd.Series, history: pd.Series, window: int) -> pd.Series:
@@ -488,27 +489,54 @@ def build_dataset(
         "minimum_buy_universe_coverage": float(
             (execution_metadata or {}).get("minimum_buy_universe_coverage", 0.0)
         ),
-        "strict_dataset_ready": bool(
-            len(dataset) > 0
-            and volume_unit_verified
-            and dataset["strict_row"].fillna(False).all()
+        "point_in_time_universe_verified": bool(
+            (execution_metadata or {}).get("point_in_time_universe_verified", False)
         ),
+        "point_in_time_security_name_verified": bool(
+            (execution_metadata or {}).get(
+                "point_in_time_security_name_verified", False
+            )
+        ),
+        "strict_dataset_ready": bool(
+            dataset["strict_row"].fillna(False).any()
+            and volume_unit_verified
+            and bool((execution_metadata or {}).get("strict_dataset_ready", False))
+            and bool(
+                (execution_metadata or {}).get(
+                    "point_in_time_universe_verified", False
+                )
+            )
+            and bool(
+                (execution_metadata or {}).get(
+                    "point_in_time_security_name_verified", False
+                )
+            )
+        ),
+        "dataset_mode": "mixed_proxy_and_strict",
         "execution_label_metadata": execution_metadata or {},
     }
     return dataset, metadata
 
 
-def save_dataset(dataset: pd.DataFrame, metadata: dict, cache_path: Path) -> None:
+def save_dataset(dataset: pd.DataFrame, metadata: dict, cache_path: Path) -> dict:
     cache_path = Path(cache_path)
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     temporary = cache_path.with_suffix(cache_path.suffix + ".tmp")
     dataset.to_csv(temporary, index=False, compression="gzip")
     temporary.replace(cache_path)
+    digest = hashlib.sha256()
+    with cache_path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    metadata = dict(metadata)
+    metadata["dataset_sha256"] = digest.hexdigest()
+    metadata["dataset_bytes"] = int(cache_path.stat().st_size)
     metadata_path = cache_path.with_suffix(cache_path.suffix + ".meta.json")
     metadata_temporary = metadata_path.with_suffix(metadata_path.suffix + ".tmp")
     with metadata_temporary.open("w", encoding="utf-8") as handle:
         json.dump(metadata, handle, ensure_ascii=False, indent=2)
     metadata_temporary.replace(metadata_path)
+    return metadata
 
 
 def load_or_build_dataset(
@@ -521,6 +549,10 @@ def load_or_build_dataset(
 ) -> Tuple[pd.DataFrame, dict]:
     cache_path = Path(cache_path)
     metadata_path = cache_path.with_suffix(cache_path.suffix + ".meta.json")
+    if rebuild:
+        raise RuntimeError(
+            "禁止无标签重建；请使用overnight.pipeline.rebuild_labeled_datasets"
+        )
     if cache_path.exists() and not rebuild:
         dataset = pd.read_csv(cache_path, parse_dates=["date"], low_memory=False)
         metadata = {}
@@ -529,9 +561,6 @@ def load_or_build_dataset(
                 metadata = json.load(handle)
         return dataset, metadata
 
-    dataset, metadata = build_dataset(
-        Path(daily_dir), spec, max_stocks=max_stocks
+    raise FileNotFoundError(
+        f"数据集不存在: {cache_path}; 请先运行build_overnight_dataset.py"
     )
-    if not dataset.empty:
-        save_dataset(dataset, metadata, cache_path)
-    return dataset, metadata

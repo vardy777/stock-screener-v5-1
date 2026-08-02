@@ -6,6 +6,11 @@ import math
 from datetime import datetime
 from typing import Any, Dict, Iterable, List
 
+import pandas as pd
+
+from decision_policy import market_regime_score
+from market_universe import is_eligible_a_share
+from phase1.overnight.dataset import FEATURE_COLUMNS
 from .audit import save_runtime_state
 from .contracts import PIPELINE_ID, SYSTEM_VERSION
 from .execution import TradingClock
@@ -31,14 +36,22 @@ class V4Runtime:
         self.readiness = ResearchReadiness().evaluate()
         self.model_registry = PublishedModelRegistry()
 
+    @property
+    def production_enabled(self) -> bool:
+        return bool(
+            self.readiness.get("trade_enabled", False)
+            and self.model_registry.available
+        )
+
     @staticmethod
     def _market_score(market_state: Dict[str, Any]) -> float:
-        breadth = float(market_state.get("advance_ratio", 0.5) or 0.5)
-        composite = float(market_state.get("composite", 0.0) or 0.0)
-        value = 0.60 * ((breadth - 0.5) / 0.20) + 0.40 * math.tanh(
-            composite / 5.0
+        if market_state.get("regime_score") is not None:
+            return max(-1.0, min(1.0, float(market_state["regime_score"])))
+        return market_regime_score(
+            float(market_state.get("advance_ratio", 0.5) or 0.5),
+            float(market_state.get("market_mean_signal_return", 0.0) or 0.0),
+            float(market_state.get("market_mean_gap", 0.0) or 0.0),
         )
-        return max(-1.0, min(1.0, value))
 
     @staticmethod
     def _shadow_confidence(score: float, market_score: float) -> float:
@@ -71,6 +84,8 @@ class V4Runtime:
         market_mode = market.get("mode_label", "neutral")
         market_score = self._market_score(market)
         buy_status = TradingClock.action_status("buy")
+        production_model = self.production_enabled
+        policy = self.model_registry.policy if production_model else {}
         evaluated: List[Dict[str, Any]] = []
 
         for index, candidate in enumerate(candidates, start=1):
@@ -78,7 +93,22 @@ class V4Runtime:
             score = float(item.get("final_score", item.get("score", 0.0)) or 0.0)
             rank = int(item.get("rank", index) or index)
             shadow_confidence = self._shadow_confidence(score, market_score)
-            if item.get("predicted_positive_probability") is None:
+            if production_model:
+                # Model-owned fields are always overwritten in production;
+                # never trust a cached or caller-supplied probability.
+                model_prediction = self.model_registry.predict(
+                    item.get("v4_features", {})
+                )
+                for key in (
+                    "predicted_return",
+                    "predicted_positive_probability",
+                    "predicted_hit_probability",
+                    "predicted_large_loss_probability",
+                ):
+                    item.pop(key, None)
+                if model_prediction:
+                    item.update(model_prediction)
+            elif item.get("predicted_positive_probability") is None:
                 if not item.get("v4_features"):
                     item["v4_features"] = LiveFeatureStore.get(item.get("code", ""))
                 model_prediction = self.model_registry.predict(
@@ -93,9 +123,11 @@ class V4Runtime:
                 blocks.append(buy_status.reason)
             if market_mode == "risk_off":
                 blocks.append("市场风险关闭")
+            if production_model and market.get("data_valid") is not True:
+                blocks.append("全市场状态数据无效或覆盖不足")
             if rank != 1:
                 blocks.append("精度优先仅允许Top1")
-            if score < 80.0:
+            if not production_model and score < 80.0:
                 blocks.append("旧评分低于80")
             if item.get("is_mock"):
                 blocks.append("模拟候选")
@@ -106,10 +138,26 @@ class V4Runtime:
 
             positive_probability = item.get("predicted_positive_probability")
             loss_probability = item.get("predicted_large_loss_probability")
-            if positive_probability is not None and float(positive_probability) < 0.55:
+            predicted_return = item.get("predicted_return")
+            minimum_return = policy.get("minimum_predicted_return")
+            minimum_positive = policy.get("minimum_positive_probability")
+            maximum_loss = policy.get("maximum_large_loss_probability")
+            minimum_regime = policy.get("minimum_regime_score")
+            if production_model and minimum_return is not None and (
+                predicted_return is None
+                or float(predicted_return) < float(minimum_return)
+            ):
+                blocks.append("预期净收益不足")
+            if minimum_positive is None and not production_model:
+                minimum_positive = 0.55
+            if positive_probability is not None and minimum_positive is not None and float(positive_probability) < float(minimum_positive):
                 blocks.append("净盈利概率不足")
-            if loss_probability is not None and float(loss_probability) > 0.15:
+            if maximum_loss is None and not production_model:
+                maximum_loss = 0.15
+            if loss_probability is not None and maximum_loss is not None and float(loss_probability) > float(maximum_loss):
                 blocks.append("大亏概率过高")
+            if production_model and minimum_regime is not None and market_score < float(minimum_regime):
+                blocks.append("市场环境低于生产策略阈值")
             if self.readiness.get("trade_enabled") and positive_probability is None:
                 blocks.append(
                     self.model_registry.last_prediction_error
@@ -128,6 +176,7 @@ class V4Runtime:
                     "v4_market_score": round(market_score, 4),
                     "v4_pipeline": PIPELINE_ID,
                     "v4_model_probability_available": positive_probability is not None,
+                    "v4_model_ranked": production_model,
                 }
             )
             evaluated.append(item)
@@ -136,3 +185,119 @@ class V4Runtime:
         snapshot["candidates"] = evaluated
         save_runtime_state(snapshot)
         return evaluated
+
+    def evaluate_universe(
+        self,
+        quotes,
+        *,
+        fallback_candidates: Iterable[Dict[str, Any]] = (),
+        market_state: Dict[str, Any] | None = None,
+    ) -> List[Dict[str, Any]]:
+        """Run the published model over the complete live eligible universe.
+
+        While research-locked, the existing V3 candidates remain visible as a
+        diagnostic fallback.  Once a model is published, V3 preselection is no
+        longer allowed to decide which symbols the model may see.
+        """
+
+        market = market_state or {}
+        production_model = self.production_enabled
+        if not production_model:
+            return self.evaluate_candidates(fallback_candidates, market)
+        if quotes is None or getattr(quotes, "empty", True):
+            return self.evaluate_candidates(fallback_candidates, market)
+
+        features = LiveFeatureStore.load_all(maximum_age_seconds=120)
+        if not features:
+            return self.evaluate_candidates(fallback_candidates, market)
+        quote_frame = quotes.copy()
+        required = {"code", "name", "price", "quote_time", "ask1"}
+        if not required.issubset(quote_frame.columns):
+            return self.evaluate_candidates(fallback_candidates, market)
+        quote_frame["code"] = quote_frame["code"].astype(str).str.zfill(6)
+        quote_frame = quote_frame[
+            quote_frame["code"].map(is_eligible_a_share)
+        ].drop_duplicates("code", keep="last")
+        quote_frame["last_price"] = pd.to_numeric(
+            quote_frame["price"], errors="coerce"
+        )
+        quote_frame["ask1"] = pd.to_numeric(
+            quote_frame["ask1"], errors="coerce"
+        )
+        quote_frame = quote_frame[
+            quote_frame["ask1"].between(5.0, 200.0, inclusive="both")
+            & ~quote_frame["name"].astype(str).str.contains("ST|退", na=False)
+            & quote_frame["quote_time"].map(TradingClock.quote_is_fresh)
+        ].copy()
+        quote_frame = quote_frame[quote_frame["code"].isin(features)]
+        if quote_frame.empty:
+            return self.evaluate_candidates(fallback_candidates, market)
+
+        feature_frame = pd.DataFrame.from_dict(features, orient="index")
+        feature_frame.index = feature_frame.index.astype(str).str.zfill(6)
+        feature_frame = feature_frame.reindex(quote_frame["code"])
+        feature_frame.index = quote_frame.index
+        feature_frame = feature_frame.reindex(columns=FEATURE_COLUMNS).apply(
+            pd.to_numeric, errors="coerce"
+        )
+        complete = feature_frame.notna().all(axis=1)
+        quote_frame = quote_frame.loc[complete].copy()
+        feature_frame = feature_frame.loc[complete]
+        if quote_frame.empty:
+            return self.evaluate_candidates(fallback_candidates, market)
+
+        limit_rate = quote_frame["code"].map(
+            lambda code: 0.20 if str(code).startswith("30") else 0.10
+        )
+        entry_ok = feature_frame["signal_return"] < (limit_rate - 0.005)
+        quote_frame = quote_frame.loc[entry_ok].copy()
+        feature_frame = feature_frame.loc[entry_ok]
+        predictions = self.model_registry.predict_frame(feature_frame)
+        if predictions.empty:
+            return self.evaluate_candidates(fallback_candidates, market)
+
+        quote_frame = quote_frame.loc[predictions.index].copy()
+        for column in predictions.columns:
+            quote_frame[column] = predictions[column]
+        score_column = str(
+            self.model_registry.policy.get("score_column", "predicted_return")
+        )
+        if score_column not in quote_frame.columns:
+            score_column = "predicted_return"
+        quote_frame = quote_frame.sort_values(
+            [
+                score_column,
+                "predicted_positive_probability",
+                "predicted_large_loss_probability",
+            ],
+            ascending=[False, False, True],
+        ).head(5)
+
+        candidates = []
+        for rank, (row_index, row) in enumerate(quote_frame.iterrows(), start=1):
+            vector = feature_frame.loc[row_index].to_dict()
+            candidates.append(
+                {
+                    "code": str(row["code"]).zfill(6),
+                    "name": str(row.get("name", "")),
+                    "rank": rank,
+                    "price": float(row["ask1"]),
+                    "last_price": float(row["last_price"]),
+                    "quote_time": row.get("quote_time"),
+                    "change_pct": float(row.get("change_pct", 0.0) or 0.0),
+                    "score": float(
+                        row.get("predicted_positive_probability", 0.0)
+                    ) * 100.0,
+                    "final_score": float(
+                        row.get("predicted_positive_probability", 0.0)
+                    ) * 100.0,
+                    "strategy": "v4_model_top1",
+                    "execution_price_source": "ask1",
+                    "v4_features": vector,
+                    **{
+                        column: float(row[column])
+                        for column in predictions.columns
+                    },
+                }
+            )
+        return self.evaluate_candidates(candidates, market)

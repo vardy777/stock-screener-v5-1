@@ -9,8 +9,13 @@ import os
 import math
 import logging
 from datetime import datetime, date
+from pathlib import Path
 from typing import Optional
 
+import pandas as pd
+
+from decision_policy import market_is_risk_off, market_regime_score
+from market_universe import is_eligible_a_share, list_universe_codes
 from strategy_spec import DEFAULT_SPEC, TradeCostModel
 
 logger = logging.getLogger(__name__)
@@ -54,6 +59,7 @@ class SimulationEngine:
         self._last_screen_time: Optional[str] = None
         self._sector_ranker = None   # P0: 板块排名器
         self._sentiment = None       # P1: 情绪指标
+        self._last_market_state = None
 
     # ── 属性 ──────────────────────────────────────────────
 
@@ -239,12 +245,13 @@ class SimulationEngine:
     def _get_sentiment(self) -> dict:
         try:
             if self._sentiment:
-                return self._sentiment.get_summary()
+                return self._sentiment.get_sentiment()
         except: pass
         try:
             # SentimentEngine → MarketContext
             s = MarketContext()
-            return s._load_cache() or {'limit_up': 0, 'limit_down': 0, 'up_ratio': 0.5, 'avg_change': 0, 'score': 5, 'label': '中性'}
+            cached = s.load_cache()
+            return cached.get('sentiment', {}) or {'limit_up': 0, 'limit_down': 0, 'up_ratio': 0.5, 'avg_change': 0, 'score': 5, 'label': '中性'}
         except: pass
         return {'limit_up': 0, 'limit_down': 0, 'up_ratio': 0.5, 'avg_change': 0, 'score': 5, 'label': '中性'}
 
@@ -252,53 +259,84 @@ class SimulationEngine:
         """获取板块排名摘要"""
         try:
             if self._sector_ranker:
-                return self._sector_ranker.get_summary()
+                return self._sector_ranker.get_sector_summary()
         except:
             pass
         # 尝试从缓存加载
         try:
             # SectorRanker → MarketContext
             r = MarketContext()
-            r._load_cache()
-            return r.get_summary()
+            r.load_cache()
+            return r.get_sector_summary()
         except:
             pass
         return {'top': [], 'bottom': [], 'time': '', 'total_sectors': 0}
 
-    def _get_market_state(self) -> dict:
-        """获取市场状态"""
+    def _get_market_state(self, quotes=None, *, expected_codes: int = 0) -> dict:
+        """获取与研究口径一致的全市场状态；缺失时明确标记不可用。"""
+        if quotes is None and self._last_market_state is not None:
+            return dict(self._last_market_state)
         try:
-            from v3.market import MarketContext
-            ctx = MarketContext()
-            ctx.load_cache()
-            quotes = None
-            try:
-                from v3.data import DataFetcher
-                df = DataFetcher()
-                codes = [f'{i:06d}' for i in range(1, 100)] + [f'6{i:05d}' for i in range(0, 100)]
-                quotes = df.batch_fetch_quotes(codes)
-            except: pass
-            if quotes is not None and not quotes.empty:
-                return ctx.assess(quotes)
+            if quotes is None or quotes.empty:
+                return {'sh_1d_pct': 0, 'sh_5d_pct': 0, 'sh_20d_pct': 0,
+                        'advance_ratio': 0.5, 'market_mean_signal_return': 0.0,
+                        'market_mean_gap': 0.0, 'regime_score': -1.0,
+                        'quote_coverage': 0.0, 'data_valid': False,
+                        'composite': 0, 'mode_label': 'unavailable'}
+            q = quotes.copy()
+            q['code'] = q['code'].astype(str).str.zfill(6)
+            q = q[q['code'].map(is_eligible_a_share)]
+            q = q[pd.to_numeric(q['price'], errors='coerce').gt(0)]
+            if 'quote_time' not in q.columns:
+                return self._get_market_state(None)
+            from v4.execution import TradingClock
+            q = q[q['quote_time'].map(TradingClock.quote_is_fresh)]
+            q = q.drop_duplicates('code', keep='last')
+            if q.empty:
+                return self._get_market_state(None)
+            pct = pd.to_numeric(
+                q.get('change_pct', q.get('pct_chg')), errors='coerce'
+            )
+            metric_valid = pct.notna()
+            q = q.loc[metric_valid].copy()
+            pct = pct.loc[metric_valid]
+            if q.empty:
+                return self._get_market_state(None)
+            if not {'prev_close', 'open'}.issubset(q.columns):
+                return self._get_market_state(None)
+            previous = pd.to_numeric(q.get('prev_close'), errors='coerce')
+            opened = pd.to_numeric(q.get('open'), errors='coerce')
+            breadth = float((pct > 0).mean())
+            market_return = float(pct.mean() / 100.0)
+            gap = (opened / previous - 1.0).replace([math.inf, -math.inf], float('nan'))
+            market_gap = float(gap.dropna().mean()) if gap.notna().any() else 0.0
+            coverage = min(1.0, len(q) / expected_codes) if expected_codes else 0.0
+            regime = market_regime_score(breadth, market_return, market_gap)
+            state = {
+                'sh_1d_pct': market_return * 100.0,
+                'sh_5d_pct': 0.0,
+                'sh_20d_pct': 0.0,
+                'composite': regime * 3.0,
+                'advance_ratio': breadth,
+                'market_mean_signal_return': market_return,
+                'market_mean_gap': market_gap,
+                'regime_score': regime,
+                'quote_coverage': coverage,
+                'data_valid': bool(expected_codes and coverage >= 0.95),
+                'mode_label': (
+                    'risk_off' if market_is_risk_off(breadth, market_return, market_gap)
+                    else ('risk_on' if regime >= 0.35 else 'neutral')
+                ),
+            }
+            self._last_market_state = dict(state)
+            return state
+        except Exception as exc:
+            logger.warning('全市场状态计算失败: %s', exc)
             return {'sh_1d_pct': 0, 'sh_5d_pct': 0, 'sh_20d_pct': 0,
-                    'advance_ratio': 0.5, 'composite': 0, 'mode_label': 'neutral'}
-        except:
-            return {'sh_1d_pct': 0, 'sh_5d_pct': 0, 'sh_20d_pct': 0,
-                    'advance_ratio': 0.5, 'composite': 0, 'mode_label': 'neutral'}
-
-    # ── 选股 ── 
-        """获取市场状态"""
-        if MarketContext is None:
-            return {'mode_label': 'neutral', 'composite': 0,
-                    'sh_1d_pct': 0, 'sh_5d_pct': 0, 'sh_20d_pct': 0,
-                    'advance_ratio': 0.5}
-        try:
-            return MarketContext().assess(quotes)
-        except Exception as e:
-            logger.warning(f"获取市场状态失败: {e}")
-            return {'mode_label': 'neutral', 'composite': 0,
-                    'sh_1d_pct': 0, 'sh_5d_pct': 0, 'sh_20d_pct': 0,
-                    'advance_ratio': 0.5}
+                    'advance_ratio': 0.5, 'market_mean_signal_return': 0.0,
+                    'market_mean_gap': 0.0, 'regime_score': -1.0,
+                    'quote_coverage': 0.0, 'data_valid': False,
+                    'composite': 0, 'mode_label': 'unavailable'}
 
     def _empty_state(self) -> dict:
         """空状态模板"""
@@ -344,12 +382,12 @@ class SimulationEngine:
 
         try:
             df = DataFetcher()
-            codes = (
-                [f'{i:06d}' for i in range(1, 2000)]         # 深主板 000001-001999
-                + [f'6{i:05d}' for i in range(0, 1000)]     # 沪主板 600000-600999
-                + [f'3{i:05d}' for i in range(0, 2000)]     # 创业板 300000-301999
-                + [f'2{i:05d}' for i in range(0, 1000)]     # 中小板 002000-002999
-            )
+            root = Path(__file__).resolve().parent.parent
+            codes = list_universe_codes(root / 'phase1' / 'data' / 'daily')
+            if not codes:
+                logger.error('统一全市场股票池为空, 按安全规则空仓')
+                self._candidates = []
+                return self._candidates
             quotes = df.batch_fetch_quotes(codes)
 
             if quotes is None or quotes.empty:
@@ -360,12 +398,43 @@ class SimulationEngine:
 
             try:
                 from v4.snapshots import capture_frame
-                capture_frame(quotes, 'buy')
+                capture_frame(
+                    quotes,
+                    'buy',
+                    expected_codes=codes,
+                    minimum_coverage=0.95,
+                    capture_metadata={
+                        'source': 'afternoon_confirmation_screen',
+                        'requested_codes': len(codes),
+                    },
+                    require_order_book=True,
+                    capture_role='decision_confirmation',
+                )
             except Exception as e:
                 logger.warning("V4真实14:50快照保存失败: %s", e)
 
             q = quotes[quotes['price'] > 0].copy()
+            q['code'] = q['code'].astype(str).str.zfill(6)
+            q = q[q['code'].map(is_eligible_a_share)].copy()
             logger.info(f"获取行情: {len(q)} 只")
+            market_state = self._get_market_state(q, expected_codes=len(codes))
+            from v4.runtime import V4Runtime
+            from v4.execution import TradingClock
+            v4_runtime = V4Runtime()
+            if (
+                v4_runtime.production_enabled
+                and TradingClock.action_status('buy').allowed
+            ):
+                model_candidates = v4_runtime.evaluate_universe(
+                    q,
+                    fallback_candidates=[],
+                    market_state=market_state,
+                )
+                self._candidates = model_candidates
+                self._last_screen_time = datetime.now().strftime('%H:%M:%S')
+                self._save_candidates(model_candidates)
+                logger.info("V4生产模型完成全市场排序: %d只", len(model_candidates))
+                return model_candidates
 
             # 市场情绪分析 (P1)
             try:
@@ -373,7 +442,11 @@ class SimulationEngine:
                 se = MarketContext()
                 se.analyze_sentiment(q)
                 self._sentiment = se
-                logger.info(f"市场情绪: {se.label} (评分{se.score}/10, 涨停{se.limit_up_count}, 跌停{se.limit_down_count})")
+                logger.info(
+                    "市场情绪: %s (评分%s/10, 涨停%s, 跌停%s)",
+                    se.sentiment_label, se.sentiment_score,
+                    se.limit_up, se.limit_down,
+                )
             except Exception as e:
                 logger.warning(f"情绪分析失败: {e}")
 
@@ -383,9 +456,7 @@ class SimulationEngine:
             all_candidates = []
 
             # === 追高池: 涨幅2~7% ===
-            chase_q = quotes[quotes['price'] > 0].copy()
-            chase_q = chase_q[~chase_q['code'].str.startswith('688')].copy()
-            chase_q = chase_q[~chase_q['code'].str.startswith('8')].copy()
+            chase_q = q.copy()
             chase_q = chase_q[~chase_q['name'].str.contains('ST|\\*ST', na=False)].copy()
 
             # 追高最低涨幅 4% (复盘发现2%涨幅的票次日溢价不足)
@@ -397,10 +468,6 @@ class SimulationEngine:
 
             if not chase_q.empty:
                 chase_q.rename(columns={'change_pct': 'pct_chg'}, inplace=True)
-                chase_q['market_cap'] = 0
-                chase_q['sector'] = '未知'
-                if 'volume_ratio' not in chase_q.columns:
-                    chase_q['volume_ratio'] = 1.0 + (chase_q['pct_chg'] - chase_q['pct_chg'].mean()) / 50
                 if UltraShortFactorComputer is not None:
                     chase_q = UltraShortFactorComputer().compute(chase_q)
                 if UltraShortScorer is not None:
@@ -443,7 +510,7 @@ class SimulationEngine:
                 pb_engine = PullbackEngine()
                 # 注入板块排名数据
                 if self._sector_ranker:
-                    pb_engine.set_sector_context(self._sector_ranker.rankings)
+                    pb_engine.set_sector_context(self._sector_ranker._rankings)
                 pullback_candidates = pb_engine.screen(quotes)
                 logger.info(f"PullbackEngine 返回 {len(pullback_candidates)} 只候选")
             except Exception as e:
@@ -457,21 +524,20 @@ class SimulationEngine:
 
             # === 合并排名: 追高和回调混合 ===
             if not all_candidates:
-                logger.warning("追高+回调均无候选")
-                self._candidates = []
-                self._last_screen_time = datetime.now().strftime('%H:%M:%S')
-                return self._candidates
-
-            # 按评分降序排列
-            all_candidates.sort(key=lambda x: x['score'], reverse=True)
-            top5 = all_candidates[:5]
+                logger.warning("追高+回调均无候选；仍交由V4生产模型评估全市场")
+                top5 = []
+            else:
+                # 旧策略仅作为研究锁定期的可视候选；生产模型独立评估全市场。
+                all_candidates.sort(key=lambda x: x['score'], reverse=True)
+                top5 = all_candidates[:5]
             for i, c in enumerate(top5):
                 c['rank'] = i + 1
 
             try:
-                from v4.runtime import V4Runtime
-                top5 = V4Runtime().evaluate_candidates(
-                    top5, self._get_market_state()
+                top5 = v4_runtime.evaluate_universe(
+                    q,
+                    fallback_candidates=top5,
+                    market_state=market_state,
                 )
             except Exception as e:
                 logger.exception("V4候选评估失败，按安全规则全部不可交易: %s", e)
@@ -483,8 +549,8 @@ class SimulationEngine:
             self._candidates = top5
             self._last_screen_time = datetime.now().strftime('%H:%M:%S')
 
-            chase_count = sum(1 for c in top5 if c['strategy'] == '追高')
-            pullback_count = sum(1 for c in top5 if c['strategy'] == '回调')
+            chase_count = sum(1 for c in top5 if c.get('strategy') == '追高')
+            pullback_count = sum(1 for c in top5 if c.get('strategy') == '回调')
             logger.info(f"今日候选: {len(top5)} 只 (追高{chase_count}/回调{pullback_count})")
 
             # 保存到缓存文件
@@ -523,6 +589,7 @@ class SimulationEngine:
             with open(path, 'w', encoding='utf-8') as f:
                 json.dump({
                     'candidates': candidates,
+                    'market_state': self._last_market_state or {},
                     'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                     'date': datetime.now().strftime('%Y-%m-%d'),
                 }, f, ensure_ascii=False, indent=2)
@@ -541,6 +608,20 @@ class SimulationEngine:
             return data.get('candidates', [])
         except Exception:
             return []
+
+    def load_market_state_from_file(self) -> dict:
+        """读取最近一次主动选股留下的市场状态，不触发任何行情请求。"""
+        try:
+            from v3.config import DATA_DIR
+            path = os.path.join(DATA_DIR, 'dashboard_data.json')
+            if not os.path.exists(path):
+                return {}
+            with open(path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            state = data.get('market_state', {})
+            return state if isinstance(state, dict) else {}
+        except Exception:
+            return {}
 
     def _mock_candidates(self) -> list:
         """模拟候选数据 — 仅用于看板占位, 自动交易跳过"""
@@ -626,6 +707,7 @@ class SimulationEngine:
                     'final_score': c['score'],
                     'quote_time': c.get('quote_time'),
                     'v4_tradable': c.get('v4_tradable', False),
+                    'v4_model_ranked': c.get('v4_model_ranked', False),
                     'v4_decision': c.get('v4_decision', '观察/空仓'),
                     'v4_block_reasons': c.get('v4_block_reasons', []),
                     'predicted_positive_probability': c.get(

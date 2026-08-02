@@ -31,3 +31,54 @@ Windows Task Scheduler调用项目`.venv`；现有V3入口在内部调用V4准�
 截至2026-08-02，严格14:50/09:30配对样本仍为0。历史15:00代理的Top1
 Walk-Forward只有56笔、7个窗口仅2个盈利，未满足样本量、胜率置信下限、
 窗口一致性和严格执行合同；因此系统不得声明盈利，也不得开放模拟交易。
+
+## 独立运行与两个必要推送
+
+系统引擎、特征计算、机器学习训练、看板和PushPlus均在本项目及`.venv`中
+独立运行。Codex/Hermes只用于开发，不属于任何生产调用链。两个必要入口仍为：
+
+- `v3/scripts/morning_push.py`：仅在开放交易日09:20–09:29运行，09:25输出
+  观察池和09:30待卖提醒；
+- `v3/scripts/afternoon_push.py`：仅在14:50–14:51:59运行，重新抓取全市场
+  行情并输出尾盘Top1确认；研究门禁未通过时明确空仓。
+
+PushPlus请求最多重试3次，按“推送类型+交易日”记录成功回执，任务重复启动
+不会重复发送。严格快照巡检失败会发送独立告警，但不会补造或回填严格样本。
+推送卡片显示全市场覆盖率、行情时间、模型预期净收益、盈利概率、大亏概率和
+阻断原因。Token只保存在`v3/.env`，不得提交到版本库。
+
+## 严格数据、回测与发布顺序
+
+历史15:00代理数据与真实严格数据分别保存；任何生产训练只能读取
+`strict_dataset.csv.gz`。禁止调用旧的无标签重建路径。准入顺序固定为：
+
+```powershell
+.\.venv\Scripts\python.exe phase1\scripts\build_overnight_dataset.py
+.\.venv\Scripts\python.exe phase1\scripts\walk_forward.py --dataset-mode strict
+.\.venv\Scripts\python.exe phase1\scripts\walk_forward.py --dataset-mode strict --stress
+.\.venv\Scripts\python.exe phase1\scripts\train_model.py --dataset-mode strict
+```
+
+压力测试必须逐窗口冻结普通Walk-Forward的原策略，且报告、窗口策略、严格
+数据集和最终模型的SHA256血缘必须完全一致。最终模型保留尾部独立验证期和
+最新日期embargo；`--force`只能在`model/diagnostic`生成`research_only`
+诊断产物，永远不能写生产发布清单。只有`published_model.json`最后原子发布后，
+运行时才会用已发布模型对完整合格A股股票池向量化排序Top1。
+
+## 本机安装与定时任务
+
+锁定依赖位于`phase1/requirements-lock.txt`：
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r phase1\requirements-lock.txt
+```
+
+任务注册脚本保留所有既有任务名，并使用S4U、`StartWhenAvailable`和严格时间
+窗保护。覆盖现有任务需要管理员PowerShell（普通终端会得到Access denied）：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File phase1\scripts\register_v4_snapshot_tasks.ps1
+```
+
+迟到启动的09:25/14:50任务会拒绝推送，迟到的严格采集也会拒绝写样本。
+看板GET请求只读本地缓存，不会触发行情抓取、重新选股或污染确认快照。

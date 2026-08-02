@@ -16,8 +16,10 @@ ROOT = BASE.parent
 sys.path.insert(0, str(ROOT))
 
 from v3.data import DataFetcher
+from market_universe import list_universe_codes
 from phase1.overnight.quote_capture import fetch_quotes_with_retries
 from v4.execution import TradingClock
+from v4.calendar import TradingCalendar
 from v4.snapshots import capture_frame
 
 
@@ -34,14 +36,13 @@ def main() -> int:
     started_at = TradingClock.now()
     status = TradingClock.action_status(args.session, now=started_at)
     if not args.allow_outside_window and not status.allowed:
+        if TradingCalendar().is_open(started_at.date()) is not True:
+            print(f"非开放交易日，跳过采集: {started_at.date().isoformat()}")
+            return 0
         print(f"拒绝采集: {status.reason}")
         return 2
 
-    codes = sorted(
-        path.stem.zfill(6)
-        for path in (BASE / "data" / "daily").glob("*.csv")
-        if not path.stem.startswith(("688", "8", "4"))
-    )
+    codes = list_universe_codes(BASE / "data" / "daily")
     quotes, fetch_report = fetch_quotes_with_retries(
         DataFetcher(),
         codes,
@@ -68,6 +69,7 @@ def main() -> int:
             minimum_coverage=0.95,
             capture_metadata=fetch_report,
             require_order_book=True,
+            capture_role="scheduled_probe",
         )
         if output is None:
             print("行情覆盖不足95%、时间戳不新鲜或价格无效；未写入严格快照")

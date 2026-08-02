@@ -9,7 +9,7 @@ $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
 
 $principal = New-ScheduledTaskPrincipal `
     -UserId $identity `
-    -LogonType Interactive `
+    -LogonType S4U `
     -RunLevel Limited
 
 $specifications = @(
@@ -86,6 +86,7 @@ foreach ($specification in $specifications) {
         -AllowStartIfOnBatteries `
         -DontStopIfGoingOnBatteries `
         -WakeToRun `
+        -StartWhenAvailable `
         -ExecutionTimeLimit (New-TimeSpan -Minutes $executionMinutes) `
         -MultipleInstances IgnoreNew
     $action = New-ScheduledTaskAction `

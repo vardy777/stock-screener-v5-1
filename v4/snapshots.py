@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import hashlib
 import json
 from pathlib import Path
 from typing import Optional
@@ -25,6 +26,7 @@ def capture_frame(
     minimum_coverage: float = 0.95,
     capture_metadata: Optional[dict] = None,
     require_order_book: bool = False,
+    capture_role: str = "strict_probe",
 ) -> Optional[Path]:
     """Save non-mock quotes only inside the corresponding execution window."""
 
@@ -39,7 +41,7 @@ def capture_frame(
     if not status.allowed or frame is None or frame.empty:
         return None
     snapshot = frame.copy()
-    if not {"code", "price", "quote_time"}.issubset(snapshot.columns):
+    if not {"code", "name", "price", "quote_time"}.issubset(snapshot.columns):
         return None
     snapshot["code"] = (
         snapshot["code"].astype(str).str.extract(r"(\d+)", expand=False).str.zfill(6)
@@ -98,14 +100,22 @@ def capture_frame(
     snapshot["is_mock"] = False
     snapshot["quote_is_fresh"] = True
     snapshot["window_valid"] = True
+    snapshot["capture_role"] = str(capture_role)
     output_dir = SNAPSHOT_ROOT / session
     output_dir.mkdir(parents=True, exist_ok=True)
     output = output_dir / f"{current:%Y-%m-%d_%H%M%S}.csv"
     temporary = output.with_suffix(output.suffix + ".tmp")
     snapshot.to_csv(temporary, index=False)
     temporary.replace(output)
+    data_sha256 = hashlib.sha256(output.read_bytes()).hexdigest()
+    universe_sha256 = hashlib.sha256(
+        "\n".join(sorted(expected)).encode("utf-8")
+    ).hexdigest() if expected else ""
     manifest = {
-        "contract_version": "strict-execution-snapshot-v1",
+        "contract_version": "strict-execution-snapshot-v2",
+        "data_file": output.name,
+        "data_sha256": data_sha256,
+        "expected_universe_sha256": universe_sha256,
         "session": session,
         "captured_at": current.isoformat(timespec="seconds"),
         "expected_codes": len(expected) if expected else None,
@@ -116,6 +126,7 @@ def capture_frame(
         "order_book_required": bool(require_order_book),
         "order_book_verified_rows": int(snapshot["order_book_verified"].sum()),
         "window_valid": True,
+        "capture_role": str(capture_role),
     }
     if capture_metadata:
         manifest["fetch"] = capture_metadata

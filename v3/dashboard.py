@@ -1186,10 +1186,10 @@ function apiCall(url, label) {{
 # ── State 缓存 (避免每次 API 请求都全量扫描) ──
 _cache_state = None
 _cache_time = None
-_cache_ttl = 0  # 禁用缓存，确保每次都是最新数据
+_cache_ttl = 5
 
 def _fresh_engine_state(mode: str = 'chase', force: bool = False) -> dict:
-    """创建全新引擎, 加载状态, 选股, 返回含 P0/P1 数据的完整 state"""
+    """读取本地状态；看板GET请求绝不触发行情抓取或重新选股。"""
     global _cache_state, _cache_time
     
     # 使用缓存避免超时
@@ -1201,16 +1201,16 @@ def _fresh_engine_state(mode: str = 'chase', force: bool = False) -> dict:
     engine = SimulationEngine()
     engine.load_state()
     
+    candidates = engine.load_candidates_from_file()
     if mode == 'pullback':
-        candidates = _screen_pullback_candidates()
-        state = engine.get_state()
-        state['candidates'] = candidates
-    else:
-        try:
-            engine.screen_today()
-        except Exception as e:
-            logger.warning(f'screen_today failed: {e}')
-        state = engine.get_state()
+        candidates = [
+            item for item in candidates if item.get('strategy') == '回调'
+        ]
+    state = engine.get_state()
+    state['candidates'] = candidates
+    cached_market = engine.load_market_state_from_file()
+    if cached_market:
+        state['market_state'] = cached_market
     
     # P0: 板块排名
     if 'sector_ranks' not in state or not state.get('sector_ranks', {}).get('top'):
@@ -1278,13 +1278,10 @@ def _screen_pullback_candidates() -> list:
         from v3.data import DataFetcher
         df = DataFetcher()
         
-        # 获取行情: 覆盖主要代码区间
-        codes = (
-            [f'{i:06d}' for i in range(1, 2000)]         # 深主板
-            + [f'6{i:05d}' for i in range(0, 1000)]     # 沪主板
-            + [f'3{i:05d}' for i in range(0, 2000)]     # 创业板
-            + [f'2{i:05d}' for i in range(0, 1000)]     # 中小板
-        )
+        from market_universe import list_universe_codes
+        codes = list_universe_codes(PROJECT_ROOT / 'phase1' / 'data' / 'daily')
+        if not codes:
+            return []
         quotes = df.batch_fetch_quotes(codes)
         
         if quotes is None or quotes.empty:

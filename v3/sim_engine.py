@@ -532,7 +532,10 @@ class BuyDecision:
         # 3. 评分门槛 + 行业分散；不足80分时保持空仓。
         candidates = [
             cand for cand in candidates
-            if float(cand.get('final_score', cand.get('score', 0)) or 0) >= 80.0
+            if (
+                bool(cand.get('v4_model_ranked'))
+                or float(cand.get('final_score', cand.get('score', 0)) or 0) >= 80.0
+            )
             and cand.get('v4_tradable', True) is not False
             and (
                 cand.get('predicted_positive_probability') is None

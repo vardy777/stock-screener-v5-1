@@ -79,12 +79,13 @@ class CaptureHealthTests(unittest.TestCase):
         }
         row.update({column: 0.0 for column in FEATURE_COLUMNS})
         manifest = {
-            "contract_version": "strict-signal-snapshot-v1",
+            "contract_version": "strict-signal-snapshot-v2",
             "captured_at": now.isoformat(),
             "expected_context_codes": 1,
             "strict_feature_rows": 1,
             "strict_feature_coverage": 1.0,
             "causal_quote_time_required": True,
+            "expected_universe_sha256": "a" * 64,
         }
         with tempfile.TemporaryDirectory() as temp_dir:
             output = (

@@ -155,6 +155,7 @@ class LightGBMSignalModel:
         self.positive_model = lgb.LGBMClassifier(objective="binary", **common)
         self.hit_model = lgb.LGBMClassifier(objective="binary", **common)
         self.loss_model = lgb.LGBMClassifier(objective="binary", **common)
+        self.constant_probabilities = {}
 
     def _matrix(self, frame: pd.DataFrame) -> pd.DataFrame:
         return (
@@ -176,19 +177,41 @@ class LightGBMSignalModel:
         ).astype(int)
         losses = pd.to_numeric(frame["large_loss"], errors="coerce").fillna(0).astype(int)
         self.return_model.fit(matrix, returns)
-        self.positive_model.fit(matrix, positive)
-        self.hit_model.fit(matrix, hits)
-        self.loss_model.fit(matrix, losses)
+        for name, model, target in (
+            ("positive", self.positive_model, positive),
+            ("hit", self.hit_model, hits),
+            ("loss", self.loss_model, losses),
+        ):
+            unique = pd.Series(target).dropna().unique()
+            if len(unique) < 2:
+                self.constant_probabilities[name] = float(unique[0]) if len(unique) else 0.0
+            else:
+                model.fit(matrix, target)
         return self
+
+    def _probability(self, name: str, model, matrix: pd.DataFrame) -> np.ndarray:
+        if name in self.constant_probabilities:
+            return np.full(len(matrix), self.constant_probabilities[name], dtype=float)
+        probabilities = np.asarray(model.predict_proba(matrix), dtype=float)
+        classes = list(getattr(model, "classes_", []))
+        if 1 not in classes:
+            return np.zeros(len(matrix), dtype=float)
+        return probabilities[:, classes.index(1)]
 
     def predict(self, frame: pd.DataFrame) -> pd.DataFrame:
         matrix = self._matrix(frame)
         return pd.DataFrame(
             {
                 "predicted_return": self.return_model.predict(matrix),
-                "predicted_positive_probability": self.positive_model.predict_proba(matrix)[:, 1],
-                "predicted_hit_probability": self.hit_model.predict_proba(matrix)[:, 1],
-                "predicted_large_loss_probability": self.loss_model.predict_proba(matrix)[:, 1],
+                "predicted_positive_probability": self._probability(
+                    "positive", self.positive_model, matrix
+                ),
+                "predicted_hit_probability": self._probability(
+                    "hit", self.hit_model, matrix
+                ),
+                "predicted_large_loss_probability": self._probability(
+                    "loss", self.loss_model, matrix
+                ),
             },
             index=frame.index,
         )

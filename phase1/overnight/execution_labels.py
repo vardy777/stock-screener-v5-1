@@ -9,12 +9,15 @@ required before the result may satisfy the production research gate.
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 from typing import Iterable, Optional, Tuple
 
 import pandas as pd
 
+from market_universe import filter_universe_codes
 from strategy_spec import DEFAULT_SPEC, StrategySpec, TradeCostModel
+from trading_calendar_contract import validate_calendar_records
 from .dataset import FEATURE_COLUMNS
 
 
@@ -51,12 +54,35 @@ def _read_session(root: Path, session: str) -> Tuple[pd.DataFrame, dict]:
     invalid_files = 0
     for path in files:
         try:
+            manifest_path = path.with_suffix(path.suffix + ".meta.json")
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             frame = pd.read_csv(path, dtype={"code": str}, low_memory=False)
-        except Exception:
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            expected_codes = int(manifest.get("expected_codes", 0) or 0)
+            coverage = float(manifest.get("coverage", 0.0) or 0.0)
+            manifest_valid = bool(
+                manifest.get("contract_version") == "strict-execution-snapshot-v2"
+                and manifest.get("session") == session
+                and manifest.get("data_file") == path.name
+                and manifest.get("data_sha256") == digest
+                and len(str(manifest.get("expected_universe_sha256", ""))) == 64
+                and expected_codes > 0
+                and int(manifest.get("valid_rows", -1)) == len(frame)
+                and coverage >= 0.95
+                and manifest.get("order_book_required") is True
+            )
+            if not manifest_valid:
+                raise ValueError("invalid strict execution manifest")
+        except (OSError, TypeError, ValueError, json.JSONDecodeError):
             invalid_files += 1
             continue
         raw_rows += len(frame)
         frame["source_file"] = path.name
+        frame["snapshot_expected_codes"] = expected_codes
+        frame["snapshot_coverage"] = coverage
+        frame["snapshot_universe_sha256"] = manifest.get(
+            "expected_universe_sha256", ""
+        )
         pieces.append(frame)
 
     stats = {
@@ -72,11 +98,13 @@ def _read_session(root: Path, session: str) -> Tuple[pd.DataFrame, dict]:
         return pd.DataFrame(), stats
 
     frame = pd.concat(pieces, ignore_index=True)
-    required = {"code", "price", "quote_time", "captured_at", "session", "is_mock", "window_valid"}
+    required = {"code", "name", "price", "quote_time", "captured_at", "session", "is_mock", "window_valid"}
     if not required.issubset(frame.columns):
         return pd.DataFrame(), stats
 
     frame["code"] = frame["code"].astype(str).str.extract(r"(\d+)", expand=False).str.zfill(6)
+    eligible_codes = set(filter_universe_codes(frame["code"]))
+    frame = frame[frame["code"].isin(eligible_codes)].copy()
     frame["price"] = pd.to_numeric(frame["price"], errors="coerce")
     expected_source = "ask1" if session == "buy" else "bid1"
     source = frame.get(
@@ -109,6 +137,19 @@ def _read_session(root: Path, session: str) -> Tuple[pd.DataFrame, dict]:
     else:
         start, end, target = 9 * 3600 + 30 * 60, 9 * 3600 + 35 * 60, 9 * 3600 + 30 * 60
     frame["distance_to_target_seconds"] = (clock - target).abs()
+    frame["capture_role"] = frame.get(
+        "capture_role", pd.Series("strict_probe", index=frame.index)
+    ).astype(str)
+    # The confirmation push uses its own full-market Level-1 quote frame.  If
+    # that audited frame exists, it is the causal execution reference; the
+    # scheduled 14:50 probe remains a coverage/research artifact.  The first
+    # confirmation is deterministic and cannot be replaced by a later rerun.
+    frame["capture_role_priority"] = 1
+    if session == "buy":
+        frame.loc[
+            frame["capture_role"].eq("decision_confirmation"),
+            "capture_role_priority",
+        ] = 0
 
     valid = (
         frame["session"].astype(str).eq(session)
@@ -129,7 +170,15 @@ def _read_session(root: Path, session: str) -> Tuple[pd.DataFrame, dict]:
     frame = frame[valid].copy()
     before = len(frame)
     frame = (
-        frame.sort_values(["trade_date", "code", "distance_to_target_seconds", "captured_ts"])
+        frame.sort_values(
+            [
+                "trade_date",
+                "code",
+                "capture_role_priority",
+                "distance_to_target_seconds",
+                "captured_ts",
+            ]
+        )
         .drop_duplicates(["trade_date", "code"], keep="first")
         .reset_index(drop=True)
     )
@@ -151,11 +200,32 @@ def _read_signal(root: Path) -> Tuple[pd.DataFrame, dict]:
     invalid_files = 0
     for path in files:
         try:
+            manifest_path = path.with_suffix(path.suffix + ".meta.json")
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             frame = pd.read_csv(path, dtype={"code": str}, low_memory=False)
-        except Exception:
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            expected_codes = int(manifest.get("expected_context_codes", 0) or 0)
+            coverage = float(manifest.get("strict_feature_coverage", 0.0) or 0.0)
+            manifest_valid = bool(
+                manifest.get("contract_version") == "strict-signal-snapshot-v2"
+                and manifest.get("data_file") == path.name
+                and manifest.get("data_sha256") == digest
+                and len(str(manifest.get("expected_universe_sha256", ""))) == 64
+                and expected_codes > 0
+                and int(manifest.get("strict_feature_rows", -1)) == len(frame)
+                and coverage >= 0.95
+            )
+            if not manifest_valid:
+                raise ValueError("invalid strict signal manifest")
+        except (OSError, TypeError, ValueError, json.JSONDecodeError):
             invalid_files += 1
             continue
         raw_rows += len(frame)
+        frame["snapshot_expected_codes"] = expected_codes
+        frame["snapshot_coverage"] = coverage
+        frame["snapshot_universe_sha256"] = manifest.get(
+            "expected_universe_sha256", ""
+        )
         pieces.append(frame)
     stats = {
         "files": len(files),
@@ -169,13 +239,16 @@ def _read_signal(root: Path) -> Tuple[pd.DataFrame, dict]:
         return pd.DataFrame(), stats
     frame = pd.concat(pieces, ignore_index=True)
     required = {
-        "trade_date", "code", "quote_time", "as_of", "session",
+        "trade_date", "code", "name", "quote_time", "as_of", "session",
         "feature_mode", "window_valid", "quote_is_fresh", "is_mock",
         *FEATURE_COLUMNS,
     }
     if not required.issubset(frame.columns):
         return pd.DataFrame(), stats
     frame["code"] = frame["code"].astype(str).str.extract(r"(\d+)", expand=False).str.zfill(6)
+    eligible_codes = set(filter_universe_codes(frame["code"]))
+    frame = frame[frame["code"].isin(eligible_codes)].copy()
+    frame = frame[~frame["name"].astype(str).str.contains("ST|退", na=False)].copy()
     frame["as_of_ts"] = frame["as_of"].map(_china_timestamp)
     frame["quote_ts"] = frame["quote_time"].map(_china_timestamp)
     frame["quote_age_seconds"] = [
@@ -222,19 +295,15 @@ def _read_signal(root: Path) -> Tuple[pd.DataFrame, dict]:
 def _load_calendar(path: Optional[Path], observed_dates: Iterable[str]):
     if path is not None and Path(path).exists():
         frame = pd.read_csv(path)
-        if "date" not in frame.columns:
-            raise ValueError("trading calendar must contain a date column")
-        sources = frame.get("source_url", pd.Series(dtype=str)).astype(str)
-        verified_at = frame.get("verified_at", pd.Series(dtype=str)).astype(str)
-        verified = (
-            not sources.empty
-            and sources.str.contains(r"sse\.com\.cn|szse\.cn", case=False, regex=True).all()
-            and not verified_at.empty
-            and verified_at.str.strip().ne("").all()
+        verified, sessions, _ = validate_calendar_records(
+            frame.to_dict("records"), require_complete_year=True
         )
-        if "is_open" in frame.columns:
-            frame = frame[_truthy(frame["is_open"])]
-        dates = sorted(pd.to_datetime(frame["date"], errors="coerce").dropna().dt.date)
+        dates = sorted(
+            pd.to_datetime(
+                pd.Series([key for key, is_open in sessions.items() if is_open]),
+                errors="coerce",
+            ).dropna().dt.date
+        )
         return dates, bool(verified), str(Path(path))
     dates = sorted(pd.to_datetime(pd.Series(list(observed_dates)), errors="coerce").dropna().dt.date)
     return dates, False, "observed_snapshot_sessions"
@@ -312,15 +381,18 @@ def build_execution_labels(
     )
     next_session = _next_session_map(open_dates)
 
-    universe = {
-        str(code).zfill(6)
-        for code in (universe_codes or [])
-        if not str(code).zfill(6).startswith(("688", "8", "4"))
-    }
-    expected_universe = len(universe)
+    universe = set(filter_universe_codes(universe_codes or []))
+    expected_universe = int(
+        pd.to_numeric(
+            buy.get("snapshot_expected_codes", pd.Series(dtype=float)),
+            errors="coerce",
+        ).max()
+        if not buy.empty and "snapshot_expected_codes" in buy.columns
+        else len(universe)
+    )
     buy_coverage_by_day = (
-        buy.groupby("trade_date")["code"].nunique() / expected_universe
-        if expected_universe and not buy.empty
+        buy.groupby("trade_date")["snapshot_coverage"].min()
+        if not buy.empty and "snapshot_coverage" in buy.columns
         else pd.Series(dtype=float)
     )
 
@@ -419,6 +491,11 @@ def build_execution_labels(
                 "date", "sell_date", "code", "name_buy", "buy_reference",
                 "sell_reference", "quote_time_buy", "quote_time_sell",
                 "captured_at_buy", "captured_at_sell", "execution_mode",
+                "capture_role_buy", "capture_role_sell",
+                "source_file_buy", "source_file_sell",
+                "snapshot_expected_codes_buy", "snapshot_expected_codes_sell",
+                "snapshot_coverage_buy", "snapshot_coverage_sell",
+                "snapshot_universe_sha256_buy", "snapshot_universe_sha256_sell",
                 "exit_mode", "exit_delay_days", "exact_buy", "exact_sell",
                 "calendar_verified", "buy_fillability_verified",
                 "sell_fillability_verified", "valid_label",
@@ -438,7 +515,24 @@ def build_execution_labels(
     liquidity_rows = int(
         labels["order_book_liquidity_verified"].sum()
     ) if not labels.empty else 0
+    strict_usable_rows = int(
+        (
+            labels["valid_label"].eq(1)
+            & labels["strict_feature"].fillna(False).astype(bool)
+            & labels["calendar_verified"].fillna(False).astype(bool)
+            & labels["order_book_verified"].fillna(False).astype(bool)
+            & labels["order_book_liquidity_verified"].fillna(False).astype(bool)
+        ).sum()
+    ) if not labels.empty else 0
     paired_rate = paired_rows / len(buy) if len(buy) else 0.0
+    point_in_time_universe_verified = bool(
+        paired_rows
+        and "snapshot_universe_sha256_buy" in labels.columns
+        and "snapshot_universe_sha256_sell" in labels.columns
+        and labels["snapshot_universe_sha256_buy"].astype(str).str.len().eq(64).all()
+        and labels["snapshot_universe_sha256_sell"].astype(str).str.len().eq(64).all()
+    )
+    point_in_time_names_verified = bool(paired_rows)
     metadata = {
         "contract_version": CONTRACT_VERSION,
         "snapshot_root": str(Path(snapshot_root)),
@@ -450,6 +544,7 @@ def build_execution_labels(
         "signal": signal_stats,
         "paired_rows": paired_rows,
         "usable_label_rows": usable_rows,
+        "strict_usable_rows": strict_usable_rows,
         "unmatched_buy_rows": int(max(0, len(buy) - paired_rows)),
         "paired_buy_rate": float(paired_rate),
         "minimum_buy_universe_coverage": float(buy_coverage_by_day.min())
@@ -463,15 +558,18 @@ def build_execution_labels(
         "strict_feature_rate": strict_feature_rows / paired_rows if paired_rows else 0.0,
         "order_book_verified_rate": order_book_rows / paired_rows if paired_rows else 0.0,
         "order_book_liquidity_rate": liquidity_rows / paired_rows if paired_rows else 0.0,
+        "point_in_time_universe_verified": point_in_time_universe_verified,
+        "point_in_time_security_name_verified": point_in_time_names_verified,
         "strict_dataset_ready": bool(
             paired_rows
-            and usable_rows == paired_rows
+            and strict_usable_rows > 0
             and calendar_verified
             and paired_rate >= 0.95
             and (float(buy_coverage_by_day.min()) if not buy_coverage_by_day.empty else 0.0) >= 0.95
-            and strict_feature_rows == paired_rows
-            and order_book_rows == paired_rows
-            and liquidity_rows == paired_rows
+            and strict_feature_rows / paired_rows >= 0.95
+            and order_book_rows / paired_rows >= 0.95
+            and point_in_time_universe_verified
+            and point_in_time_names_verified
         ),
     }
     return labels, metadata

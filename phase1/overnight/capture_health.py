@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from datetime import date
 from pathlib import Path
 
@@ -81,7 +82,7 @@ def evaluate_capture_session(root: Path, session: str, trade_date: str) -> dict:
         )
         actual_coverage = len(frame) / expected if expected else 0.0
         required = {
-            "code", "quote_time",
+            "code", "name", "quote_time",
             "captured_at" if session in {"buy", "sell"} else "as_of",
         }
         schema_ok = required.issubset(frame.columns)
@@ -101,6 +102,11 @@ def evaluate_capture_session(root: Path, session: str, trade_date: str) -> dict:
             and codes.str.fullmatch(r"\d{6}").all()
             and not codes.duplicated().any()
         )
+        names_ok = bool(
+            "name" in frame.columns
+            and frame["name"].astype(str).str.strip().ne("").all()
+            and not frame["name"].astype(str).str.contains("ST|退", na=False).any()
+        )
         manifest_capture = pd.Series([manifest.get("captured_at")])
         manifest_window_ok = _in_session_window(
             manifest_capture, session, trade_date
@@ -110,10 +116,21 @@ def evaluate_capture_session(root: Path, session: str, trade_date: str) -> dict:
             or manifest.get("strict_feature_rows")
             or 0
         )
+        try:
+            artifact_hash = hashlib.sha256(path.read_bytes()).hexdigest()
+        except OSError:
+            artifact_hash = ""
+        artifact_ok = bool(
+            manifest.get("data_file") == path.name
+            and len(str(manifest.get("data_sha256", ""))) == 64
+            and manifest.get("data_sha256") == artifact_hash
+            and len(str(manifest.get("expected_universe_sha256", ""))) == 64
+        )
         manifest_ok = bool(
             manifest.get("causal_quote_time_required") is True
             and manifest_window_ok
             and manifest_rows == len(frame)
+            and artifact_ok
         )
         if session in {"buy", "sell"}:
             expected_source = "ask1" if session == "buy" else "bid1"
@@ -135,7 +152,7 @@ def evaluate_capture_session(root: Path, session: str, trade_date: str) -> dict:
                 and _truthy(frame["quote_is_fresh"]).all()
                 and (~_truthy(frame["is_mock"])).all()
                 and manifest.get("contract_version")
-                == "strict-execution-snapshot-v1"
+                == "strict-execution-snapshot-v2"
                 and manifest.get("session") == session
                 and manifest.get("order_book_required") is True
                 and _safe_int(manifest.get("order_book_verified_rows", 0))
@@ -160,7 +177,7 @@ def evaluate_capture_session(root: Path, session: str, trade_date: str) -> dict:
                 and (~_truthy(frame["is_mock"])).all()
                 and np.isfinite(feature_values.to_numpy(dtype=float)).all()
                 and manifest.get("contract_version")
-                == "strict-signal-snapshot-v1"
+                == "strict-signal-snapshot-v2"
             )
         coverage = min(reported_coverage, actual_coverage)
         passed = bool(
@@ -169,6 +186,7 @@ def evaluate_capture_session(root: Path, session: str, trade_date: str) -> dict:
             and causal
             and window_ok
             and codes_ok
+            and names_ok
             and manifest_ok
             and book_ok
             and coverage >= 0.95
@@ -184,7 +202,9 @@ def evaluate_capture_session(root: Path, session: str, trade_date: str) -> dict:
                 "causal": causal,
                 "window_ok": window_ok,
                 "codes_ok": codes_ok,
+                "names_ok": names_ok,
                 "manifest_ok": manifest_ok,
+                "artifact_hash_ok": artifact_ok,
                 "order_book_ok": book_ok,
                 "passed": passed,
             }

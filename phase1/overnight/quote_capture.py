@@ -10,7 +10,13 @@ import pandas as pd
 from v4.execution import TradingClock
 
 
-def _normalise(frame: Optional[pd.DataFrame], expected: set[str]) -> pd.DataFrame:
+def _normalise(
+    frame: Optional[pd.DataFrame],
+    expected: set[str],
+    action: str,
+    *,
+    now,
+) -> pd.DataFrame:
     if frame is None or frame.empty or "code" not in frame.columns:
         return pd.DataFrame()
     result = frame.copy()
@@ -18,6 +24,28 @@ def _normalise(frame: Optional[pd.DataFrame], expected: set[str]) -> pd.DataFram
         result["code"].astype(str).str.extract(r"(\d+)", expand=False).str.zfill(6)
     )
     result = result[result["code"].isin(expected)]
+    required = {"price", "quote_time"}
+    if action == "buy":
+        required.update({"ask1", "ask1_volume"})
+    elif action == "sell":
+        required.update({"bid1", "bid1_volume"})
+    if not required.issubset(result.columns):
+        return pd.DataFrame()
+    result["price"] = pd.to_numeric(result["price"], errors="coerce")
+    result = result[result["price"].gt(0)]
+    if action in {"buy", "sell"}:
+        price_column = "ask1" if action == "buy" else "bid1"
+        volume_column = "ask1_volume" if action == "buy" else "bid1_volume"
+        result[price_column] = pd.to_numeric(result[price_column], errors="coerce")
+        result[volume_column] = pd.to_numeric(result[volume_column], errors="coerce")
+        result = result[
+            result[price_column].gt(0) & result[volume_column].gt(0)
+        ]
+    result = result[
+        result["quote_time"].map(
+            lambda value: TradingClock.quote_is_fresh(value, now=now)
+        )
+    ]
     return result.drop_duplicates("code", keep="last").reset_index(drop=True)
 
 
@@ -58,10 +86,15 @@ def fetch_quotes_with_retries(
         requested = sorted(expected - seen)
         if not requested:
             break
-        response = _normalise(fetcher.batch_fetch_quotes(requested), expected)
+        response = _normalise(
+            fetcher.batch_fetch_quotes(requested), expected, action, now=current
+        )
         if not response.empty:
             combined = _normalise(
-                pd.concat([combined, response], ignore_index=True), expected
+                pd.concat([combined, response], ignore_index=True),
+                expected,
+                action,
+                now=current,
             )
         coverage = len(combined) / len(expected) if expected else 0.0
         attempts.append(

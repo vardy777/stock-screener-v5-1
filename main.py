@@ -474,6 +474,7 @@ def cmd_sim_plan(*, engine=None, runtime=None, output_path=None):
             ),
             'quote_time': candidate.get('quote_time'),
             'v4_tradable': candidate.get('v4_tradable', False),
+            'v4_model_ranked': candidate.get('v4_model_ranked', False),
             'v4_decision': candidate.get('v4_decision', '观察/空仓'),
             'v4_block_reasons': candidate.get('v4_block_reasons', []),
             'predicted_positive_probability': candidate.get(

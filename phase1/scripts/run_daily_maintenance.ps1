@@ -20,7 +20,7 @@ $env:PYTHONIOENCODING = "utf-8"
 try {
     $startInfo = New-Object System.Diagnostics.ProcessStartInfo
     $startInfo.FileName = $python
-    $startInfo.Arguments = '"phase1\scripts\prepare_next_session.py"'
+    $startInfo.Arguments = '-X utf8 "phase1\scripts\prepare_next_session.py"'
     $startInfo.WorkingDirectory = $projectRoot
     $startInfo.UseShellExecute = $false
     $startInfo.CreateNoWindow = $true

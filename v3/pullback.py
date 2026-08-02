@@ -21,6 +21,7 @@ V3 回调选股引擎 — PullbackEngine
 
 import logging
 import time
+from pathlib import Path
 import numpy as np
 import pandas as pd
 from typing import Optional, List, Dict, Any
@@ -323,6 +324,7 @@ class PullbackEngine:
                 'buy_price': round(price_val * 1.002, 2),
                 'strategy': '回调',
                 'rank': rank,
+                'quote_time': row.get('quote_time'),
                 # 额外诊断信息
                 '_near_5d': round(float(row.get('near_5d_return', 0)), 2),
                 '_vol_ratio': round(float(row.get('volume_ratio', 1)), 3),
@@ -860,18 +862,34 @@ class PullbackEngine:
     # ══════════════════════════════════════════════════════════
 
     def _fetch_kline(self, code: str) -> Optional[pd.DataFrame]:
-        """获取单只股票的K线数据"""
-        if DataFetcher is None:
-            logger.warning(f"DataFetcher 不可用, 无法获取 {code} K线")
-            return None
-
+        """从本地维护的小时档案构造日K，避免尾盘逐股网络请求。"""
         try:
-            fetcher = DataFetcher()
-            kline = fetcher.fetch_kline(code, days=self.KLINE_DAYS)
-            if kline is not None and len(kline) >= 10:
-                return kline
+            root = Path(__file__).resolve().parent.parent
+            path = root / "phase1" / "data" / "daily" / f"{str(code).zfill(6)}.csv"
+            if not path.exists():
+                return None
+            raw = pd.read_csv(path, low_memory=False)
+            required = {"date", "open", "high", "low", "close", "volume"}
+            if not required.issubset(raw.columns):
+                return None
+            raw["timestamp"] = pd.to_datetime(raw["date"], errors="coerce")
+            raw = raw.dropna(subset=["timestamp"]).sort_values("timestamp")
+            for column in ("open", "high", "low", "close", "volume"):
+                raw[column] = pd.to_numeric(raw[column], errors="coerce")
+            raw = raw.dropna(subset=["open", "high", "low", "close", "volume"])
+            raw["session_date"] = raw["timestamp"].dt.normalize()
+            kline = raw.groupby("session_date", as_index=False).agg(
+                date=("session_date", "first"),
+                open=("open", "first"),
+                high=("high", "max"),
+                low=("low", "min"),
+                close=("close", "last"),
+                volume=("volume", "sum"),
+            ).tail(self.KLINE_DAYS)
+            if len(kline) >= 10:
+                return kline.reset_index(drop=True)
         except Exception as e:
-            logger.warning(f"获取 {code} K线失败: {e}")
+            logger.warning(f"读取 {code} 本地K线失败: {e}")
 
         return None
 

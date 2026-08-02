@@ -28,7 +28,7 @@ $env:PYTHONIOENCODING = "utf-8"
 try {
     $startInfo = New-Object System.Diagnostics.ProcessStartInfo
     $startInfo.FileName = $python
-    $startInfo.Arguments = '"phase1\scripts\verify_capture_health.py" --trade-date {0} --sessions "{1}"' -f $tradeDate, $sessions
+    $startInfo.Arguments = '-X utf8 "phase1\scripts\verify_capture_health.py" --trade-date {0} --sessions "{1}" --notify-failure' -f $tradeDate, $sessions
     $startInfo.WorkingDirectory = $projectRoot
     $startInfo.UseShellExecute = $false
     $startInfo.CreateNoWindow = $true
