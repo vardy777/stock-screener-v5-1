@@ -285,10 +285,12 @@ class FullUniverseRuntimeTests(unittest.TestCase):
             ]
         )
         engine = SimulationEngine()
-        with patch(
-            "v4.execution.TradingClock.quote_is_fresh", return_value=True
-        ):
-            state = engine._get_market_state(quotes, expected_codes=2)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with (
+                patch("v4.execution.TradingClock.quote_is_fresh", return_value=True),
+                patch("v4.market.MARKET_CACHE_PATH", Path(temp_dir) / "market.json"),
+            ):
+                state = engine._get_market_state(quotes, expected_codes=2)
         self.assertEqual(state["quote_coverage"], 0.5)
         self.assertFalse(state["data_valid"])
 

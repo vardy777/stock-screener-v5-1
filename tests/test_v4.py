@@ -3,13 +3,15 @@ import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 
 from v4.execution import CHINA_TZ, TradingClock
 from v4.readiness import ResearchReadiness
 from v4.runtime import V4Runtime
+from v4.selection import V4CandidateSelector
 from v4.snapshots import capture_frame
 
 
@@ -65,14 +67,111 @@ class V4Tests(unittest.TestCase):
             "score": 92.0,
             "rank": 1,
             "quote_time": TradingClock.now().isoformat(),
+            "v4_candidate_origin": "V4",
+            "v4_research_ranked": True,
         }
-        result = runtime.evaluate_candidates(
-            [candidate], {"mode_label": "neutral", "advance_ratio": 0.6}
-        )
+        with patch("v4.runtime.save_runtime_state"):
+            result = runtime.evaluate_candidates(
+                [candidate], {"mode_label": "neutral", "advance_ratio": 0.6}
+            )
         self.assertEqual(len(result), 1)
         self.assertFalse(result[0]["v4_tradable"])
         self.assertIn("研究准入未通过", result[0]["v4_block_reasons"])
         self.assertIn("v4_shadow_confidence", result[0])
+
+    def test_runtime_ignores_legacy_fallback_candidates(self):
+        runtime = V4Runtime()
+        selector = MagicMock()
+        selector.select_research.return_value = [{
+            "code": "000001", "name": "V4候选", "price": 10.0,
+            "score": 88.0, "rank": 1,
+            "quote_time": "2026-08-03T09:25:00+08:00",
+            "v4_candidate_origin": "V4", "v4_research_ranked": True,
+            "candidate_source": "v4-causal-rule-rank-v1",
+        }]
+        selector.last_diagnostics = {
+            "status": "ranked", "source": "v4-causal-rule-rank-v1"
+        }
+        runtime.candidate_selector = selector
+        status = SimpleNamespace(
+            allowed=False, reason="不在买入窗口", to_dict=lambda: {}
+        )
+        with (
+            patch("v4.runtime.TradingClock.action_status", return_value=status),
+            patch("v4.runtime.TradingClock.quote_is_fresh", return_value=True),
+            patch("v4.runtime.save_runtime_state"),
+        ):
+            result = runtime.evaluate_universe(
+                pd.DataFrame([{"code": "000001"}]),
+                fallback_candidates=[{"code": "999999", "name": "旧候选"}],
+                market_state={"mode_label": "neutral", "data_valid": True},
+            )
+        self.assertEqual([item["code"] for item in result], ["000001"])
+        self.assertEqual(result[0]["v4_candidate_origin"], "V4")
+
+    def test_v4_research_selector_builds_candidates_from_full_market_context(self):
+        with TemporaryDirectory() as temp_dir:
+            context_path = Path(temp_dir) / "context.csv.gz"
+            base = {
+                "context_date": "2026-07-31",
+                "context_prev_close": 10.0,
+                "volume_mean_20": 1_000_000,
+                "ma5_base": 9.8,
+                "ma10_base": 9.7,
+                "ma20_base": 9.5,
+                "ret_1d": 0.01,
+                "ret_3d": 0.02,
+                "ret_5d": 0.03,
+                "ret_10d": 0.04,
+                "ret_20d": 0.05,
+                "volatility_20": 0.02,
+                "overnight_mean_20": 0.002,
+                "overnight_hit_1pct_20": 0.25,
+            }
+            context = pd.DataFrame([
+                {"code": "000001", **base},
+                {"code": "000002", **{**base, "ret_5d": 0.01}},
+                {"code": "000003", **{**base, "ret_5d": -0.01}},
+            ])
+            context.to_csv(context_path, index=False, compression="gzip")
+            context_path.with_suffix(context_path.suffix + ".meta.json").write_text(
+                json.dumps({
+                    "strict_context_ready": True,
+                    "expected_previous_session": "2026-07-31",
+                }),
+                encoding="utf-8",
+            )
+            quotes = pd.DataFrame([
+                {
+                    "code": f"00000{number}", "name": f"股票{number}",
+                    "price": 10.0 + number * 0.05, "prev_close": 10.0,
+                    "open": 10.0, "high": 10.2, "low": 9.9,
+                    "volume": 100_000 * number, "amount": 50_000_000 * number,
+                    "ask1": 10.01 + number * 0.05,
+                    "quote_time": "2026-08-03T09:25:00+08:00",
+                    "change_pct": number * 0.5,
+                }
+                for number in range(1, 4)
+            ])
+            selector = V4CandidateSelector(context_path=context_path)
+            with patch("v4.selection.TradingClock.quote_is_fresh", return_value=True):
+                result = selector.select_research(
+                    quotes,
+                    {
+                        "data_valid": True, "mode_label": "neutral",
+                        "advance_ratio": 0.60,
+                        "market_mean_signal_return": 0.002,
+                        "market_mean_gap": 0.0,
+                        "regime_score": 0.2,
+                        "fresh_quote_coverage": 1.0,
+                    },
+                    require_frozen_features=False,
+                )
+        self.assertTrue(result)
+        self.assertTrue(all(item["v4_candidate_origin"] == "V4" for item in result))
+        self.assertTrue(all(item["candidate_source"] == "v4-causal-rule-rank-v1" for item in result))
+        self.assertTrue(all(item["selection_stage"] == "morning_observation" for item in result))
+        self.assertEqual(selector.last_diagnostics["status"], "ranked")
 
     def test_snapshot_keeps_only_fresh_non_mock_rows_in_exact_window(self):
         now = datetime(2026, 8, 3, 14, 50, 30, tzinfo=CHINA_TZ)

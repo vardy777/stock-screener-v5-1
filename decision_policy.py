@@ -39,11 +39,11 @@ def adaptive_strategy_decision(
     market_state: Mapping[str, Any],
     sentiment: Optional[Mapping[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Choose a causal research lens from the current full-market snapshot.
+    """Route V4 research candidates from the current full-market snapshot.
 
-    This policy is deliberately deterministic and descriptive.  It may order
-    the legacy research pools on the dashboard, but it never overrides the V4
-    readiness gate or a published production model.
+    The policy is deterministic, causal and owned by V4.  It controls which
+    V4 research family may enter the observation ranking, but it never
+    overrides readiness, the published model, Top1, clock or risk gates.
     """
 
     state = market_state or {}
@@ -83,6 +83,7 @@ def adaptive_strategy_decision(
             "label": "观望 / 空仓",
             "confidence": 0.0,
             "candidate_strategies": [],
+            "candidate_strategy_keys": [],
             "reasons": [
                 f"可执行行情覆盖仅{coverage * 100:.1f}%",
                 "市场快照未通过时效与覆盖门槛",
@@ -98,6 +99,7 @@ def adaptive_strategy_decision(
             "label": "风险关闭 / 空仓",
             "confidence": round(min(1.0, abs(regime)), 3),
             "candidate_strategies": [],
+            "candidate_strategy_keys": [],
             "reasons": [
                 f"市场宽度{breadth * 100:.1f}%",
                 f"等权涨跌{market_return * 100:+.2f}%",
@@ -116,9 +118,10 @@ def adaptive_strategy_decision(
         return {
             **common,
             "key": "chase",
-            "label": "强势延续 / 追高观察",
+            "label": "V4强势延续",
             "confidence": round(min(1.0, 0.45 + max(0.0, regime - 0.35)), 3),
-            "candidate_strategies": ["追高"],
+            "candidate_strategies": ["V4强势延续"],
+            "candidate_strategy_keys": ["momentum"],
             "reasons": reasons,
         }
 
@@ -126,9 +129,10 @@ def adaptive_strategy_decision(
         return {
             **common,
             "key": "pullback",
-            "label": "分化回落 / 回调观察",
+            "label": "V4回撤修复",
             "confidence": round(min(1.0, 0.45 + abs(0.5 - breadth)), 3),
-            "candidate_strategies": ["回调"],
+            "candidate_strategies": ["V4回撤修复"],
+            "candidate_strategy_keys": ["pullback"],
             "reasons": [
                 f"市场宽度{breadth * 100:.1f}%",
                 f"等权涨跌{market_return * 100:+.2f}%",
@@ -139,9 +143,10 @@ def adaptive_strategy_decision(
     return {
         **common,
         "key": "balanced",
-        "label": "中性分化 / 双池精选",
+        "label": "V4双因子精选",
         "confidence": round(min(1.0, 0.4 + abs(regime) * 0.3), 3),
-        "candidate_strategies": ["追高", "回调"],
+        "candidate_strategies": ["V4强势延续", "V4回撤修复"],
+        "candidate_strategy_keys": ["momentum", "pullback"],
         "reasons": [
             f"市场宽度{breadth * 100:.1f}%",
             f"等权涨跌{market_return * 100:+.2f}%",

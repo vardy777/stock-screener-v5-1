@@ -1,4 +1,6 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 import pandas as pd
@@ -36,7 +38,8 @@ class AdaptiveStrategyTests(unittest.TestCase):
             {"score": 7},
         )
         self.assertEqual(result["key"], "chase")
-        self.assertEqual(result["candidate_strategies"], ["追高"])
+        self.assertEqual(result["candidate_strategies"], ["V4强势延续"])
+        self.assertEqual(result["candidate_strategy_keys"], ["momentum"])
 
     def test_narrow_neutral_market_prefers_pullback_research_pool(self):
         result = adaptive_strategy_decision(
@@ -107,11 +110,15 @@ class DashboardEvidenceTests(unittest.TestCase):
             "candidates": [{
                 "code": "000001", "name": "测试", "rank": 1,
                 "score": 88.0, "change_pct": 5.0, "price": 10.0,
-                "buy_price": 10.02, "strategy": "追高",
+                "buy_price": 10.02, "strategy": "V4强势延续",
+                "strategy_key": "momentum",
                 "quote_time": "2026-08-01T15:00:00+08:00",
                 "v4_tradable": False, "v4_decision": "观察/空仓",
                 "v4_block_reasons": ["研究准入未通过"],
                 "v4_shadow_confidence": 0.8,
+                "v4_candidate_origin": "V4",
+                "v4_research_ranked": True,
+                "candidate_source": "v4-causal-rule-rank-v1",
             }],
             "sector_ranks": {},
             "sentiment": {"score": 5, "label": "中性", "up_ratio": 0.51},
@@ -143,7 +150,9 @@ class DashboardEvidenceTests(unittest.TestCase):
         self.assertIn("三类证据严格隔离", page)
         self.assertIn("全市场等权涨跌", page)
         self.assertIn("视图不控制执行", page)
-        self.assertIn("旧规则影子分", page)
+        self.assertIn("V4研究排序强度", page)
+        self.assertIn("候选由V4对完整合格A股池独立生成", page)
+        self.assertNotIn("旧版追高", page)
         self.assertNotIn("上证 1日", page)
 
     def test_market_metrics_include_turnover_breadth_and_fresh_coverage(self):
@@ -151,8 +160,12 @@ class DashboardEvidenceTests(unittest.TestCase):
             {"code": "000001", "name": "甲", "price": 10.1, "prev_close": 10.0, "open": 10.0, "change_pct": 1.0, "amount": 100_000_000, "quote_time": "2026-08-03T14:50:10+08:00"},
             {"code": "300001", "name": "乙", "price": 9.8, "prev_close": 10.0, "open": 10.0, "change_pct": -2.0, "amount": 200_000_000, "quote_time": "2026-08-03T14:50:11+08:00"},
         ])
-        with patch("v4.execution.TradingClock.quote_is_fresh", return_value=True):
-            market = SimulationEngine()._get_market_state(quotes, expected_codes=2)
+        with TemporaryDirectory() as temp_dir:
+            with (
+                patch("v4.execution.TradingClock.quote_is_fresh", return_value=True),
+                patch("v4.market.MARKET_CACHE_PATH", Path(temp_dir) / "market.json"),
+            ):
+                market = SimulationEngine()._get_market_state(quotes, expected_codes=2)
         self.assertTrue(market["data_valid"])
         self.assertEqual(market["observed_codes"], 2)
         self.assertEqual(market["rise_count"], 1)

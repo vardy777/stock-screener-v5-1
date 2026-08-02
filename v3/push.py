@@ -1,4 +1,4 @@
-"""V3 推送工具"""
+"""PushPlus compatibility transport and cards for the V4 engine."""
 import hashlib
 import html
 import os
@@ -139,16 +139,22 @@ def _market_diagnostics(market_state: dict, candidates) -> str:
 def build_morning_card(candidates, market_state, positions=None) -> str:
     """构建09:25观察候选与待卖持仓HTML卡片。"""
     mode = market_state.get('mode_label', '?')
-    card = f'<h3>🌅 09:25早盘观察池</h3><p>市场: {html.escape(str(mode))}</p>'
+    source = next(
+        (str(item.get('candidate_source')) for item in candidates if item.get('candidate_source')),
+        str(market_state.get('v4_selection', {}).get('source', '等待V4候选')),
+    )
+    card = f'<h3>🌅 V4独立 09:25早盘观察池</h3><p>市场: {html.escape(str(mode))}</p>'
     card += _market_diagnostics(market_state, candidates)
+    card += f'<p>候选引擎: V4 | 排序来源: {html.escape(source)}</p>'
     card += '<p style="color:#d97706">仅建立观察池，必须等待14:50尾盘确认，早盘不买入。</p>'
     card += '<table>'
-    card += '<tr><th>#</th><th>代码</th><th>名称</th><th>评分</th><th>涨幅</th></tr>'
+    card += '<tr><th>#</th><th>代码</th><th>名称</th><th>V4研究分</th><th>策略族</th><th>涨幅</th></tr>'
     for i, s in enumerate(candidates[:5]):
-        color = '#ff4757' if s.get('pct_chg',0) > 0 else '#2ed573'
+        change = float(s.get('change_pct', s.get('pct_chg', 0)) or 0)
+        color = '#ff4757' if change > 0 else '#2ed573'
         card += f'<tr><td>{i+1}</td><td>{html.escape(str(s.get("code","")))}</td><td>{html.escape(str(s.get("name","")))}</td>'
         score = float(s.get('final_score', s.get('score', 0)) or 0)
-        card += f'<td>{score:.0f}</td><td style="color:{color}">{float(s.get("pct_chg",0) or 0):+.2f}%</td></tr>'
+        card += f'<td>{score:.1f}</td><td>{html.escape(str(s.get("strategy","V4")))}</td><td style="color:{color}">{change:+.2f}%</td></tr>'
     card += '</table>'
     positions = positions or []
     if positions:
@@ -167,18 +173,25 @@ def build_morning_card(candidates, market_state, positions=None) -> str:
 def build_afternoon_card(candidates, market_state, positions) -> str:
     """构建尾盘买入建议HTML卡片"""
     tradable = [item for item in candidates if item.get('v4_tradable')]
-    card = '<h3>🎯 V4 14:50尾盘确认</h3>'
+    source = next(
+        (str(item.get('candidate_source')) for item in candidates if item.get('candidate_source')),
+        str(market_state.get('v4_selection', {}).get('source', '等待V4候选')),
+    )
+    card = '<h3>🎯 V4独立 14:50尾盘确认</h3>'
     card += f'<p>市场: {html.escape(str(market_state.get("mode_label","?")))}</p>'
     card += _market_diagnostics(market_state, candidates)
-    if not tradable:
-        card += '<p style="color:#d97706">当前仅输出观察候选，V4没有生成可执行买入。</p>'
+    card += f'<p>候选引擎: V4 | 排序来源: {html.escape(source)}</p>'
+    if candidates and not tradable:
+        card += '<p style="color:#d97706">V4已独立生成观察候选；研究/模型/风险门禁未全部通过，因此不产生买入。</p>'
+    elif not candidates:
+        card += '<p style="color:#d97706">V4未生成合格候选，今日空仓。</p>'
     else:
         selected = tradable[0]
         card += (
             '<p style="color:#15803d">唯一确认Top1：'
             f'{html.escape(str(selected.get("code","")))} {html.escape(str(selected.get("name","")))}</p>'
         )
-    card += '<table><tr><th>#</th><th>代码</th><th>名称</th><th>模型预期</th><th>盈利概率</th><th>大亏概率</th><th>V4决策</th></tr>'
+    card += '<table><tr><th>#</th><th>代码</th><th>名称</th><th>排序</th><th>模型预期</th><th>盈利概率</th><th>大亏概率</th><th>V4决策</th></tr>'
     for i, s in enumerate(candidates[:3]):
         card += f'<tr><td>{i+1}</td><td>{html.escape(str(s.get("code","")))}</td><td>{html.escape(str(s.get("name","")))}</td>'
         expected = s.get('predicted_return')
@@ -189,7 +202,11 @@ def build_afternoon_card(candidates, market_state, positions) -> str:
         loss_text = f'{float(loss)*100:.1f}%' if loss is not None else '—'
         reasons = '、'.join(s.get('v4_block_reasons', [])) or '通过'
         decision = '✅ 可模拟' if s.get('v4_tradable') else f'⏸ {reasons}'
-        card += f'<td>{expected_text}</td><td>{positive_text}</td><td>{loss_text}</td><td>{html.escape(decision)}</td></tr>'
+        rank_text = (
+            '生产模型' if s.get('v4_model_ranked')
+            else f'研究分{float(s.get("score",0) or 0):.1f}'
+        )
+        card += f'<td>{html.escape(rank_text)}</td><td>{expected_text}</td><td>{positive_text}</td><td>{loss_text}</td><td>{html.escape(decision)}</td></tr>'
     card += '</table>'
     if positions:
         card += f'<p>当前持仓: {len(positions)} 只</p>'

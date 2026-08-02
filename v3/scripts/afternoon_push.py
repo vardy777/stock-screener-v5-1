@@ -19,7 +19,7 @@ logging.basicConfig(
     format="%(asctime)s [%(name)s] %(levelname)s %(message)s",
     stream=sys.stdout,
 )
-logger = logging.getLogger("afternoon_push_v3")
+logger = logging.getLogger("afternoon_push_v4")
 
 
 def _now() -> datetime:
@@ -52,12 +52,15 @@ def main() -> int:
     if any(candidate.get("is_mock") for candidate in candidates):
         logger.error("检测到模拟候选，拒绝推送")
         return 2
+    if any(candidate.get("v4_candidate_origin") != "V4" for candidate in candidates):
+        logger.error("检测到非V4来源候选，拒绝推送")
+        return 2
     if not candidates:
         logger.warning("无真实候选或行情不可用，今日空仓")
 
     card = build_afternoon_card(candidates[:3], market_state, positions)
     sent = send_wechat(
-        f"🎯 V4 14:50尾盘确认 {today}",
+        f"🎯 V4独立 14:50尾盘确认 {today}",
         card,
         message_key=f"v4-afternoon:{today}",
     )

@@ -1,5 +1,5 @@
 """
-V3 完整模拟交易看板 — 深色交易终端风格
+V4 validation dashboard served through the legacy-compatible module path.
 
 启动: python main.py v3-dashboard
 访问: http://localhost:8898
@@ -29,10 +29,8 @@ from urllib.parse import urlparse, parse_qs
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from v3.simulation import SimulationEngine
-from v3.pullback import PullbackEngine
-from decision_policy import adaptive_strategy_decision, market_regime_score
+from decision_policy import adaptive_strategy_decision
 from market_universe import list_universe_codes
-from strategy_spec import DEFAULT_SPEC, TradeCostModel
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s [%(name)s] %(levelname)s %(message)s')
@@ -814,17 +812,17 @@ def _build_strategy_policy_html(policy: dict, mode: str) -> str:
         f'<span class="reason-chip">{_safe(reason)}</span>'
         for reason in policy.get('reasons', [])
     )
-    view = '仅看回调研究池' if mode == 'pullback' else '自动总览（兼容原chase地址）'
+    view = '仅看V4回撤修复' if mode == 'pullback' else '自动总览（兼容原chase地址）'
     return f"""
     <div class="truth-banner" data-testid="adaptive-strategy">
       <div>
-        <div style="color:#64748b;font-size:10px;margin-bottom:5px">系统市场适配 · 因果规则V1</div>
+        <div style="color:#64748b;font-size:10px;margin-bottom:5px">V4市场路由 · 因果规则V1</div>
         <div class="truth-action">{_safe(policy.get('label','观望 / 空仓'))}</div>
         <div style="color:#64748b;font-size:10px;margin-top:5px">当前视图：{view} · 视图不控制执行</div>
       </div>
       <div>
         <div class="truth-reasons">{reasons}</div>
-        <div class="data-note">此适配层负责解释和排列旧版研究候选；V4生产模型发布后仍由模型阈值、市场风险、Top1、交易时钟和研究门禁共同决定是否模拟买入。</div>
+        <div class="data-note">候选由V4对完整合格A股池独立生成。研究锁定期使用透明因果基线排序；模型发布后，14:50排序自动切换为V4生产模型。任何阶段都不能绕过市场风险、Top1、交易时钟和研究门禁。</div>
       </div>
     </div>"""
 
@@ -911,9 +909,9 @@ def _candidate_explanation(candidate: dict, policy: dict) -> tuple:
             reasons.append(f'模型净盈利概率 {float(positive)*100:.1f}%')
         if loss is not None:
             reasons.append(f'模型大亏概率 {float(loss)*100:.1f}%')
-    elif strategy == '回调':
+    elif candidate.get('v4_research_ranked'):
         reasons.extend([
-            f'旧版回调评分 {score:.1f}',
+            f'V4因果基线分 {score:.1f}（非概率）',
             f'当日涨跌 {change:+.2f}%',
         ])
         near_5d = candidate.get('_near_5d', candidate.get('near_5d_return'))
@@ -925,20 +923,17 @@ def _candidate_explanation(candidate: dict, policy: dict) -> tuple:
             reasons.append(f'量比 {float(vol_ratio):.2f}x')
         if dist_ma10 is not None:
             reasons.append(f'距MA10 {float(dist_ma10):+.2f}%')
-    else:
-        reasons.extend([
-            f'旧版追高池：涨幅 {change:+.2f}%',
-            f'旧版综合评分 {score:.1f}',
-        ])
         amount = candidate.get('amount_yi')
-        close_position = candidate.get('close_position')
         if amount is not None:
             reasons.append(f'样本成交额 {float(amount):.2f}亿')
-        if close_position is not None:
-            reasons.append(f'收盘位于日内区间 {float(close_position)*100:.0f}%')
+    else:
+        reasons.append('候选没有V4来源证明，已拒绝进入执行链')
 
-    preferred = set(policy.get('candidate_strategies', []))
-    fit = bool(strategy in preferred or candidate.get('v4_model_ranked'))
+    preferred = set(policy.get('candidate_strategy_keys', []))
+    fit = bool(
+        candidate.get('strategy_key') in preferred
+        or candidate.get('v4_model_ranked')
+    )
     risks = list(candidate.get('v4_block_reasons', []) or [])
     if not fit:
         risks.append('不属于当前市场首选研究池')
@@ -951,11 +946,11 @@ def _build_candidates_html(
     policy = policy or {}
     visible = list(candidates or [])
     if mode == 'pullback':
-        visible = [item for item in visible if item.get('strategy') == '回调']
-    preferred = set(policy.get('candidate_strategies', []))
+        visible = [item for item in visible if item.get('strategy_key') == 'pullback']
+    preferred = set(policy.get('candidate_strategy_keys', []))
     if preferred:
         visible.sort(key=lambda item: (
-            item.get('strategy') not in preferred,
+            item.get('strategy_key') not in preferred,
             int(item.get('rank', 999) or 999),
         ))
     if not visible:
@@ -972,7 +967,7 @@ def _build_candidates_html(
         disabled = '' if tradable else 'disabled'
         decision_class = 'tag-buy' if tradable else 'tag-hold'
         strategy = str(candidate.get('strategy', '未知'))
-        strategy_label = 'V4模型Top1' if candidate.get('v4_model_ranked') else strategy
+        strategy_label = 'V4生产模型Top1' if candidate.get('v4_model_ranked') else strategy
         reason_html = ' · '.join(_safe(item) for item in reasons) or '缓存未保存细分因子，等待下一次主动选股补齐'
         risk_html = ''.join(f'<span class="reason-chip risk">{_safe(item)}</span>' for item in risks)
         fit_html = '<span class="reason-chip good">当前市场适配</span>' if fit else '<span class="reason-chip">研究观察</span>'
@@ -986,7 +981,7 @@ def _build_candidates_html(
             <div class="candidate-numbers"><span class="yellow">评分 {float(candidate.get('score',0) or 0):.1f}</span><span class="{_css_class(float(candidate.get('change_pct',0) or 0))}">{float(candidate.get('change_pct',0) or 0):+.2f}%</span><span>参考价 ¥{float(candidate.get('buy_price',candidate.get('price',0)) or 0):.2f}</span></div>
           </div>
           <div class="candidate-copy"><strong>入选依据：</strong>{reason_html}<div class="truth-reasons" style="margin-top:6px">{fit_html}{risk_html}</div><div style="color:#536a83;margin-top:5px">行情时间：{quote_time}</div></div>
-          <div class="candidate-decision"><span class="tag {decision_class}">{_safe(candidate.get('v4_decision','观察/空仓'))}</span><div style="margin-top:7px;color:#9fb4cc;font-size:11px">{_safe(strategy_label)}</div><div class="shadow">旧规则影子分 {shadow_score:.0f}/100 · 非概率</div></div>
+          <div class="candidate-decision"><span class="tag {decision_class}">{_safe(candidate.get('v4_decision','观察/空仓'))}</span><div style="margin-top:7px;color:#9fb4cc;font-size:11px">{_safe(strategy_label)}</div><div class="shadow">V4研究排序强度 {shadow_score:.0f}/100 · 非概率</div><div class="shadow">来源 {_safe(candidate.get('candidate_source','未证明'))}</div></div>
         </div>""")
 
     buy_disabled = '' if tradable_count else 'disabled'
@@ -1247,14 +1242,15 @@ def build_html(state: dict, mode: str = 'chase') -> str:
 
     is_pullback = mode == 'pullback'
     policy = state.get('strategy_policy', {}) or {}
+    selection = mkt.get('v4_selection', state.get('v4', {}).get('selection', {})) or {}
     mode_badge = '🟡' if policy.get('key') == 'observe' else '🔵'
     mode_label = policy.get('label', '观望 / 空仓')
     chase_active = ' active-chase' if not is_pullback else ''
     pullback_active = ' active-pullback' if is_pullback else ''
-    candidate_title = '回调研究池（视图筛选）' if is_pullback else '系统自动候选池'
+    candidate_title = 'V4回撤修复池（视图筛选）' if is_pullback else 'V4系统自动候选池'
     visible_count = sum(
         1 for candidate in state.get('candidates', [])
-        if not is_pullback or candidate.get('strategy') == '回调'
+        if not is_pullback or candidate.get('strategy_key') == 'pullback'
     )
     v4 = state.get('v4', {})
     risk_off = mkt.get('mode_label', 'neutral') == 'risk_off'
@@ -1288,7 +1284,7 @@ def build_html(state: dict, mode: str = 'chase') -> str:
 <div class="action-bar">
   <div style="flex:1;display:flex;align-items:center;gap:10px;min-width:260px"><span style="color:#48dbfb;font-weight:700">14:50–14:51:59 → 次日09:30后</span><span style="color:#7b91a9;font-size:11px">{_safe(trade_hint)}</span></div>
   <span class="view-label">候选视图（不控制策略）</span>
-  <div class="btn-mode-group"><button class="btn-mode{chase_active}" onclick="switchMode('chase')">自动总览</button><button class="btn-mode{pullback_active}" onclick="switchMode('pullback')">仅看回调池</button></div>
+  <div class="btn-mode-group"><button class="btn-mode{chase_active}" onclick="switchMode('chase')">V4自动总览</button><button class="btn-mode{pullback_active}" onclick="switchMode('pullback')">V4回撤修复</button></div>
   <button class="btn btn-sell" onclick="apiCall('/api/run_sell','卖出')" {sell_disabled}>窗口内卖出</button>
   <button class="btn btn-buy-sm" onclick="buySelected()" {trade_disabled}>模拟买入Top1</button>
   <button class="btn btn-reset" onclick="if(confirm('确认重置模拟账户?'))apiCall('/api/reset','重置')">重置</button>
@@ -1300,7 +1296,7 @@ def build_html(state: dict, mode: str = 'chase') -> str:
 {_build_strategy_policy_html(policy, mode)}
 
 <div class="card" style="margin-bottom:16px" data-testid="candidate-pool">
-  <div class="card-header"><span>{candidate_title}</span><span class="badge-sm">{visible_count} 只 · {_safe(mode_label)}</span></div>
+  <div class="card-header"><span>{candidate_title}</span><span class="badge-sm">{visible_count} 只 · {_safe(selection.get('source','等待V4主动选股'))}</span></div>
   <div class="card-body">{_build_candidates_html(state.get('candidates',[]), mode, policy)}</div>
 </div>
 
@@ -1310,7 +1306,7 @@ def build_html(state: dict, mode: str = 'chase') -> str:
 </div>
 
 <div class="grid grid-2">
-  <div class="card"><div class="card-header"><span>候选板块证据</span><span class="badge-sm">Top 5 · 代理分类</span></div><div class="card-body">{_build_sector_ranks_html(state.get('sector_ranks',{}))}</div></div>
+  <div class="card"><div class="card-header"><span>候选板块证据</span><span class="badge-sm">V4 Top 5 · 代理分类</span></div><div class="card-body">{_build_sector_ranks_html(state.get('sector_ranks',{}))}</div></div>
   <div class="card"><div class="card-header"><span>资金与成交活跃度</span><span class="badge-sm">净流入过期自动降级</span></div><div class="card-body">{_build_fund_flow_html(state.get('fund_flow',{}), state.get('sector_ranks',{}), mkt)}</div></div>
 </div>
 
@@ -1325,7 +1321,7 @@ def build_html(state: dict, mode: str = 'chase') -> str:
 
 <details class="card research-details"><summary>展开：代理Walk-Forward明细、精度—覆盖率与准入检查</summary><div class="details-body">{_build_research_html(state.get('research', {}))}</div></details>
 
-<div class="footer">V4本机研究与模拟系统 · 8898地址与原定时推送入口保持兼容 · RESEARCH_LOCKED期间不产生可执行买单</div>
+<div class="footer">V4独立候选、市场分析与交易门禁 · 旧v3路径仅保留任务名/地址/账户兼容 · RESEARCH_LOCKED期间不产生可执行买单</div>
 </main>
 
 <script>
@@ -1440,31 +1436,20 @@ def _fresh_engine_state(mode: str = 'chase', force: bool = False) -> dict:
     if cached_market:
         state['market_state'] = cached_market
     
-    # P0: 板块排名
-    if 'sector_ranks' not in state or not state.get('sector_ranks', {}).get('top'):
-        try:
-            from v3.market import MarketContext
-            r = MarketContext()
-            r.load_cache()
-            state['sector_ranks'] = r.get_sector_summary()
-        except Exception as e:
-            logger.warning(f'加载板块排名失败: {e}')
-            state['sector_ranks'] = {'top': [], 'bottom': [], 'time': '', 'total_sectors': 0}
-    # P1: 市场情绪
-    if 'sentiment' not in state:
-        try:
-            # → MarketContext
-            s = MarketContext()
-            state['sentiment'] = s.load_cache() or {
-                'label': '中性', 'score': 5, 'limit_up': 0, 'limit_down': 0,
-                'up_ratio': 0.5, 'avg_change': 0
-            }
-        except Exception as e:
-            logger.warning(f'加载情绪数据失败: {e}')
-            state['sentiment'] = {
-                'label': '中性', 'score': 5, 'limit_up': 0, 'limit_down': 0,
-                'up_ratio': 0.5, 'avg_change': 0
-            }
+    # Current-session observability is loaded only from the V4 market cache.
+    try:
+        from v4.market import load_market_cache
+
+        v4_market_cache = load_market_cache()
+    except Exception as e:
+        logger.warning('加载V4市场缓存失败: %s', e)
+        v4_market_cache = {}
+    if not cached_market and isinstance(v4_market_cache.get('market_state'), dict):
+        state['market_state'] = v4_market_cache['market_state']
+    if isinstance(v4_market_cache.get('sector_ranks'), dict):
+        state['sector_ranks'] = v4_market_cache['sector_ranks']
+    if isinstance(v4_market_cache.get('sentiment'), dict):
+        state['sentiment'] = v4_market_cache['sentiment']
     market = state.get('market_state', {}) or {}
     sectors = state.get('sector_ranks', {}) or {}
     sentiment = state.get('sentiment', {}) or {}
@@ -1472,57 +1457,16 @@ def _fresh_engine_state(mode: str = 'chase', force: bool = False) -> dict:
         market.get('as_of') or sectors.get('as_of')
         or sentiment.get('as_of') or _candidate_quote_as_of(candidates)
     )
-    if not market.get('observed_codes') and (
-        sectors.get('observed_codes') or sentiment
-    ):
-        # Older caches did not persist the full market contract.  Reconstruct
-        # descriptive metrics only and keep data_valid=False (fail closed).
-        expected_codes = len(list_universe_codes(
-            PROJECT_ROOT / 'phase1' / 'data' / 'daily'
-        ))
-        observed_codes = int(sectors.get('observed_codes', 0) or 0)
-        observed_return = float(sentiment.get('avg_change', 0) or 0) / 100
-        observed_breadth = float(sentiment.get('up_ratio', 0.5) or 0.5)
-        observed_regime = market_regime_score(observed_breadth, observed_return, 0.0)
-        observed_rises = int(round(observed_codes * observed_breadth))
-        market.update({
-            'market_equal_weight_pct': observed_return * 100,
-            'market_median_pct': None,
-            'market_mean_signal_return': observed_return,
-            'advance_ratio': observed_breadth,
-            'regime_score': observed_regime,
-            'market_mean_gap': 0.0,
-            'limit_up_count': int(sentiment.get('limit_up', 0) or 0),
-            'limit_down_count': int(sentiment.get('limit_down', 0) or 0),
-            'limit_threshold_method': 'legacy_9_5',
-            'rise_count': observed_rises,
-            'fall_count': max(0, observed_codes - observed_rises),
-            'flat_count': 0,
-            'market_total_amount_yi': float(sectors.get('market_total_amount_yi', 0) or 0),
-            'observed_codes': observed_codes,
-            'expected_codes': expected_codes,
-            'quote_coverage': (
-                min(1.0, observed_codes / expected_codes) if expected_codes else 0.0
-            ),
-            'fresh_quote_coverage': 0.0,
-            'amount_coverage': None,
-            'data_valid': False,
-            'snapshot_complete': False,
-            'mode_label': 'unavailable',
-            'observed_mode_label': (
-                'risk_on' if float(sentiment.get('score', 5) or 5) >= 7
-                else ('risk_off' if float(sentiment.get('score', 5) or 5) <= 3 else 'neutral')
-            ),
-            'as_of': fallback_as_of,
-            'data_source': '旧版本地市场缓存',
-            'metric_definition': '旧缓存仅可描述最近行情，缺少可执行覆盖率，不参与交易决策',
-        })
+    if not market.get('analytics_version'):
+        from v4.market import empty_market_state
+
+        market = empty_market_state()
         state['market_state'] = market
     if not sectors.get('as_of'):
         sectors['as_of'] = fallback_as_of
         state['sector_ranks'] = sectors
     sentiment.setdefault('as_of', fallback_as_of)
-    sentiment.setdefault('source', '全市场本地缓存')
+    sentiment.setdefault('source', 'V4无可用全市场快照')
     state['sentiment'] = sentiment
     state['research'] = _load_research_status()
     state['fund_flow'] = _load_fund_flow_summary()
@@ -1852,7 +1796,7 @@ def run_dashboard(port: int = None):
 
     server = ThreadingHTTPServer((HOST, PORT), DashboardHandler)
     server.allow_reuse_address = True
-    logger.info(f"📊 V3 模拟交易看板已启动")
+    logger.info("📊 V4 模拟验证看板已启动（兼容入口）")
     logger.info(f"   访问地址: http://localhost:{PORT}")
     logger.info(f"   API 端点:")
     logger.info(f"     GET /              → 主页")

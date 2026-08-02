@@ -144,7 +144,11 @@ class LocalRuntimeMigrationTests(unittest.TestCase):
     def test_morning_job_generates_candidates_before_push(self):
         engine = MagicMock()
         engine.screen_today.return_value = [
-            {"code": "000001", "name": "测试", "score": 88, "pct_chg": 1.0}
+            {
+                "code": "000001", "name": "测试", "score": 88,
+                "pct_chg": 1.0, "v4_candidate_origin": "V4",
+                "candidate_source": "v4-causal-rule-rank-v1",
+            }
         ]
         engine._get_market_state.return_value = {"mode_label": "neutral"}
         engine.positions = []
@@ -163,6 +167,8 @@ class LocalRuntimeMigrationTests(unittest.TestCase):
             {
                 "code": "000001", "name": "测试", "score": 88,
                 "v4_tradable": False, "v4_block_reasons": ["研究准入未通过"],
+                "v4_candidate_origin": "V4",
+                "candidate_source": "v4-causal-rule-rank-v1",
             }
         ]
         engine._get_market_state.return_value = {"mode_label": "neutral"}
@@ -175,6 +181,15 @@ class LocalRuntimeMigrationTests(unittest.TestCase):
                         self.assertEqual(afternoon_push.main(), 0)
         engine.screen_today.assert_called_once_with()
         send.assert_called_once()
+
+    def test_compatibility_engine_contains_no_v3_selection_fallback(self):
+        content = (ROOT / "v3" / "simulation.py").read_text(encoding="utf-8")
+        self.assertNotIn("UltraShortScorer", content)
+        self.assertNotIn("UltraShortFactorComputer", content)
+        self.assertNotIn("PullbackEngine", content)
+        self.assertNotIn("fallback_candidates=top5", content)
+        dashboard_content = (ROOT / "v3" / "dashboard.py").read_text(encoding="utf-8")
+        self.assertNotIn("from v3.pullback import", dashboard_content)
 
 
 if __name__ == "__main__":

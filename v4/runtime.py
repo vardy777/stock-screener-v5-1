@@ -1,4 +1,4 @@
-"""V4 decision facade placed behind the existing V3 automation entrypoints."""
+"""V4 decision engine behind stable legacy-named automation entrypoints."""
 
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ from .execution import TradingClock
 from .feature_store import LiveFeatureStore
 from .model_registry import PublishedModelRegistry
 from .readiness import ResearchReadiness
+from .selection import RESEARCH_RANK_VERSION, V4CandidateSelector
 
 
 class V4Runtime:
@@ -35,6 +36,11 @@ class V4Runtime:
     def __init__(self):
         self.readiness = ResearchReadiness().evaluate()
         self.model_registry = PublishedModelRegistry()
+        self.candidate_selector = V4CandidateSelector()
+        self.last_selection: Dict[str, Any] = {
+            "status": "not_run",
+            "source": RESEARCH_RANK_VERSION,
+        }
 
     @property
     def production_enabled(self) -> bool:
@@ -72,6 +78,8 @@ class V4Runtime:
             },
             "scheduler_contract_preserved": True,
             "scheduler_entrypoints": list(self.SCHEDULER_CONTRACT),
+            "candidate_engine": "V4",
+            "selection": dict(getattr(self, "last_selection", {"status": "not_run"})),
             "generated_at": datetime.now().isoformat(timespec="seconds"),
         }
 
@@ -84,8 +92,7 @@ class V4Runtime:
         market_mode = market.get("mode_label", "neutral")
         market_score = self._market_score(market)
         buy_status = TradingClock.action_status("buy")
-        production_model = self.production_enabled
-        policy = self.model_registry.policy if production_model else {}
+        production_available = self.production_enabled
         evaluated: List[Dict[str, Any]] = []
 
         for index, candidate in enumerate(candidates, start=1):
@@ -93,7 +100,12 @@ class V4Runtime:
             score = float(item.get("final_score", item.get("score", 0.0)) or 0.0)
             rank = int(item.get("rank", index) or index)
             shadow_confidence = self._shadow_confidence(score, market_score)
-            if production_model:
+            model_ranked = bool(
+                production_available
+                and item.get("candidate_source") == "v4_published_model"
+            )
+            policy = self.model_registry.policy if model_ranked else {}
+            if model_ranked:
                 # Model-owned fields are always overwritten in production;
                 # never trust a cached or caller-supplied probability.
                 model_prediction = self.model_registry.predict(
@@ -108,27 +120,25 @@ class V4Runtime:
                     item.pop(key, None)
                 if model_prediction:
                     item.update(model_prediction)
-            elif item.get("predicted_positive_probability") is None:
-                if not item.get("v4_features"):
-                    item["v4_features"] = LiveFeatureStore.get(item.get("code", ""))
-                model_prediction = self.model_registry.predict(
-                    item.get("v4_features", {})
-                )
-                if model_prediction:
-                    item.update(model_prediction)
             blocks = []
             if not self.readiness.get("trade_enabled", False):
                 blocks.append("研究准入未通过")
+            if not production_available:
+                blocks.append("V4生产模型尚未发布")
+            elif buy_status.allowed and not model_ranked:
+                blocks.append("买入窗口只接受V4生产模型候选")
             if not buy_status.allowed:
                 blocks.append(buy_status.reason)
             if market_mode == "risk_off":
                 blocks.append("市场风险关闭")
-            if production_model and market.get("data_valid") is not True:
+            if market.get("data_valid") is not True:
                 blocks.append("全市场状态数据无效或覆盖不足")
+            if item.get("v4_candidate_origin") != "V4":
+                blocks.append("候选来源不是V4")
             if rank != 1:
                 blocks.append("精度优先仅允许Top1")
-            if not production_model and score < 80.0:
-                blocks.append("旧评分低于80")
+            if not model_ranked and score < 55.0:
+                blocks.append("V4研究基线分低于55")
             if item.get("is_mock"):
                 blocks.append("模拟候选")
             if float(item.get("price", 0.0) or 0.0) <= 0:
@@ -143,22 +153,18 @@ class V4Runtime:
             minimum_positive = policy.get("minimum_positive_probability")
             maximum_loss = policy.get("maximum_large_loss_probability")
             minimum_regime = policy.get("minimum_regime_score")
-            if production_model and minimum_return is not None and (
+            if model_ranked and minimum_return is not None and (
                 predicted_return is None
                 or float(predicted_return) < float(minimum_return)
             ):
                 blocks.append("预期净收益不足")
-            if minimum_positive is None and not production_model:
-                minimum_positive = 0.55
             if positive_probability is not None and minimum_positive is not None and float(positive_probability) < float(minimum_positive):
                 blocks.append("净盈利概率不足")
-            if maximum_loss is None and not production_model:
-                maximum_loss = 0.15
             if loss_probability is not None and maximum_loss is not None and float(loss_probability) > float(maximum_loss):
                 blocks.append("大亏概率过高")
-            if production_model and minimum_regime is not None and market_score < float(minimum_regime):
+            if model_ranked and minimum_regime is not None and market_score < float(minimum_regime):
                 blocks.append("市场环境低于生产策略阈值")
-            if self.readiness.get("trade_enabled") and positive_probability is None:
+            if model_ranked and positive_probability is None:
                 blocks.append(
                     self.model_registry.last_prediction_error
                     or self.model_registry.error
@@ -176,7 +182,11 @@ class V4Runtime:
                     "v4_market_score": round(market_score, 4),
                     "v4_pipeline": PIPELINE_ID,
                     "v4_model_probability_available": positive_probability is not None,
-                    "v4_model_ranked": production_model,
+                    "v4_model_ranked": model_ranked,
+                    "v4_research_ranked": bool(
+                        item.get("v4_research_ranked", not model_ranked)
+                    ),
+                    "v4_candidate_origin": item.get("v4_candidate_origin", "unknown"),
                 }
             )
             evaluated.append(item)
@@ -193,27 +203,53 @@ class V4Runtime:
         fallback_candidates: Iterable[Dict[str, Any]] = (),
         market_state: Dict[str, Any] | None = None,
     ) -> List[Dict[str, Any]]:
-        """Run the published model over the complete live eligible universe.
+        """Generate candidates from the complete eligible universe using V4.
 
-        While research-locked, the existing V3 candidates remain visible as a
-        diagnostic fallback.  Once a model is published, V3 preselection is no
-        longer allowed to decide which symbols the model may see.
+        ``fallback_candidates`` remains only as a call-signature compatibility
+        shim and is deliberately ignored.  V4 research ranking owns candidates
+        while locked; the published model owns 14:50 ranking after release.
         """
 
         market = market_state or {}
         production_model = self.production_enabled
-        if not production_model:
-            return self.evaluate_candidates(fallback_candidates, market)
+        _ = fallback_candidates
+        buy_status = TradingClock.action_status("buy")
+        if not production_model or not buy_status.allowed:
+            candidates = self.candidate_selector.select_research(
+                quotes,
+                market,
+                require_frozen_features=bool(buy_status.allowed),
+            )
+            self.last_selection = dict(self.candidate_selector.last_diagnostics)
+            return self.evaluate_candidates(candidates, market)
         if quotes is None or getattr(quotes, "empty", True):
-            return self.evaluate_candidates(fallback_candidates, market)
+            self.last_selection = {
+                "status": "blocked",
+                "reason": "全市场行情为空",
+                "source": "v4_published_model",
+                "stage": "confirmation_1450",
+            }
+            return self.evaluate_candidates([], market)
 
         features = LiveFeatureStore.load_all(maximum_age_seconds=120)
         if not features:
-            return self.evaluate_candidates(fallback_candidates, market)
+            self.last_selection = {
+                "status": "blocked",
+                "reason": "14:49冻结特征缺失或过期",
+                "source": "v4_published_model",
+                "stage": "confirmation_1450",
+            }
+            return self.evaluate_candidates([], market)
         quote_frame = quotes.copy()
         required = {"code", "name", "price", "quote_time", "ask1"}
         if not required.issubset(quote_frame.columns):
-            return self.evaluate_candidates(fallback_candidates, market)
+            self.last_selection = {
+                "status": "blocked",
+                "reason": "生产排序行情字段不足",
+                "source": "v4_published_model",
+                "stage": "confirmation_1450",
+            }
+            return self.evaluate_candidates([], market)
         quote_frame["code"] = quote_frame["code"].astype(str).str.zfill(6)
         quote_frame = quote_frame[
             quote_frame["code"].map(is_eligible_a_share)
@@ -231,7 +267,13 @@ class V4Runtime:
         ].copy()
         quote_frame = quote_frame[quote_frame["code"].isin(features)]
         if quote_frame.empty:
-            return self.evaluate_candidates(fallback_candidates, market)
+            self.last_selection = {
+                "status": "blocked",
+                "reason": "冻结特征与确认行情无交集",
+                "source": "v4_published_model",
+                "stage": "confirmation_1450",
+            }
+            return self.evaluate_candidates([], market)
 
         feature_frame = pd.DataFrame.from_dict(features, orient="index")
         feature_frame.index = feature_frame.index.astype(str).str.zfill(6)
@@ -244,7 +286,13 @@ class V4Runtime:
         quote_frame = quote_frame.loc[complete].copy()
         feature_frame = feature_frame.loc[complete]
         if quote_frame.empty:
-            return self.evaluate_candidates(fallback_candidates, market)
+            self.last_selection = {
+                "status": "blocked",
+                "reason": "生产特征不完整",
+                "source": "v4_published_model",
+                "stage": "confirmation_1450",
+            }
+            return self.evaluate_candidates([], market)
 
         limit_rate = quote_frame["code"].map(
             lambda code: 0.20 if str(code).startswith("30") else 0.10
@@ -254,7 +302,13 @@ class V4Runtime:
         feature_frame = feature_frame.loc[entry_ok]
         predictions = self.model_registry.predict_frame(feature_frame)
         if predictions.empty:
-            return self.evaluate_candidates(fallback_candidates, market)
+            self.last_selection = {
+                "status": "blocked",
+                "reason": self.model_registry.last_prediction_error or "生产模型未产生预测",
+                "source": "v4_published_model",
+                "stage": "confirmation_1450",
+            }
+            return self.evaluate_candidates([], market)
 
         quote_frame = quote_frame.loc[predictions.index].copy()
         for column in predictions.columns:
@@ -292,12 +346,28 @@ class V4Runtime:
                         row.get("predicted_positive_probability", 0.0)
                     ) * 100.0,
                     "strategy": "v4_model_top1",
+                    "strategy_key": "model",
                     "execution_price_source": "ask1",
                     "v4_features": vector,
+                    "candidate_source": "v4_published_model",
+                    "feature_source": "v4_frozen_1449",
+                    "selection_stage": "confirmation_1450",
+                    "v4_candidate_origin": "V4",
+                    "v4_research_ranked": False,
                     **{
                         column: float(row[column])
                         for column in predictions.columns
                     },
                 }
             )
+        self.last_selection = {
+            "status": "ranked",
+            "reason": "V4已发布模型完成全市场排序",
+            "source": "v4_published_model",
+            "feature_source": "v4_frozen_1449",
+            "stage": "confirmation_1450",
+            "eligible_quotes": int(len(quote_frame)),
+            "candidates": int(len(candidates)),
+            "research_only": False,
+        }
         return self.evaluate_candidates(candidates, market)
