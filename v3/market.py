@@ -55,6 +55,8 @@ class MarketContext:
         self._rankings = {}
         self._top_sectors = []
         self._last_time = ''
+        self._as_of = ''
+        self._classified_coverage = 0.0
         # 情绪
         self.limit_up = 0
         self.limit_down = 0
@@ -109,8 +111,12 @@ class MarketContext:
         q = quotes_df[quotes_df['price'] > 0].copy()
         if len(q) < 100: return self._load_sentiment_cache()
         pct_col = 'change_pct' if 'change_pct' in q.columns else 'pct_chg'
-        self.limit_up = int((q[pct_col] >= 9.5).sum())
-        self.limit_down = int((q[pct_col] <= -9.5).sum())
+        thresholds = pd.Series(9.5, index=q.index, dtype=float)
+        thresholds.loc[q['code'].astype(str).str.startswith('30')] = 19.5
+        if 'name' in q.columns:
+            thresholds.loc[q['name'].astype(str).str.contains('ST', case=False, na=False)] = 4.8
+        self.limit_up = int((q[pct_col] >= thresholds).sum())
+        self.limit_down = int((q[pct_col] <= -thresholds).sum())
         up = int((q[pct_col] > 0).sum())
         self.up_ratio = round(up / len(q), 3)
         self.avg_change = round(float(q[pct_col].mean()), 2)
@@ -128,13 +134,16 @@ class MarketContext:
         self.sentiment_score = max(0, min(10, score))
         labels = {0: '恐慌', 2: '偏弱', 4: '中性', 6: '偏强', 8: '亢奋'}
         self.sentiment_label = labels.get(self.sentiment_score - self.sentiment_score % 2, '中性')
+        self._as_of = self._quote_as_of(q)
+        self._last_time = self._as_of or datetime.now().isoformat(timespec='seconds')
         self._save_cache()
         return self.get_sentiment()
 
     def get_sentiment(self) -> dict:
         return {'limit_up': self.limit_up, 'limit_down': self.limit_down,
                 'up_ratio': self.up_ratio, 'avg_change': self.avg_change,
-                'score': self.sentiment_score, 'label': self.sentiment_label}
+                'score': self.sentiment_score, 'label': self.sentiment_label,
+                'as_of': self._as_of, 'source': '全市场行情快照'}
 
     # ═══ 板块排名 ═══
     def rank_sectors(self, quotes_df: pd.DataFrame) -> dict:
@@ -142,6 +151,8 @@ class MarketContext:
         pct_col = 'change_pct' if 'change_pct' in q.columns else 'pct_chg'
         amt_col = 'amount' if 'amount' in q.columns else None
         q['_sector'] = q['name'].apply(classify_sector)
+        classified = q['_sector'].ne('其他')
+        self._classified_coverage = round(float(classified.mean()), 4) if len(q) else 0.0
         rankings = {}
         for sector, group in q.groupby('_sector'):
             n = len(group)
@@ -155,12 +166,15 @@ class MarketContext:
             info['rank'] = i + 1
             info['score'] = round(min(info['avg_pct'] * 5, 50) + info['up_ratio'] * 30, 1)
         self._rankings = dict(sorted_sec)
-        self._top_sectors = [s for s, _ in sorted_sec[:8]]
-        self._last_time = datetime.now().strftime('%H:%M:%S')
+        self._top_sectors = [s for s, _ in sorted_sec if s != '其他'][:8]
+        self._as_of = self._quote_as_of(q)
+        self._last_time = self._as_of or datetime.now().isoformat(timespec='seconds')
         self._save_rank_cache()
         return self._rankings
 
     def get_sector_bonus(self, stock_name: str) -> float:
+        if not self.classification_reliable:
+            return 0.0
         sec = classify_sector(str(stock_name))
         if sec not in self._rankings: return 0
         rank = self._rankings[sec].get('rank', 99)
@@ -173,12 +187,49 @@ class MarketContext:
         elif rank >= total - 5: return -5
         return 0
 
+    @property
+    def classification_reliable(self) -> bool:
+        """Whether the lightweight name mapping is safe to affect ranking."""
+
+        return bool(self._classified_coverage >= 0.60 and len(self._rankings) >= 15)
+
     def get_sector_summary(self) -> dict:
         top = [{'sector': s, 'avg_pct': self._rankings[s].get('avg_pct', 0),
                 'up_ratio': self._rankings[s].get('up_ratio', 0.5),
-                'rank': self._rankings[s].get('rank', 99)}
+                'rank': self._rankings[s].get('rank', 99),
+                'count': self._rankings[s].get('count', 0),
+                'total_amount': self._rankings[s].get('total_amount', 0)}
                for s in self._top_sectors[:5]]
-        return {'top': top, 'time': self._last_time, 'total_sectors': len(self._rankings)}
+        bottom_names = [s for s in reversed(list(self._rankings)) if s != '其他'][:3]
+        bottom = [
+            {'sector': s, **self._rankings.get(s, {})} for s in bottom_names
+        ]
+        activity_names = sorted(
+            (s for s in self._rankings if s != '其他'),
+            key=lambda s: float(self._rankings[s].get('total_amount', 0) or 0),
+            reverse=True,
+        )[:5]
+        activity_top = [
+            {'sector': s, **self._rankings.get(s, {})} for s in activity_names
+        ]
+        return {
+            'top': top,
+            'bottom': bottom,
+            'activity_top': activity_top,
+            'time': self._last_time,
+            'as_of': self._as_of,
+            'total_sectors': max(0, len(self._rankings) - int('其他' in self._rankings)),
+            'classified_coverage': self._classified_coverage,
+            'classification_reliable': self.classification_reliable,
+            'classification': '名称关键词代理行业',
+            'market_total_amount_yi': round(
+                sum(float(item.get('total_amount', 0) or 0) for item in self._rankings.values()),
+                1,
+            ),
+            'observed_codes': sum(
+                int(item.get('count', 0) or 0) for item in self._rankings.values()
+            ),
+        }
 
     # ═══ 缓存 ═══
     def _save_cache(self):
@@ -188,7 +239,9 @@ class MarketContext:
                 json.dump({'sentiment': self.get_sentiment(),
                            'rankings': self._rankings,
                            'top_sectors': self._top_sectors,
-                           'time': self._last_time}, f, ensure_ascii=False, indent=2)
+                           'time': self._last_time,
+                           'as_of': self._as_of,
+                           'classified_coverage': self._classified_coverage}, f, ensure_ascii=False, indent=2)
         except: pass
 
     def load_cache(self) -> dict:
@@ -200,6 +253,31 @@ class MarketContext:
                 self._rankings = d.get('rankings', {})
                 self._top_sectors = d.get('top_sectors', [])
                 self._last_time = d.get('time', '')
+                self._as_of = d.get('as_of', '')
+                self._classified_coverage = float(d.get('classified_coverage', 0) or 0)
+                rank_path = os.path.join(self.cache_dir, 'sector_rankings.json')
+                if (not self._rankings or not self._top_sectors) and os.path.exists(rank_path):
+                    with open(rank_path, 'r', encoding='utf-8') as rank_file:
+                        ranks = json.load(rank_file)
+                    self._rankings = ranks.get('rankings', {})
+                    self._top_sectors = ranks.get('top', [])
+                    self._last_time = ranks.get('time', self._last_time)
+                    self._as_of = ranks.get('as_of', self._as_of)
+                    self._classified_coverage = float(
+                        ranks.get('classified_coverage', self._classified_coverage) or 0
+                    )
+                if self._rankings and self._classified_coverage <= 0:
+                    total_count = sum(
+                        int(item.get('count', 0) or 0)
+                        for item in self._rankings.values()
+                    )
+                    unclassified = int(
+                        self._rankings.get('其他', {}).get('count', 0) or 0
+                    )
+                    if total_count:
+                        self._classified_coverage = round(
+                            max(0, total_count - unclassified) / total_count, 4
+                        )
                 s = d.get('sentiment', {})
                 self.limit_up = s.get('limit_up', 0)
                 self.limit_down = s.get('limit_down', 0)
@@ -207,6 +285,8 @@ class MarketContext:
                 self.avg_change = s.get('avg_change', 0)
                 self.sentiment_score = s.get('score', 5)
                 self.sentiment_label = s.get('label', '中性')
+                if not self._as_of:
+                    self._as_of = s.get('as_of', '')
                 return d
         except: pass
         return {}
@@ -216,8 +296,18 @@ class MarketContext:
             p = os.path.join(self.cache_dir, 'sector_rankings.json')
             with open(p, 'w', encoding='utf-8') as f:
                 json.dump({'rankings': self._rankings, 'top': self._top_sectors,
-                           'time': self._last_time}, f, ensure_ascii=False, indent=2)
+                           'time': self._last_time, 'as_of': self._as_of,
+                           'classified_coverage': self._classified_coverage}, f, ensure_ascii=False, indent=2)
         except: pass
+
+    @staticmethod
+    def _quote_as_of(quotes_df: pd.DataFrame) -> str:
+        if 'quote_time' not in quotes_df.columns:
+            return ''
+        parsed = pd.to_datetime(quotes_df['quote_time'], errors='coerce')
+        if not parsed.notna().any():
+            return ''
+        return parsed.max().isoformat()
 
     def _load_sentiment_cache(self) -> dict:
         try:

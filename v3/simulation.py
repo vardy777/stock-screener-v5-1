@@ -278,22 +278,25 @@ class SimulationEngine:
             return dict(self._last_market_state)
         try:
             if quotes is None or quotes.empty:
-                return {'sh_1d_pct': 0, 'sh_5d_pct': 0, 'sh_20d_pct': 0,
-                        'advance_ratio': 0.5, 'market_mean_signal_return': 0.0,
-                        'market_mean_gap': 0.0, 'regime_score': -1.0,
-                        'quote_coverage': 0.0, 'data_valid': False,
-                        'composite': 0, 'mode_label': 'unavailable'}
+                return self._empty_market_state()
             q = quotes.copy()
             q['code'] = q['code'].astype(str).str.zfill(6)
             q = q[q['code'].map(is_eligible_a_share)]
             q = q[pd.to_numeric(q['price'], errors='coerce').gt(0)]
             if 'quote_time' not in q.columns:
-                return self._get_market_state(None)
+                return self._empty_market_state()
             from v4.execution import TradingClock
-            q = q[q['quote_time'].map(TradingClock.quote_is_fresh)]
             q = q.drop_duplicates('code', keep='last')
             if q.empty:
-                return self._get_market_state(None)
+                return self._empty_market_state()
+            parsed_time = pd.to_datetime(q['quote_time'], errors='coerce')
+            latest_time = parsed_time.max() if parsed_time.notna().any() else None
+            if latest_time is not None:
+                same_session = parsed_time.dt.date.eq(latest_time.date())
+                q = q.loc[same_session].copy()
+                parsed_time = parsed_time.loc[same_session]
+            fresh_mask = q['quote_time'].map(TradingClock.quote_is_fresh)
+            fresh_codes = int(q.loc[fresh_mask, 'code'].nunique())
             pct = pd.to_numeric(
                 q.get('change_pct', q.get('pct_chg')), errors='coerce'
             )
@@ -301,9 +304,9 @@ class SimulationEngine:
             q = q.loc[metric_valid].copy()
             pct = pct.loc[metric_valid]
             if q.empty:
-                return self._get_market_state(None)
+                return self._empty_market_state()
             if not {'prev_close', 'open'}.issubset(q.columns):
-                return self._get_market_state(None)
+                return self._empty_market_state()
             previous = pd.to_numeric(q.get('prev_close'), errors='coerce')
             opened = pd.to_numeric(q.get('open'), errors='coerce')
             breadth = float((pct > 0).mean())
@@ -311,32 +314,107 @@ class SimulationEngine:
             gap = (opened / previous - 1.0).replace([math.inf, -math.inf], float('nan'))
             market_gap = float(gap.dropna().mean()) if gap.notna().any() else 0.0
             coverage = min(1.0, len(q) / expected_codes) if expected_codes else 0.0
+            fresh_coverage = min(1.0, fresh_codes / expected_codes) if expected_codes else 0.0
             regime = market_regime_score(breadth, market_return, market_gap)
+            observed_mode = (
+                'risk_off' if market_is_risk_off(breadth, market_return, market_gap)
+                else ('risk_on' if regime >= 0.35 else 'neutral')
+            )
+            data_valid = bool(expected_codes and fresh_coverage >= 0.95)
+            amount = pd.to_numeric(q.get('amount'), errors='coerce') if 'amount' in q.columns else pd.Series(dtype=float)
+            amount_valid = amount.gt(0) if not amount.empty else pd.Series(False, index=q.index)
+            names = q.get('name', pd.Series('', index=q.index)).astype(str)
+            limit_threshold = pd.Series(9.5, index=q.index, dtype=float)
+            limit_threshold.loc[q['code'].str.startswith('30')] = 19.5
+            limit_threshold.loc[names.str.contains('ST', case=False, na=False)] = 4.8
+            rise_count = int((pct > 0).sum())
+            fall_count = int((pct < 0).sum())
+            flat_count = int((pct == 0).sum())
             state = {
+                # Legacy field retained for API compatibility.  It is an
+                # equal-weight universe statistic, never an index quote.
                 'sh_1d_pct': market_return * 100.0,
                 'sh_5d_pct': 0.0,
                 'sh_20d_pct': 0.0,
                 'composite': regime * 3.0,
                 'advance_ratio': breadth,
                 'market_mean_signal_return': market_return,
+                'market_equal_weight_pct': market_return * 100.0,
+                'market_median_pct': float(pct.median()),
                 'market_mean_gap': market_gap,
                 'regime_score': regime,
                 'quote_coverage': coverage,
-                'data_valid': bool(expected_codes and coverage >= 0.95),
-                'mode_label': (
-                    'risk_off' if market_is_risk_off(breadth, market_return, market_gap)
-                    else ('risk_on' if regime >= 0.35 else 'neutral')
-                ),
+                'fresh_quote_coverage': fresh_coverage,
+                'snapshot_complete': bool(expected_codes and coverage >= 0.95),
+                'data_valid': data_valid,
+                'mode_label': observed_mode if data_valid else 'unavailable',
+                'observed_mode_label': observed_mode,
+                'expected_codes': int(expected_codes),
+                'observed_codes': int(len(q)),
+                'fresh_codes': fresh_codes,
+                'rise_count': rise_count,
+                'fall_count': fall_count,
+                'flat_count': flat_count,
+                'limit_up_count': int((pct >= limit_threshold).sum()),
+                'limit_down_count': int((pct <= -limit_threshold).sum()),
+                'limit_threshold_method': 'board_aware_proxy',
+                'rise_gt_5_count': int((pct >= 5.0).sum()),
+                'fall_gt_5_count': int((pct <= -5.0).sum()),
+                'rise_2_5_count': int(((pct >= 2.0) & (pct < 5.0)).sum()),
+                'fall_2_5_count': int(((pct <= -2.0) & (pct > -5.0)).sum()),
+                'market_total_amount_yi': float(amount[amount_valid].sum() / 1e8) if amount_valid.any() else 0.0,
+                'amount_coverage': float(amount_valid.mean()) if len(amount_valid) else 0.0,
+                'as_of': latest_time.isoformat() if latest_time is not None else '',
+                'earliest_quote_time': parsed_time.min().isoformat() if parsed_time.notna().any() else '',
+                'latest_quote_time': latest_time.isoformat() if latest_time is not None else '',
+                'data_source': '新浪批量行情（本地缓存）',
+                'metric_definition': '沪深主板及创业板可用样本；涨跌均值为等权口径',
+                'generated_at': datetime.now().isoformat(timespec='seconds'),
             }
             self._last_market_state = dict(state)
             return state
         except Exception as exc:
             logger.warning('全市场状态计算失败: %s', exc)
-            return {'sh_1d_pct': 0, 'sh_5d_pct': 0, 'sh_20d_pct': 0,
-                    'advance_ratio': 0.5, 'market_mean_signal_return': 0.0,
-                    'market_mean_gap': 0.0, 'regime_score': -1.0,
-                    'quote_coverage': 0.0, 'data_valid': False,
-                    'composite': 0, 'mode_label': 'unavailable'}
+            return self._empty_market_state()
+
+    @staticmethod
+    def _empty_market_state() -> dict:
+        return {
+            'sh_1d_pct': 0.0,
+            'sh_5d_pct': 0.0,
+            'sh_20d_pct': 0.0,
+            'advance_ratio': 0.5,
+            'market_mean_signal_return': 0.0,
+            'market_equal_weight_pct': 0.0,
+            'market_median_pct': 0.0,
+            'market_mean_gap': 0.0,
+            'regime_score': -1.0,
+            'quote_coverage': 0.0,
+            'fresh_quote_coverage': 0.0,
+            'snapshot_complete': False,
+            'data_valid': False,
+            'composite': 0.0,
+            'mode_label': 'unavailable',
+            'observed_mode_label': 'unavailable',
+            'expected_codes': 0,
+            'observed_codes': 0,
+            'fresh_codes': 0,
+            'rise_count': 0,
+            'fall_count': 0,
+            'flat_count': 0,
+            'limit_up_count': 0,
+            'limit_down_count': 0,
+            'limit_threshold_method': 'unavailable',
+            'rise_gt_5_count': 0,
+            'fall_gt_5_count': 0,
+            'rise_2_5_count': 0,
+            'fall_2_5_count': 0,
+            'market_total_amount_yi': 0.0,
+            'amount_coverage': 0.0,
+            'as_of': '',
+            'data_source': '无可用全市场快照',
+            'metric_definition': '无数据时禁止推断市场状态',
+        }
 
     def _empty_state(self) -> dict:
         """空状态模板"""
@@ -475,7 +553,11 @@ class SimulationEngine:
                 # Apply sector/fund bonuses
                 self._apply_bonuses(chase_q, quotes)
                 # 板块确认: 只保留Top8热门行业
-                if self._sector_ranker and self._sector_ranker._top_sectors:
+                if (
+                    self._sector_ranker
+                    and self._sector_ranker.classification_reliable
+                    and self._sector_ranker._top_sectors
+                ):
                     top8 = set(self._sector_ranker._top_sectors[:8])
                     from v3.market import classify_sector
                     chase_q['_sec'] = chase_q['name'].apply(lambda n: classify_sector(str(n)))
@@ -501,6 +583,15 @@ class SimulationEngine:
                         ),
                         'strategy': '追高',
                         'quote_time': s.get('quote_time'),
+                        'amount_yi': round(float(s.get('amount', 0) or 0) / 1e8, 2),
+                        'close_position': round(
+                            (close_price - float(s.get('low', close_price)))
+                            / max(high_price - float(s.get('low', close_price)), 1e-9),
+                            3,
+                        ) if high_price > float(s.get('low', close_price)) else 0.5,
+                        'volume_ratio': round(float(s.get('volume_ratio', 1) or 1), 3),
+                        'sector': str(s.get('_sec', '其他')),
+                        'sector_bonus': round(float(s.get('sector_bonus', 0) or 0), 1),
                     })
 
             # === 回调池: PullbackEngine 完整K线分析+多维评分 ===
@@ -509,7 +600,7 @@ class SimulationEngine:
                 from v3.pullback import PullbackEngine
                 pb_engine = PullbackEngine()
                 # 注入板块排名数据
-                if self._sector_ranker:
+                if self._sector_ranker and self._sector_ranker.classification_reliable:
                     pb_engine.set_sector_context(self._sector_ranker._rankings)
                 pullback_candidates = pb_engine.screen(quotes)
                 logger.info(f"PullbackEngine 返回 {len(pullback_candidates)} 只候选")
@@ -586,10 +677,18 @@ class SimulationEngine:
             from v3.config import DATA_DIR
             path = os.path.join(DATA_DIR, 'dashboard_data.json')
             os.makedirs(DATA_DIR, exist_ok=True)
+            market_state = self._last_market_state or {}
+            if not market_state and os.path.exists(path):
+                try:
+                    with open(path, 'r', encoding='utf-8') as existing_file:
+                        existing = json.load(existing_file)
+                    market_state = existing.get('market_state', {}) or {}
+                except (OSError, ValueError, TypeError):
+                    market_state = {}
             with open(path, 'w', encoding='utf-8') as f:
                 json.dump({
                     'candidates': candidates,
-                    'market_state': self._last_market_state or {},
+                    'market_state': market_state,
                     'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                     'date': datetime.now().strftime('%Y-%m-%d'),
                 }, f, ensure_ascii=False, indent=2)
