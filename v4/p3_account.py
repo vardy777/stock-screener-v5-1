@@ -21,11 +21,14 @@ class OfflinePaperLedger:
     def fills(self) -> list[dict]:
         if not self.path.exists():
             return []
-        rows = [
-            json.loads(line)
-            for line in self.path.read_text(encoding="utf-8").splitlines()
-            if line
-        ]
+        try:
+            rows = [
+                json.loads(line)
+                for line in self.path.read_text(encoding="utf-8").splitlines()
+                if line
+            ]
+        except (OSError, json.JSONDecodeError) as exc:
+            raise PaperContractViolation("ledger: unreadable or invalid JSON") from exc
         return [PaperFillV1.from_mapping(row).to_dict() for row in rows]
 
     def _state(self, extra: Iterable[dict] = ()) -> dict:
@@ -94,3 +97,34 @@ class OfflinePaperLedger:
             else:
                 result.append(PaperRoundTripV1.build(buys.pop(fill.code), fill).to_dict())
         return result
+
+    def reconcile(self) -> dict:
+        fills = self.fills()
+        snapshot = self.snapshot()
+        expected_cash = round(
+            self.initial_cash + sum(float(item["cash_flow"]) for item in fills), 6
+        )
+        open_codes = {
+            item["code"] for item in fills if item["side"] == "BUY"
+        } - {
+            item["code"] for item in fills if item["side"] == "SELL"
+        }
+        position_codes = {item["code"] for item in snapshot["positions"]}
+        trips = self.round_trips()
+        checks = {
+            "cash_matches_fills": abs(snapshot["cash"] - expected_cash) <= 0.000001,
+            "positions_match_fills": position_codes == open_codes,
+            "fill_ids_unique": len({item["fill_id"] for item in fills}) == len(fills),
+            "round_trips_match_sells": len(trips) == sum(item["side"] == "SELL" for item in fills),
+        }
+        if not snapshot["positions"]:
+            checks["flat_pnl_matches_cash"] = abs(
+                sum(float(item["net_pnl"]) for item in trips)
+                - (snapshot["cash"] - self.initial_cash)
+            ) <= 0.000001
+        return {
+            "schema_version": "paper-account-reconciliation-v1",
+            "passed": all(checks.values()), "checks": checks,
+            "fill_count": len(fills), "round_trip_count": len(trips),
+            "cash": snapshot["cash"], "expected_cash": expected_cash,
+        }

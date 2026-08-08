@@ -13,7 +13,7 @@ class P3ArchitectureTests(unittest.TestCase):
             "v4.dashboard", "v4.config", "v4.push",
         }
         violations = []
-        for name in ("p3_contracts.py", "p3_account.py"):
+        for name in ("p3_contracts.py", "p3_account.py", "p3_execution.py"):
             path = ROOT / "v4" / name
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
             for node in ast.walk(tree):
