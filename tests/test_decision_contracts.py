@@ -1,0 +1,76 @@
+import json
+import unittest
+from datetime import datetime
+
+from v4.decision_contracts import (
+    ConfirmationDecisionV1,
+    DecisionContractViolation,
+    MorningPoolV1,
+)
+from v4.execution import CHINA_TZ
+
+
+class DecisionContractTests(unittest.TestCase):
+    def setUp(self):
+        self.now = datetime(2026, 8, 3, 9, 25, 0, tzinfo=CHINA_TZ)
+        self.candidate = {
+            "code": "000001", "name": "测试", "rank": 1, "score": 77.5,
+            "v4_candidate_origin": "V4", "v4_paper_eligible": False,
+            "v4_paper_block_reasons": ["规则分低于80"],
+        }
+
+    def morning(self):
+        return MorningPoolV1.build(
+            "2026-08-03", self.now, [self.candidate], {"data_valid": True}
+        )
+
+    def test_entities_are_versioned_deterministic_and_serializable(self):
+        first = self.morning()
+        second = self.morning()
+        self.assertEqual(first.pool_id, second.pool_id)
+        self.assertEqual(first.schema_version, "morning-pool-v1")
+        json.dumps(first.to_dict(), ensure_ascii=False)
+
+    def test_confirmation_has_explicit_blocked_empty_and_buy_outcomes(self):
+        morning = self.morning()
+        blocked = ConfirmationDecisionV1.build(
+            morning, self.now, [self.candidate], {"data_valid": True}
+        )
+        empty = ConfirmationDecisionV1.build(
+            morning, self.now, [], {"data_valid": True}
+        )
+        eligible = dict(self.candidate)
+        eligible["v4_paper_eligible"] = True
+        eligible["v4_paper_block_reasons"] = []
+        buy = ConfirmationDecisionV1.build(
+            morning, self.now, [eligible], {"data_valid": True}
+        )
+        self.assertEqual(blocked.outcome, "BLOCKED")
+        self.assertEqual(blocked.reason_codes, ("score_policy",))
+        self.assertEqual(empty.outcome, "EMPTY")
+        self.assertEqual(buy.outcome, "BUY")
+
+    def test_confirmation_outside_mother_pool_is_rejected(self):
+        outside = dict(self.candidate, code="000002")
+        with self.assertRaisesRegex(DecisionContractViolation, "outside morning"):
+            ConfirmationDecisionV1.build(
+                self.morning(), self.now, [outside], {"data_valid": True}
+            )
+
+    def test_naive_entity_time_is_rejected(self):
+        with self.assertRaisesRegex(DecisionContractViolation, "timezone"):
+            MorningPoolV1.build(
+                "2026-08-03", datetime(2026, 8, 3, 9, 25),
+                [self.candidate], {},
+            )
+
+    def test_nested_entity_content_cannot_be_mutated(self):
+        morning = self.morning()
+        with self.assertRaises(TypeError):
+            morning.candidates[0]["score"] = 100
+        with self.assertRaises(TypeError):
+            morning.market_state["data_valid"] = False
+
+
+if __name__ == "__main__":
+    unittest.main()

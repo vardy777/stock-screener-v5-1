@@ -9,7 +9,7 @@
 | 上下文与特征 | `v4/feature_store.py`, `phase1/overnight/` | 点时特征、严格归档 | 研究锁定 | P1/P6 |
 | 候选选择 | `v4/selection.py` | 早盘池、尾盘母池内重排 | 可运行，有分数口径债务 | P2 |
 | 决策门禁 | `v4/runtime.py` | 生产与研究模拟门禁 | 可运行，原因状态会重算 | P2 |
-| 候选日志 | `v4/candidate_journal.py` | 早盘/尾盘关联审计 | 可运行，非最终决策实体 | P2 |
+| 候选日志 | `v4/candidate_journal.py`, `v4/decision_contracts.py` | 不可变早盘母池与最终确认决策 | P2实体与最终写入顺序已完成 | P2消费者切换 |
 | 模拟账户 | `v4/sim_engine.py` | 现金、持仓、费用、历史 | 可运行 | P3 |
 | 流程编排 | `v4/simulation.py` | 抓取、筛选、买卖 | 职责过重 | P2/P3拆分 |
 | 调度器 | `v4/paper_scheduler.py` | 买卖定时与回执 | 依赖看板常驻 | P4 |

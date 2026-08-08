@@ -426,9 +426,10 @@ class SimulationEngine:
             if stage == 'morning':
                 journal.save_morning(trade_date, candidates, market_state)
             else:
+                candidates = journal.link_confirmation_candidates(trade_date, candidates)
+                candidates = v4_runtime.evaluate_candidates(candidates, market_state)
                 journal.save_confirmation(trade_date, candidates, market_state)
                 candidates = journal.load(trade_date).get('confirmation', {}).get('candidates', [])
-                candidates = v4_runtime.evaluate_candidates(candidates, market_state)
             market_state['v4_selection'] = dict(v4_runtime.last_selection)
             self._last_market_state = dict(market_state)
             self._candidates = candidates

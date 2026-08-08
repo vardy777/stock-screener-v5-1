@@ -39,6 +39,34 @@ class CandidateJournalTests(unittest.TestCase):
             self.assertTrue(journal.has_morning("2026-08-05"))
             self.assertEqual(journal.morning_candidates("2026-08-05"), [])
 
+    def test_morning_and_confirmation_are_immutable_but_idempotent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            journal = CandidateJournal(Path(directory))
+            morning = [{
+                "code": "000001", "rank": 1, "score": 80,
+                "v4_candidate_origin": "V4",
+            }]
+            first = journal.save_morning("2026-08-05", morning, {})
+            second = journal.save_morning("2026-08-05", morning, {})
+            self.assertEqual(first["morning"]["pool_id"], second["morning"]["pool_id"])
+            with self.assertRaisesRegex(ValueError, "immutable"):
+                journal.save_morning("2026-08-05", [], {})
+
+            final = [{
+                "code": "000001", "rank": 1, "score": 80,
+                "v4_candidate_origin": "V4", "v4_paper_eligible": True,
+                "v4_paper_block_reasons": [],
+            }]
+            journal.save_confirmation("2026-08-05", final, {})
+            saved = journal.load("2026-08-05")["confirmation"]
+            self.assertEqual(saved["outcome"], "BUY")
+            self.assertEqual(saved["reason_codes"], ["eligible_top1"])
+            journal.save_confirmation("2026-08-05", final, {})
+            blocked = dict(final[0], v4_paper_eligible=False,
+                           v4_paper_block_reasons=["规则分低于80"])
+            with self.assertRaisesRegex(ValueError, "immutable"):
+                journal.save_confirmation("2026-08-05", [blocked], {})
+
 
 if __name__ == "__main__":
     unittest.main()

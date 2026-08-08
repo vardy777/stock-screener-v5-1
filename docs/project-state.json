@@ -2,10 +2,15 @@
   "schema_version": "project-state-v1",
   "project": "a-share-overnight-v4",
   "display_name": "A股隔夜研究与模拟系统 V4",
-  "updated_at": "2026-08-08T14:00:00+08:00",
+  "updated_at": "2026-08-08T15:30:00+08:00",
   "active_phase": "P2",
   "active_phase_name": "候选与决策契约",
   "production_status": "research_locked",
+  "p1_validation": {
+    "engineering_status": "completed",
+    "live_window_status": "pending_two_open_sessions",
+    "required_windows": ["14:49 signal", "14:50 strict and paper-only", "next-session 09:30 sell"]
+  },
   "runtime_owner": "v4",
   "dashboard": {
     "url": "http://127.0.0.1:8898/",
@@ -43,7 +48,7 @@
     "confirmation_push_success": true
   },
   "quality": {
-    "tests_passed": 105,
+    "tests_passed": 111,
     "tests_failed": 0,
     "v4_imports_v3": false
   },
@@ -53,7 +58,7 @@
       "severity": "P0",
       "title": "候选日志保存了门禁重评前的阻断理由",
       "phase": "P2",
-      "status": "open"
+      "status": "closed"
     },
     {
       "id": "P2-002",
@@ -78,8 +83,7 @@
     }
   ],
   "next_tasks": [
-    "定义不可变MorningPool与ConfirmationDecision实体和原因码",
-    "修复候选日志保存门禁重评前阻断理由",
+    "让推送、看板和模拟执行只读取最终ConfirmationDecision",
     "统一全市场base_score与尾盘confirm_delta口径"
   ],
   "phase_status": {

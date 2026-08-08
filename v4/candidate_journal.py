@@ -1,4 +1,4 @@
-"""Persistent audit trail linking the 09:25 pool to the 14:50 decision."""
+"""Immutable audit trail linking the 09:25 pool to the final 14:50 decision."""
 
 from __future__ import annotations
 
@@ -6,6 +6,9 @@ import json
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable
+
+from .decision_contracts import ConfirmationDecisionV1, MorningPoolV1
+from .execution import CHINA_TZ
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -34,16 +37,20 @@ class CandidateJournal:
         temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         temporary.replace(path)
 
+    @staticmethod
+    def _now() -> datetime:
+        return datetime.now(CHINA_TZ)
+
     def save_morning(self, trade_date: str, candidates: Iterable[dict], market_state: dict) -> dict:
         rows = [dict(item) for item in candidates if item.get("v4_candidate_origin") == "V4"]
+        entity = MorningPoolV1.build(trade_date, self._now(), rows, market_state)
         payload = self.load(trade_date) or {"trade_date": trade_date}
-        payload["morning"] = {
-            "captured_at": datetime.now().isoformat(timespec="seconds"),
-            "codes": [item.get("code") for item in rows],
-            "candidates": rows,
-            "market_state": market_state,
-        }
-        payload.pop("confirmation", None)
+        existing = payload.get("morning", {})
+        if existing:
+            if existing.get("pool_id") == entity.pool_id:
+                return payload
+            raise ValueError("morning pool is immutable for this trade date")
+        payload["morning"] = entity.to_dict()
         self._write(trade_date, payload)
         return payload
 
@@ -51,10 +58,9 @@ class CandidateJournal:
         return list(self.load(trade_date).get("morning", {}).get("candidates", []))
 
     def has_morning(self, trade_date: str) -> bool:
-        """Return true even when the valid morning observation conclusion is empty."""
         return "morning" in self.load(trade_date)
 
-    def save_confirmation(self, trade_date: str, candidates: Iterable[dict], market_state: dict) -> dict:
+    def link_confirmation_candidates(self, trade_date: str, candidates: Iterable[dict]) -> list[dict]:
         payload = self.load(trade_date)
         if not payload.get("morning"):
             raise ValueError("missing current-session 09:25 mother pool")
@@ -67,18 +73,35 @@ class CandidateJournal:
             linked = dict(item)
             linked.update({
                 "morning_pool_member": True,
+                "morning_pool_id": payload["morning"].get("pool_id"),
                 "morning_rank": morning[code].get("rank"),
                 "morning_score": morning[code].get("score"),
                 "morning_quote_time": morning[code].get("quote_time"),
                 "linkage_status": "confirmed_from_morning_pool",
             })
             rows.append(linked)
-        payload["confirmation"] = {
-            "captured_at": datetime.now().isoformat(timespec="seconds"),
-            "codes": [item.get("code") for item in rows],
-            "candidates": rows,
-            "market_state": market_state,
-            "mother_pool_size": len(morning),
-        }
+        return rows
+
+    def save_confirmation(self, trade_date: str, candidates: Iterable[dict], market_state: dict) -> dict:
+        payload = self.load(trade_date)
+        if not payload.get("morning"):
+            raise ValueError("missing current-session 09:25 mother pool")
+        rows = self.link_confirmation_candidates(trade_date, candidates)
+        morning_data = payload["morning"]
+        morning = MorningPoolV1(
+            pool_id=morning_data["pool_id"], trade_date=morning_data["trade_date"],
+            captured_at=morning_data["captured_at"],
+            candidate_codes=tuple(morning_data.get("candidate_codes", morning_data.get("codes", []))),
+            candidates=tuple(morning_data.get("candidates", [])),
+            market_state=dict(morning_data.get("market_state", {})),
+            schema_version=morning_data.get("schema_version", "morning-pool-v1"),
+        )
+        entity = ConfirmationDecisionV1.build(morning, self._now(), rows, market_state)
+        existing = payload.get("confirmation", {})
+        if existing:
+            if existing.get("decision_id") == entity.decision_id:
+                return payload
+            raise ValueError("confirmation decision is immutable for this trade date")
+        payload["confirmation"] = entity.to_dict()
         self._write(trade_date, payload)
         return payload
