@@ -29,6 +29,7 @@
 |---|---|
 | [项目状态](docs/project-state.json) | 机器可读的当前阶段、风险、下一任务和验证结果 |
 | [路线图](docs/ROADMAP.md) | 按顺序推进的开发阶段与退出条件 |
+| [详细日程](docs/PROJECT_PLAN.md) | 日期、任务、交付物、验收、稳定运行和样本时间 |
 | [架构](docs/ARCHITECTURE.md) | 系统边界、数据流、状态机和证据隔离 |
 | [模块清单](docs/MODULES.md) | 每个模块的职责、输入、输出、状态与待修事项 |
 | [运行手册](docs/RUNBOOK.md) | 启动、检查、故障定位、恢复和每日操作 |

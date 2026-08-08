@@ -11,6 +11,14 @@
     "url": "http://127.0.0.1:8898/",
     "entrypoint": "python -m v4.dashboard"
   },
+  "schedule": {
+    "baseline_date": "2026-08-08",
+    "engineering_acceptance_target": "2026-10-16",
+    "stability_observation_target": "2026-11-13",
+    "initial_strategy_assessment_estimate": "2027-01 to 2027-03, sample-dependent",
+    "production_model_target": "gate-driven, no promised date",
+    "plan": "docs/PROJECT_PLAN.md"
+  },
   "required_notifications": [
     "09:25 morning observation pool",
     "14:50 confirmation"
@@ -34,7 +42,7 @@
     "confirmation_push_success": true
   },
   "quality": {
-    "tests_passed": 91,
+    "tests_passed": 94,
     "tests_failed": 0,
     "v4_imports_v3": false
   },

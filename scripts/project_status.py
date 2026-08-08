@@ -16,6 +16,7 @@ REQUIRED_FILES = (
     "PROJECT.md",
     "docs/project-state.json",
     "docs/ROADMAP.md",
+    "docs/PROJECT_PLAN.md",
     "docs/ARCHITECTURE.md",
     "docs/MODULES.md",
     "docs/RUNBOOK.md",
