@@ -8,8 +8,8 @@ from typing import Iterable
 from strategy_spec import DEFAULT_SPEC, TradeCostModel
 from .calendar import TradingCalendar
 from .market_contracts import MarketSnapshotV1
-from .p3_account import OfflineOrderJournal, OfflinePaperLedger
-from .p3_contracts import PaperContractViolation, PaperFillV1, PaperOrderIntentV1
+from .p3_account import OfflineExecutionJournal, OfflineOrderJournal, OfflinePaperLedger
+from .p3_contracts import PaperContractViolation, PaperExecutionResultV1, PaperFillV1, PaperOrderIntentV1
 
 
 class OfflineIntentFactory:
@@ -76,11 +76,20 @@ class OfflineIntentFactory:
 
 class OfflineExecutionEngine:
     def __init__(
-        self, ledger: OfflinePaperLedger, *, costs=None, order_journal=None
+        self, ledger: OfflinePaperLedger, *, costs=None, order_journal=None, execution_journal=None
     ):
         self.ledger = ledger
         self.costs = costs or TradeCostModel(DEFAULT_SPEC)
         self.order_journal = order_journal or OfflineOrderJournal(ledger.directory)
+        self.execution_journal = execution_journal or OfflineExecutionJournal(ledger.directory)
+
+    @staticmethod
+    def _reason_code(exc: Exception) -> str:
+        if isinstance(exc, PaperContractViolation):
+            return "CONTRACT_REJECTED"
+        if isinstance(exc, OSError):
+            return "STORAGE_FAILURE"
+        return "EXECUTION_FAILURE"
 
     def execute(self, intents: Iterable[PaperOrderIntentV1], *, filled_at: datetime) -> dict:
         results = []
@@ -102,14 +111,26 @@ class OfflineExecutionEngine:
                     intent, filled_at=filled_at, fill_price=fill_price, costs=costs
                 )
                 appended = self.ledger.append(fill)
+                result_event = PaperExecutionResultV1.build(
+                    intent_id=intent.intent_id, recorded_at=filled_at, outcome="FILLED",
+                    reason_code="IDEMPOTENT" if not appended else "FILLED", fill_id=fill.fill_id)
+                self.execution_journal.append(result_event)
                 results.append({
                     "intent_id": intent.intent_id, "fill_id": fill.fill_id,
                     "success": True, "idempotent": not appended,
                 })
             except Exception as exc:
+                intent_id = getattr(intent, "intent_id", None)
+                if intent_id:
+                    try:
+                        self.execution_journal.append(PaperExecutionResultV1.build(
+                            intent_id=intent_id, recorded_at=filled_at, outcome="REJECTED",
+                            reason_code=self._reason_code(exc)))
+                    except Exception:
+                        pass
                 results.append({
-                    "intent_id": getattr(intent, "intent_id", None),
-                    "success": False, "error": str(exc),
+                    "intent_id": intent_id, "success": False,
+                    "reason_code": self._reason_code(exc), "error": str(exc),
                 })
         return {
             "success": all(item["success"] for item in results),
@@ -117,3 +138,26 @@ class OfflineExecutionEngine:
             "failed": sum(1 for item in results if not item["success"]),
             "results": results,
         }
+
+    def recovery_report(self) -> dict:
+        intents = self.order_journal.intents()
+        fills = self.ledger.fills()
+        results = self.execution_journal.results()
+        filled_ids = {row["intent_id"] for row in fills}
+        rejected_ids = {row["intent_id"] for row in results if row["outcome"] == "REJECTED" and row["reason_code"] != "STORAGE_FAILURE"}
+        retryable_ids = {row["intent_id"] for row in results if row["outcome"] == "REJECTED" and row["reason_code"] == "STORAGE_FAILURE"}
+        known_ids = {row["intent_id"] for row in intents}
+        pending = [row for row in intents if row["intent_id"] not in filled_ids and row["intent_id"] not in rejected_ids]
+        return {
+            "schema_version": "offline-execution-recovery-v1",
+            "status": "RECOVERY_REQUIRED" if pending or retryable_ids - filled_ids else "CLEAN",
+            "pending_intents": pending,
+            "retryable_intent_ids": sorted(retryable_ids - filled_ids),
+            "filled_intent_ids": sorted(filled_ids), "rejected_intent_ids": sorted(rejected_ids),
+            "orphan_fill_ids": sorted(row["fill_id"] for row in fills if row["intent_id"] not in known_ids),
+        }
+
+    def retry_pending(self, *, filled_at: datetime) -> dict:
+        """Idempotently retry every persisted intent not terminally resolved."""
+        pending = [PaperOrderIntentV1.from_mapping(row) for row in self.recovery_report()["pending_intents"]]
+        return self.execute(pending, filled_at=filled_at)

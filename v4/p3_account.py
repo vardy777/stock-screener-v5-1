@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+from decimal import Decimal
 from pathlib import Path
 from typing import Iterable
 
 from strategy_spec import DEFAULT_SPEC
 from .p3_contracts import (
-    PaperContractViolation, PaperFillV1, PaperOrderIntentV1, PaperRoundTripV1,
+    PaperContractViolation, PaperExecutionResultV1, PaperFillV1, PaperOrderIntentV1, PaperRoundTripV1,
 )
+from .p3_storage import atomic_json_write, exclusive_file_lock
 
 
 LEDGER_VERSION = "offline-paper-ledger-v1"
@@ -29,6 +31,7 @@ class OfflineOrderJournal:
     def __init__(self, directory: Path):
         self.directory = Path(directory)
         self.path = self.directory / "paper_orders.json"
+        self.lock_path = self.directory / ".paper_orders.lock"
 
     def intents(self) -> list[dict]:
         if not self.path.exists():
@@ -48,31 +51,55 @@ class OfflineOrderJournal:
         if not isinstance(intent, PaperOrderIntentV1):
             raise PaperContractViolation("intent: PaperOrderIntentV1 required")
         intent.verify()
-        rows = self.intents()
-        if any(row["intent_id"] == intent.intent_id for row in rows):
-            return False
-        rows.append(intent.to_dict())
-        payload = {
-            "schema_version": "offline-paper-orders-v1",
-            "intent_count": len(rows), "intents": rows,
-        }
-        self.directory.mkdir(parents=True, exist_ok=True)
-        temporary = self.path.with_suffix(".tmp")
-        temporary.write_text(
-            json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2),
-            encoding="utf-8",
-        )
-        temporary.replace(self.path)
-        return True
+        with exclusive_file_lock(self.lock_path):
+            rows = self.intents()
+            if any(row["intent_id"] == intent.intent_id for row in rows):
+                return False
+            rows.append(intent.to_dict())
+            atomic_json_write(self.path, {"schema_version": "offline-paper-orders-v1",
+                              "intent_count": len(rows), "intents": rows})
+            return True
+
+
+class OfflineExecutionJournal:
+    """Append-only outcomes; rejected intents survive process restarts."""
+    def __init__(self, directory: Path):
+        self.directory = Path(directory)
+        self.path = self.directory / "paper_execution_results.json"
+        self.lock_path = self.directory / ".paper_execution_results.lock"
+
+    def results(self) -> list[dict]:
+        if not self.path.exists():
+            return []
+        try:
+            payload = json.loads(self.path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise PaperContractViolation("execution journal: invalid JSON") from exc
+        rows = payload.get("results", [])
+        if payload.get("schema_version") != "offline-paper-execution-results-v1" or payload.get("result_count") != len(rows):
+            raise PaperContractViolation("execution journal: schema or count mismatch")
+        return [PaperExecutionResultV1.from_mapping(row).to_dict() for row in rows]
+
+    def append(self, result: PaperExecutionResultV1) -> bool:
+        result.verify()
+        with exclusive_file_lock(self.lock_path):
+            rows = self.results()
+            if any(row["result_id"] == result.result_id for row in rows):
+                return False
+            rows.append(result.to_dict())
+            atomic_json_write(self.path, {"schema_version": "offline-paper-execution-results-v1",
+                              "result_count": len(rows), "results": rows})
+            return True
 
 
 class OfflinePaperLedger:
     def __init__(self, directory: Path, *, initial_cash: float = 100_000.0):
         self.directory = Path(directory)
-        self.initial_cash = float(initial_cash)
+        self.initial_cash = float(Decimal(str(initial_cash)).quantize(Decimal("0.01")))
         if self.initial_cash <= 0:
             raise ValueError("initial_cash must be positive")
         self.path = self.directory / "paper_ledger.json"
+        self.lock_path = self.directory / ".paper_ledger.lock"
 
     def _empty(self) -> dict:
         return {
@@ -116,10 +143,10 @@ class OfflinePaperLedger:
         ]
 
     def _state(self, extra: Iterable[dict] = ()) -> dict:
-        cash = self.initial_cash
+        cash = Decimal(str(self.initial_cash))
         positions: dict[str, dict] = {}
         for fill in [*self.fills(), *extra]:
-            cash += float(fill["cash_flow"])
+            cash += Decimal(str(fill["cash_flow"]))
             code = fill["code"]
             if fill["side"] == "BUY":
                 if code in positions:
@@ -136,12 +163,16 @@ class OfflinePaperLedger:
                 if fill["filled_at"] <= position["filled_at"]:
                     raise PaperContractViolation("sell timestamp is not after buy")
                 positions.pop(code)
-        return {"cash": round(cash, 6), "positions": positions}
+        return {"cash": float(cash.quantize(Decimal("0.01"))), "positions": positions}
 
     def append(self, fill: PaperFillV1) -> bool:
         if not isinstance(fill, PaperFillV1):
             raise PaperContractViolation("fill: PaperFillV1 required")
         fill.verify()
+        with exclusive_file_lock(self.lock_path):
+            return self._append_locked(fill)
+
+    def _append_locked(self, fill: PaperFillV1) -> bool:
         payload = self._load()
         existing = [event["fill"] for event in payload["events"]]
         if any(item["fill_id"] == fill.fill_id for item in existing):
@@ -152,10 +183,11 @@ class OfflinePaperLedger:
             state = self._state()
             if len(state["positions"]) >= DEFAULT_SPEC.max_positions:
                 raise PaperContractViolation("maximum position count reached")
-            equity_at_cost = state["cash"] + sum(
-                float(item["notional"]) for item in state["positions"].values()
+            equity_at_cost = Decimal(str(state["cash"])) + sum(
+                (Decimal(str(item["notional"])) for item in state["positions"].values()), Decimal("0")
             )
-            if -fill.cash_flow > equity_at_cost * DEFAULT_SPEC.max_position_fraction + 0.01:
+            cap = equity_at_cost / Decimal("3")
+            if Decimal(str(-fill.cash_flow)) > cap:
                 raise PaperContractViolation("position exceeds one-third cap")
         projected = self._state([fill.to_dict()])
         if projected["cash"] < -0.001:
@@ -169,19 +201,15 @@ class OfflinePaperLedger:
         })
         payload["event_count"] = sequence
         payload["head_event_id"] = event_id
-        self.directory.mkdir(parents=True, exist_ok=True)
-        temporary = self.path.with_suffix(".tmp")
-        temporary.write_text(
-            json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2),
-            encoding="utf-8",
-        )
-        temporary.replace(self.path)
+        atomic_json_write(self.path, payload)
         return True
 
     def snapshot(self) -> dict:
         state = self._state()
         return {
             "initial_cash": self.initial_cash, "cash": state["cash"],
+            "initial_cash_fen": int(Decimal(str(self.initial_cash)) * 100),
+            "cash_fen": int(Decimal(str(state["cash"])) * 100),
             "positions": list(state["positions"].values()),
             "fill_count": len(self.fills()),
         }
@@ -200,14 +228,14 @@ class OfflinePaperLedger:
     def reconcile(self, order_journal: OfflineOrderJournal | None = None) -> dict:
         fills = self.fills()
         snapshot = self.snapshot()
-        expected_cash = round(
-            self.initial_cash + sum(float(item["cash_flow"]) for item in fills), 6
-        )
+        expected_cash = float((Decimal(str(self.initial_cash)) + sum(
+            (Decimal(str(item["cash_flow"])) for item in fills), Decimal("0")
+        )).quantize(Decimal("0.01")))
         replayed_positions = self._state()["positions"]
         position_codes = {item["code"] for item in snapshot["positions"]}
         trips = self.round_trips()
         checks = {
-            "cash_matches_fills": abs(snapshot["cash"] - expected_cash) <= 0.000001,
+            "cash_matches_fills": snapshot["cash"] == expected_cash,
             "positions_match_fills": position_codes == set(replayed_positions),
             "fill_ids_unique": len({item["fill_id"] for item in fills}) == len(fills),
             "round_trips_match_sells": len(trips) == sum(item["side"] == "SELL" for item in fills),
@@ -221,13 +249,12 @@ class OfflinePaperLedger:
             )
             checks["order_ids_unique"] = len(intent_ids) == len(intents)
         if not snapshot["positions"]:
-            checks["flat_pnl_matches_cash"] = abs(
-                sum(float(item["net_pnl"]) for item in trips)
-                - (snapshot["cash"] - self.initial_cash)
-            ) <= 0.000001
+            pnl = sum((Decimal(str(item["net_pnl"])) for item in trips), Decimal("0"))
+            checks["flat_pnl_matches_cash"] = pnl == Decimal(str(snapshot["cash"])) - Decimal(str(self.initial_cash))
         return {
             "schema_version": "paper-account-reconciliation-v1",
             "passed": all(checks.values()), "checks": checks,
             "fill_count": len(fills), "round_trip_count": len(trips),
             "cash": snapshot["cash"], "expected_cash": expected_cash,
+            "cash_fen": snapshot["cash_fen"],
         }

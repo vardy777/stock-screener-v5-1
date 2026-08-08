@@ -13,6 +13,7 @@ from typing import Any, Mapping
 ORDER_VERSION = "paper-order-intent-v1"
 FILL_VERSION = "paper-fill-v1"
 ROUND_TRIP_VERSION = "paper-round-trip-v1"
+EXECUTION_RESULT_VERSION = "paper-execution-result-v1"
 
 
 class PaperContractViolation(ValueError):
@@ -44,6 +45,28 @@ def _positive(value: Any, field: str) -> float:
     if not isfinite(result) or result <= 0:
         raise PaperContractViolation(f"{field}: positive value required")
     return result
+
+
+def money(value: Any, field: str = "money") -> float:
+    """Canonical CNY precision: immutable contracts persist whole fen."""
+    from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+    try:
+        result = Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    except (InvalidOperation, ValueError) as exc:
+        raise PaperContractViolation(f"{field}: numeric value required") from exc
+    if not result.is_finite():
+        raise PaperContractViolation(f"{field}: finite value required")
+    return float(result)
+
+
+def _price(value: Any, field: str = "price") -> float:
+    """Price precision is separate from account cash precision."""
+    from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+    try:
+        result = Decimal(str(value)).quantize(Decimal("0.00000001"), rounding=ROUND_HALF_UP)
+    except (InvalidOperation, ValueError) as exc:
+        raise PaperContractViolation(f"{field}: numeric value required") from exc
+    return float(result)
 
 
 def _identity(prefix: str, payload: Mapping[str, Any]) -> str:
@@ -98,8 +121,8 @@ class PaperOrderIntentV1:
             "side": side, "code": code, "name": str(value.get("name", "")),
             "trade_date": trade_date,
             "created_at": created_at,
-            "reference_price": _positive(value.get("reference_price"), "reference_price"),
-            "shares": shares, "cash_budget": _positive(value.get("cash_budget"), "cash_budget"),
+            "reference_price": _price(_positive(value.get("reference_price"), "reference_price"), "reference_price"),
+            "shares": shares, "cash_budget": money(_positive(value.get("cash_budget"), "cash_budget"), "cash_budget"),
             "market_snapshot_id": snapshot_id, "eligible_sell_date": eligible,
         }
         return cls(intent_id=_identity("poi", payload), **{k: v for k, v in payload.items() if k != "schema_version"})
@@ -151,17 +174,17 @@ class PaperFillV1:
         if not isinstance(intent, PaperOrderIntentV1):
             raise PaperContractViolation("intent: PaperOrderIntentV1 required")
         intent.verify()
-        price = _positive(fill_price, "fill_price")
-        fees = {name: float(costs.get(name, 0.0)) for name in (
+        price = _price(_positive(fill_price, "fill_price"), "fill_price")
+        fees = {name: money(costs.get(name, 0.0), name) for name in (
             "notional", "commission", "transfer_fee", "stamp_duty", "total"
         )}
         if any(not isfinite(item) or item < 0 for item in fees.values()):
             raise PaperContractViolation("costs: finite non-negative values required")
-        expected_notional = price * intent.shares
-        if abs(fees["notional"] - expected_notional) > 0.01:
+        expected_notional = money(price * intent.shares, "notional")
+        if fees["notional"] != expected_notional:
             raise PaperContractViolation("costs: notional mismatch")
-        cash_flow = -expected_notional - fees["total"] if intent.side == "BUY" else expected_notional - fees["total"]
-        if intent.side == "BUY" and -cash_flow > intent.cash_budget + 0.01:
+        cash_flow = money(-expected_notional - fees["total"] if intent.side == "BUY" else expected_notional - fees["total"], "cash_flow")
+        if intent.side == "BUY" and -cash_flow > intent.cash_budget:
             raise PaperContractViolation("fill: frozen cash budget exceeded")
         fill_time = _timestamp(filled_at, "filled_at")
         if datetime.fromisoformat(fill_time).date().isoformat() != intent.trade_date:
@@ -226,12 +249,55 @@ class PaperRoundTripV1:
         payload = {
             "schema_version": ROUND_TRIP_VERSION, "code": buy.code,
             "shares": buy.shares, "buy_fill_id": buy.fill_id,
-            "sell_fill_id": sell.fill_id, "cash_out": cash_out,
-            "cash_in": cash_in, "net_pnl": cash_in - cash_out,
+            "sell_fill_id": sell.fill_id, "cash_out": money(cash_out),
+            "cash_in": money(cash_in), "net_pnl": money(cash_in - cash_out),
             "net_return": (cash_in - cash_out) / cash_out,
-            "total_fees": buy.total_fees + sell.total_fees,
+            "total_fees": money(buy.total_fees + sell.total_fees),
         }
         return cls(round_trip_id=_identity("prt", payload), **{k: v for k, v in payload.items() if k != "schema_version"})
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class PaperExecutionResultV1:
+    result_id: str
+    intent_id: str
+    recorded_at: str
+    outcome: str
+    reason_code: str
+    fill_id: str = ""
+    schema_version: str = EXECUTION_RESULT_VERSION
+
+    @classmethod
+    def build(cls, *, intent_id, recorded_at, outcome, reason_code, fill_id=""):
+        outcome = str(outcome).upper()
+        if outcome not in {"FILLED", "REJECTED"}:
+            raise PaperContractViolation("execution result: invalid outcome")
+        if not str(intent_id).startswith("poi-"):
+            raise PaperContractViolation("execution result: intent required")
+        if outcome == "FILLED" and not str(fill_id).startswith("pf-"):
+            raise PaperContractViolation("execution result: fill required")
+        payload = {"schema_version": EXECUTION_RESULT_VERSION, "intent_id": str(intent_id),
+                   "recorded_at": _timestamp(recorded_at, "recorded_at"), "outcome": outcome,
+                   "reason_code": str(reason_code), "fill_id": str(fill_id)}
+        return cls(result_id=_identity("per", payload), **{k: v for k, v in payload.items() if k != "schema_version"})
+
+    def to_dict(self):
+        return asdict(self)
+
+    def verify(self):
+        if self.schema_version != EXECUTION_RESULT_VERSION:
+            raise PaperContractViolation("execution result: schema mismatch")
+        payload = self.to_dict(); payload.pop("result_id")
+        if self.result_id != _identity("per", payload):
+            raise PaperContractViolation("execution result: content hash mismatch")
+        return self
+
+    @classmethod
+    def from_mapping(cls, value):
+        try:
+            return cls(**dict(value)).verify()
+        except TypeError as exc:
+            raise PaperContractViolation("execution result: invalid fields") from exc

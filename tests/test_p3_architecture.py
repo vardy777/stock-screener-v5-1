@@ -13,8 +13,8 @@ class P3ArchitectureTests(unittest.TestCase):
             "v4.dashboard", "v4.config", "v4.push",
         }
         violations = []
-        for name in ("p3_contracts.py", "p3_account.py", "p3_execution.py"):
-            path = ROOT / "v4" / name
+        for path in sorted((ROOT / "v4").glob("p3_*.py")):
+            name = path.name
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
             for node in ast.walk(tree):
                 if isinstance(node, ast.ImportFrom) and node.module in forbidden_modules:
@@ -52,6 +52,11 @@ class P3ArchitectureTests(unittest.TestCase):
                     if module.startswith("v4.p3_") or module.startswith(".p3_"):
                         violations.append(f"{path.name}:{node.lineno}:{module}")
         self.assertEqual(violations, [])
+
+    def test_legacy_validator_is_read_only_by_construction(self):
+        source = (ROOT / "v4" / "p3_migration.py").read_text(encoding="utf-8")
+        for forbidden in ("write_text(", "write_bytes(", "replace(", "unlink(", "open(\"w"):
+            self.assertNotIn(forbidden, source)
 
 
 if __name__ == "__main__":
