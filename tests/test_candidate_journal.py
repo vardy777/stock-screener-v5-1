@@ -67,6 +67,24 @@ class CandidateJournalTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "immutable"):
                 journal.save_confirmation("2026-08-05", [blocked], {})
 
+    def test_missing_morning_is_persisted_as_blocked_decision(self):
+        with tempfile.TemporaryDirectory() as directory:
+            journal = CandidateJournal(Path(directory))
+            first = journal.save_missing_morning_confirmation(
+                "2026-08-05", {"data_valid": False}
+            )
+            second = journal.save_missing_morning_confirmation(
+                "2026-08-05", {"data_valid": False}
+            )
+            decision = first["confirmation"]
+            self.assertEqual(decision["outcome"], "BLOCKED")
+            self.assertEqual(decision["reason_codes"], ["missing_morning_pool"])
+            self.assertEqual(
+                decision["decision_id"], second["confirmation"]["decision_id"]
+            )
+            with self.assertRaisesRegex(ValueError, "after confirmation"):
+                journal.save_morning("2026-08-05", [], {})
+
 
 if __name__ == "__main__":
     unittest.main()

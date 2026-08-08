@@ -389,6 +389,7 @@ class SimulationEngine:
                         'reason': 'missing current-session 09:25 mother pool',
                     }
                     self._last_market_state = dict(market_state)
+                    journal.save_missing_morning_confirmation(trade_date, market_state)
                     self._save_candidates([], stage='confirmation')
                     return self._candidates
                 if not allowed_codes:
@@ -646,6 +647,7 @@ class SimulationEngine:
                         'predicted_large_loss_probability'
                     ),
                     'strategy': 'v4_paper_observation' if paper_observation else 'v4_production',
+                    'paper_decision_final': bool(paper_observation and final_decision),
                 })
 
             decisions = BuyDecision.select(buy_candidates, self._account, market)

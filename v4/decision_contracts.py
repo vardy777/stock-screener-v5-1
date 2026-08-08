@@ -110,6 +110,7 @@ _REASON_TEXT = (
     ("状态数据无效", DecisionReason.DATA_INVALID),
     ("Top1", DecisionReason.NOT_TOP1),
     ("规则分", DecisionReason.SCORE_POLICY),
+    ("评分血缘", DecisionReason.SCORE_POLICY),
     ("候选来源", DecisionReason.SOURCE_INVALID),
     ("模拟候选", DecisionReason.SOURCE_INVALID),
     ("价格", DecisionReason.QUOTE_INVALID),
@@ -228,6 +229,29 @@ class ConfirmationDecisionV1:
             reason_codes=reasons,
             candidate_codes=tuple(item["code"] for item in rows),
             candidates=rows, market_state=dict(market_state),
+        )
+
+    @classmethod
+    def blocked_without_morning(
+        cls, trade_date: str, decided_at: Any, market_state: Mapping[str, Any]
+    ) -> "ConfirmationDecisionV1":
+        day = _trade_date(trade_date)
+        reasons = (DecisionReason.MISSING_MORNING_POOL.value,)
+        identity_payload = {
+            "schema_version": CONFIRMATION_VERSION,
+            "morning_pool_id": "missing",
+            "trade_date": day,
+            "outcome": DecisionOutcome.BLOCKED.value,
+            "reason_codes": reasons,
+            "candidates": [],
+            "market_state": dict(market_state),
+        }
+        return cls(
+            decision_id=_identity("cd", identity_payload),
+            morning_pool_id="missing", trade_date=day,
+            decided_at=_timestamp(decided_at, "decided_at"),
+            outcome=DecisionOutcome.BLOCKED.value, reason_codes=reasons,
+            candidate_codes=(), candidates=(), market_state=dict(market_state),
         )
 
     def to_dict(self) -> dict[str, Any]:

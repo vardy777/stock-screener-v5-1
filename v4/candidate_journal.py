@@ -62,6 +62,8 @@ class CandidateJournal:
             if existing.get("pool_id") == entity.pool_id:
                 return payload
             raise ValueError("morning pool is immutable for this trade date")
+        if payload.get("confirmation"):
+            raise ValueError("cannot create morning pool after confirmation decision")
         payload["morning"] = entity.to_dict()
         self._write(trade_date, payload)
         return payload
@@ -109,6 +111,22 @@ class CandidateJournal:
             schema_version=morning_data.get("schema_version", "morning-pool-v1"),
         )
         entity = ConfirmationDecisionV1.build(morning, self._now(), rows, market_state)
+        existing = payload.get("confirmation", {})
+        if existing:
+            if existing.get("decision_id") == entity.decision_id:
+                return payload
+            raise ValueError("confirmation decision is immutable for this trade date")
+        payload["confirmation"] = entity.to_dict()
+        self._write(trade_date, payload)
+        return payload
+
+    def save_missing_morning_confirmation(self, trade_date: str, market_state: dict) -> dict:
+        payload = self.load(trade_date) or {"trade_date": trade_date}
+        if payload.get("morning"):
+            raise ValueError("morning pool exists; use normal confirmation")
+        entity = ConfirmationDecisionV1.blocked_without_morning(
+            trade_date, self._now(), market_state
+        )
         existing = payload.get("confirmation", {})
         if existing:
             if existing.get("decision_id") == entity.decision_id:

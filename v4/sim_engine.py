@@ -526,25 +526,24 @@ class BuyDecision:
             logger.warning('市场为 risk_off 模式，按策略空仓')
             return []
 
-        # 3. 评分门槛 + 行业分散；不足80分时保持空仓。
+        # 3. Final paper decisions have already passed the versioned P2
+        # integrity policy. Production/legacy callers retain model gates here.
         candidates = [
             cand for cand in candidates
-            if (
-                bool(cand.get('v4_model_ranked'))
-                or float(cand.get('final_score', cand.get('score', 0)) or 0) >= 80.0
-            )
-            and cand.get('v4_tradable', True) is not False
+            if cand.get('v4_tradable', True) is not False
             and (
-                cand.get('predicted_positive_probability') is None
-                or float(cand['predicted_positive_probability']) >= 0.55
-            )
-            and (
-                cand.get('predicted_large_loss_probability') is None
-                or float(cand['predicted_large_loss_probability']) <= 0.15
+                bool(cand.get('paper_decision_final'))
+                or (
+                    bool(cand.get('v4_model_ranked'))
+                    and cand.get('predicted_positive_probability') is not None
+                    and float(cand['predicted_positive_probability']) >= 0.55
+                    and cand.get('predicted_large_loss_probability') is not None
+                    and float(cand['predicted_large_loss_probability']) <= 0.15
+                )
             )
         ]
         if not candidates:
-            logger.info('无评分达到80分的候选，按策略空仓')
+            logger.info('无通过最终paper决策或生产模型门禁的候选，按策略空仓')
             return []
 
         # 从候选列表中按评分排序, 但同行业最多1只

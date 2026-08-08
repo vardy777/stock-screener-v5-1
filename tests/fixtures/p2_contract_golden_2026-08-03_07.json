@@ -1,0 +1,46 @@
+[
+  {
+    "trade_date": "2026-08-03",
+    "timestamp": "2026-08-03T14:50:30+08:00",
+    "market_state": {"data_valid": false},
+    "morning_candidates": null,
+    "expected_outcome": "BLOCKED",
+    "expected_reason": "missing_morning_pool"
+  },
+  {
+    "trade_date": "2026-08-04",
+    "timestamp": "2026-08-04T14:50:30+08:00",
+    "market_state": {"data_valid": true},
+    "morning_candidates": [],
+    "confirmation_candidates": [],
+    "expected_outcome": "EMPTY",
+    "expected_reason": "no_candidate"
+  },
+  {
+    "trade_date": "2026-08-05",
+    "timestamp": "2026-08-05T14:50:30+08:00",
+    "market_state": {"data_valid": true},
+    "morning_candidates": [{"code":"000001","v4_candidate_origin":"V4"}],
+    "confirmation_candidates": [{"code":"000001","v4_candidate_origin":"V4","v4_paper_eligible":false,"v4_paper_block_reasons":["确认评分血缘缺失或不一致"]}],
+    "expected_outcome": "BLOCKED",
+    "expected_reason": "score_policy"
+  },
+  {
+    "trade_date": "2026-08-06",
+    "timestamp": "2026-08-06T14:50:30+08:00",
+    "market_state": {"data_valid": true},
+    "morning_candidates": [{"code":"000001","v4_candidate_origin":"V4"}],
+    "confirmation_candidates": [{"code":"000001","v4_candidate_origin":"V4","v4_paper_eligible":true,"v4_paper_block_reasons":[]}],
+    "expected_outcome": "BUY",
+    "expected_reason": "eligible_top1"
+  },
+  {
+    "trade_date": "2026-08-07",
+    "timestamp": "2026-08-07T14:50:30+08:00",
+    "market_state": {"data_valid": true,"mode_label":"risk_off"},
+    "morning_candidates": [{"code":"000001","v4_candidate_origin":"V4"}],
+    "confirmation_candidates": [{"code":"000001","v4_candidate_origin":"V4","v4_paper_eligible":false,"v4_paper_block_reasons":["市场风险关闭"]}],
+    "expected_outcome": "BLOCKED",
+    "expected_reason": "market_risk"
+  }
+]

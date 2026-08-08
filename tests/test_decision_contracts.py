@@ -71,6 +71,17 @@ class DecisionContractTests(unittest.TestCase):
         with self.assertRaises(TypeError):
             morning.market_state["data_valid"] = False
 
+    def test_missing_morning_block_has_deterministic_hash(self):
+        first = ConfirmationDecisionV1.blocked_without_morning(
+            "2026-08-03", self.now, {"data_valid": False}
+        )
+        second = ConfirmationDecisionV1.blocked_without_morning(
+            "2026-08-03", self.now, {"data_valid": False}
+        )
+        self.assertEqual(first.outcome, "BLOCKED")
+        self.assertEqual(first.reason_codes, ("missing_morning_pool",))
+        self.assertEqual(first.decision_id, second.decision_id)
+
 
 if __name__ == "__main__":
     unittest.main()

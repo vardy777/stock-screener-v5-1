@@ -14,6 +14,7 @@
 - P1完成：实际快照保存接入MarketSnapshotV1质量判定，strict/paper-only/diagnostic物理隔离；失败采集只写质量原因、不写证据CSV；严格标签构建只读strict目录；新增每日分层质量报告和入口回放。
 - P2第一检查点：新增深层不可变MorningPoolV1和ConfirmationDecisionV1、BUY/EMPTY/BLOCKED及机器原因码；尾盘流程改为先关联母池、再最终评估、最后单次写入，修复日志保留旧阻断理由的问题。
 - P2第二检查点：早盘/尾盘推送、模拟买入和看板统一读取最终决策实体；候选缓存不能绕过BLOCKED或缺失决策。冻结全市场base_score，尾盘只加固定且有界的confirm_delta，消除小母池百分位重排失真。
+- P2完成：以paper-top1-integrity-v1替换固定80分，按母池关联、Top1、评分血缘、95%覆盖、市场风险和行情时效准入；补齐缺母池持久化BLOCKED以及8月3—7日五类合成契约黄金回放。实际历史仅8月6—7日存在旧schema日志，未伪造成新证据。
 
 ## 2026-08-07
 

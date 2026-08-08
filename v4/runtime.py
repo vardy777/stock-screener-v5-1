@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from datetime import datetime
 from typing import Any, Dict, Iterable, List
 
@@ -18,6 +17,7 @@ from .feature_store import LiveFeatureStore
 from .model_registry import PublishedModelRegistry
 from .readiness import ResearchReadiness
 from .selection import RESEARCH_RANK_VERSION, V4CandidateSelector
+from .paper_policy import evaluate_paper_candidate
 
 
 class V4Runtime:
@@ -59,8 +59,10 @@ class V4Runtime:
 
     @staticmethod
     def _shadow_confidence(score: float, market_score: float) -> float:
-        raw = (score - 80.0) / 7.5 + 0.65 * market_score
-        return 1.0 / (1.0 + math.exp(-max(-20.0, min(20.0, raw))))
+        # Compatibility field displayed explicitly as non-probabilistic rule
+        # strength. It must not encode a hidden execution threshold.
+        _ = market_score
+        return max(0.0, min(1.0, float(score) / 100.0))
 
     def system_state(self, market_state: Dict[str, Any] | None = None) -> Dict[str, Any]:
         market = market_state or {}
@@ -144,27 +146,10 @@ class V4Runtime:
             if not TradingClock.quote_is_fresh(item.get("quote_time")):
                 blocks.append("行情时间戳缺失或过期")
 
-            paper_blocks = []
-            paper_market_mode = item.get("v4_paper_market_mode", market_mode)
-            paper_market_valid = bool(
-                item.get("v4_paper_market_valid", market.get("data_valid") is True)
+            paper_policy = evaluate_paper_candidate(
+                item, market, buy_status=buy_status
             )
-            if item.get("selection_stage") != "confirmation_1450":
-                paper_blocks.append("仅允14:50确认候选进入模拟观测")
-            if item.get("linkage_status") != "confirmed_from_morning_pool":
-                paper_blocks.append("未通过09:25母池链路确认")
-            if rank != 1:
-                paper_blocks.append("模拟观测仅执行Top1")
-            if score < 80.0:
-                paper_blocks.append("规则分低于80")
-            if paper_market_mode == "risk_off" or not paper_market_valid:
-                paper_blocks.append("市场风险或数据质量不允许")
-            if item.get("v4_candidate_origin") != "V4" or item.get("is_mock"):
-                paper_blocks.append("候选来源不合格")
-            if not buy_status.allowed:
-                paper_blocks.append(buy_status.reason)
-            if float(item.get("price", 0.0) or 0.0) <= 0 or not TradingClock.quote_is_fresh(item.get("quote_time")):
-                paper_blocks.append("确认价格或时效不合格")
+            paper_blocks = list(paper_policy.reasons)
 
             positive_probability = item.get("predicted_positive_probability")
             loss_probability = item.get("predicted_large_loss_probability")
@@ -198,6 +183,7 @@ class V4Runtime:
                     "v4_tradable": not blocks,
                     "v4_paper_eligible": not paper_blocks,
                     "v4_paper_block_reasons": paper_blocks,
+                    "v4_paper_policy_version": paper_policy.policy_version,
                     "v4_decision": "允许模拟" if not blocks else "观察/空仓",
                     "v4_block_reasons": blocks,
                     "v4_shadow_confidence": round(shadow_confidence, 4),

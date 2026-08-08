@@ -91,6 +91,10 @@ class V4Tests(unittest.TestCase):
             "v4_research_ranked": True,
             "v4_paper_market_valid": True,
             "v4_paper_market_mode": "neutral",
+            "base_score": 90.0,
+            "confirm_delta": 2.0,
+            "decision_score": 92.0,
+            "score_version": "v4-base-plus-confirm-delta-v1",
         }
         status = SimpleNamespace(
             allowed=True, reason="处于允许窗口", to_dict=lambda: {}

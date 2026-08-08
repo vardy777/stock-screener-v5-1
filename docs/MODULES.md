@@ -7,8 +7,8 @@
 | 行情接入 | `v4/data.py`, `v4/market_contracts.py`, `v4/snapshots.py` | 新浪/东财行情、版本化点时契约 | P1完成，strict/paper物理隔离 | P2只读决策输入 |
 | 市场状态 | `v4/market.py` | 宽度、成交额、风险模式 | 可运行，需契约化 | P1 |
 | 上下文与特征 | `v4/feature_store.py`, `phase1/overnight/` | 点时特征、严格归档 | 研究锁定 | P1/P6 |
-| 候选选择 | `v4/selection.py` | 早盘基础分、尾盘固定确认增量 | base_score/confirm_delta已统一，固定阈值待替换 | P2 |
-| 决策门禁 | `v4/runtime.py` | 生产与研究模拟门禁 | 最终实体单次发布，固定阈值待替换 | P2 |
+| 候选选择 | `v4/selection.py` | 早盘基础分、尾盘固定确认增量 | P2完成 | P3只读决策输入 |
+| 决策门禁 | `v4/runtime.py`, `v4/paper_policy.py` | 生产门禁与无偏paper完整性政策 | P2完成，生产仍research_locked | P3执行最终BUY |
 | 候选日志 | `v4/candidate_journal.py`, `v4/decision_contracts.py` | 不可变早盘母池与最终确认决策 | P2实体与最终写入顺序已完成 | P2消费者切换 |
 | 模拟账户 | `v4/sim_engine.py` | 现金、持仓、费用、历史 | 可运行 | P3 |
 | 流程编排 | `v4/simulation.py` | 抓取、筛选、买卖 | 职责过重 | P2/P3拆分 |

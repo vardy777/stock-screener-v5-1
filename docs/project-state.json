@@ -2,14 +2,20 @@
   "schema_version": "project-state-v1",
   "project": "a-share-overnight-v4",
   "display_name": "A股隔夜研究与模拟系统 V4",
-  "updated_at": "2026-08-08T17:00:00+08:00",
-  "active_phase": "P2",
-  "active_phase_name": "候选与决策契约",
+  "updated_at": "2026-08-08T19:00:00+08:00",
+  "active_phase": "P3",
+  "active_phase_name": "模拟账户与执行引擎",
   "production_status": "research_locked",
   "p1_validation": {
     "engineering_status": "completed",
     "live_window_status": "pending_two_open_sessions",
     "required_windows": ["14:49 signal", "14:50 strict and paper-only", "next-session 09:30 sell"]
+  },
+  "p2_validation": {
+    "engineering_status": "completed",
+    "live_window_status": "pending_first_v1_decision_chain",
+    "historical_replay_status": "synthetic_contract_golden_only",
+    "historical_fact": "2026-08-03..05 candidate journals missing; 2026-08-06..07 legacy schema retained read-only"
   },
   "runtime_owner": "v4",
   "dashboard": {
@@ -48,7 +54,7 @@
     "confirmation_push_success": true
   },
   "quality": {
-    "tests_passed": 118,
+    "tests_passed": 124,
     "tests_failed": 0,
     "v4_imports_v3": false
   },
@@ -65,7 +71,7 @@
       "severity": "P0",
       "title": "全市场分数与小母池重排分数口径不同，固定80分阈值不稳定",
       "phase": "P2",
-      "status": "partially_fixed_base_score_done_threshold_open"
+      "status": "closed"
     },
     {
       "id": "P4-001",
@@ -83,15 +89,15 @@
     }
   ],
   "next_tasks": [
-    "用预先声明的覆盖/风险政策替换固定80分执行门槛",
-    "让空母池、缺母池、BLOCKED和BUY回放产生确定性决策哈希",
-    "完成8月3日至7日黄金回放并核对推送/看板/执行一致性"
+    "定义PaperOrderIntent、PaperFill和PaperRoundTrip不可变实体",
+    "将模拟账户改为事件账本唯一事实源并逐分对账",
+    "实现T+1下一开放交易日卖出、失败保留持仓和幂等恢复"
   ],
   "phase_status": {
     "P0": "completed",
     "P1": "completed",
-    "P2": "in_progress",
-    "P3": "pending",
+    "P2": "completed",
+    "P3": "in_progress",
     "P4": "pending",
     "P5": "pending",
     "P6": "pending",
