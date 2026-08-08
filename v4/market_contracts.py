@@ -217,6 +217,24 @@ class SnapshotQualityV1:
         data["reasons"] = list(self.reasons)
         return data
 
+    @classmethod
+    def from_mapping(cls, value: Mapping[str, Any]) -> "SnapshotQualityV1":
+        if value.get("schema_version") != QUALITY_SCHEMA_VERSION:
+            raise ContractViolation("quality: unsupported schema version")
+        try:
+            return cls(
+                cohort=EvidenceCohort(str(value["cohort"])).value,
+                accepted=_boolean(value["accepted"], "quality.accepted"),
+                reasons=tuple(str(item) for item in value["reasons"]),
+                expected_codes=_integer(value["expected_codes"], "quality.expected_codes"),
+                valid_codes=_integer(value["valid_codes"], "quality.valid_codes"),
+                coverage=_number(value["coverage"], "quality.coverage"),
+                maximum_quote_age_seconds=_number(value["maximum_quote_age_seconds"], "quality.maximum_quote_age_seconds"),
+                batch_duration_seconds=_number(value["batch_duration_seconds"], "quality.batch_duration_seconds"),
+            )
+        except KeyError as exc:
+            raise ContractViolation(f"quality: missing field {exc.args[0]}") from exc
+
 
 @dataclass(frozen=True)
 class MarketSnapshotV1:
@@ -333,6 +351,37 @@ class MarketSnapshotV1:
         }
         payload["snapshot_id"] = self.snapshot_id
         return payload
+
+    @classmethod
+    def from_mapping(cls, value: Mapping[str, Any]) -> "MarketSnapshotV1":
+        if value.get("schema_version") != SNAPSHOT_SCHEMA_VERSION:
+            raise ContractViolation("snapshot: unsupported schema version")
+        try:
+            snapshot = cls(
+                trade_date=date.fromisoformat(str(value["trade_date"])).isoformat(),
+                session=str(value["session"]),
+                batch_started_at=_aware_datetime(value["batch_started_at"], "batch_started_at").isoformat(),
+                batch_completed_at=_aware_datetime(value["batch_completed_at"], "batch_completed_at").isoformat(),
+                quotes=tuple(QuoteV1.from_mapping(item) for item in value["quotes"]),
+                quality=SnapshotQualityV1.from_mapping(value["quality"]),
+            )
+        except KeyError as exc:
+            raise ContractViolation(f"snapshot: missing field {exc.args[0]}") from exc
+        if snapshot.session not in {"morning", "signal", "buy", "sell"}:
+            raise ContractViolation("session: unsupported value")
+        codes = {quote.code for quote in snapshot.quotes}
+        if snapshot.quality.valid_codes != len(codes):
+            raise ContractViolation("quality.valid_codes: snapshot mismatch")
+        expected_coverage = (
+            len(codes) / snapshot.quality.expected_codes
+            if snapshot.quality.expected_codes else 0.0
+        )
+        if abs(snapshot.quality.coverage - expected_coverage) > 1e-12:
+            raise ContractViolation("quality.coverage: snapshot mismatch")
+        declared_id = value.get("snapshot_id")
+        if declared_id != snapshot.snapshot_id:
+            raise ContractViolation("snapshot_id: content hash mismatch")
+        return snapshot
 
     @property
     def snapshot_id(self) -> str:

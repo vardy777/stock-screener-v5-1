@@ -2,6 +2,7 @@
 
 ## 2026-08-08
 
+- P1行情边界收口：物理删除看板内未使用的直接行情/回调选股函数；新增内容寻址的MarketSnapshotV1不可变仓储、原子非覆盖写入、幂等读取、schema/内容哈希/文件名/质量计数校验；新增AST架构门禁，除提供方实现和唯一网关外禁止V4模块导入DataFetcher或调用batch_fetch_quotes。离线测试140项通过。
 - P1重新实施第一批：新增唯一提供方边界 `MarketDataGateway`、稳定 `snapshot_id` 和带快照血缘的 `MarketStateV1`；交易动作与行情时效对naive datetime统一fail-closed；支持09:25 morning快照会话。当前仅完成基础契约，旧核心调用方尚未迁移，P1不得标记完成。
 - P0事实校正：确认关键文档磁盘内容为有效UTF-8，修复Windows状态命令输出编码并新增严格解码测试；撤销不符合代码事实的P1/P2完成声明，P1重新打开、P2等待P1，二者离线和真实窗口验收全部通过前禁止进入P3。
 - 架构基线改为唯一行情网关、MarketSnapshotV1唯一核心输入、MarketStateV1契约和candidate_journal唯一候选/决策事实源；登记松散行情绕行、多候选状态源、消费者现场重算和非快照起点回放为阻断债务。

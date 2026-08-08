@@ -1,11 +1,14 @@
 import unittest
 from datetime import datetime, timedelta
+import json
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import pandas as pd
 
 from v4.execution import CHINA_TZ
 from v4.market_contracts import ContractViolation, MarketSnapshotV1
-from v4.market_gateway import MarketDataGateway
+from v4.market_gateway import MarketDataGateway, SnapshotRepository
 
 
 class Provider:
@@ -39,9 +42,12 @@ class MarketGatewayTests(unittest.TestCase):
 
     def test_gateway_is_provider_boundary_and_returns_snapshot(self):
         provider = Provider(self.frame())
-        snapshot = MarketDataGateway(provider).fetch_snapshot(
-            ["000001"], session="signal", now=self.now, require_order_book=False
-        )
+        with TemporaryDirectory() as directory:
+            snapshot = MarketDataGateway(
+                provider, SnapshotRepository(Path(directory))
+            ).fetch_snapshot(
+                ["000001"], session="signal", now=self.now, require_order_book=False
+            )
         self.assertIsInstance(snapshot, MarketSnapshotV1)
         self.assertEqual(provider.calls, [["000001"]])
         self.assertTrue(snapshot.quality.accepted)
@@ -52,3 +58,21 @@ class MarketGatewayTests(unittest.TestCase):
             MarketDataGateway(Provider(self.frame())).fetch_snapshot(
                 ["000001"], session="signal", now=datetime(2026, 8, 3, 14, 49)
             )
+
+    def test_gateway_persists_and_validates_immutable_snapshot(self):
+        with TemporaryDirectory() as directory:
+            repository = SnapshotRepository(Path(directory))
+            gateway = MarketDataGateway(Provider(self.frame()), repository)
+            snapshot = gateway.fetch_snapshot(
+                ["000001"], session="signal", now=self.now, require_order_book=False
+            )
+            path = repository.path_for(snapshot)
+            self.assertTrue(path.exists())
+            self.assertEqual(repository.load(path), snapshot)
+            self.assertEqual(repository.save(snapshot), path)
+
+            tampered = json.loads(path.read_text(encoding="utf-8"))
+            tampered["quotes"][0]["last_price"] = 99.0
+            path.write_text(json.dumps(tampered), encoding="utf-8")
+            with self.assertRaisesRegex(ContractViolation, "content hash mismatch"):
+                repository.load(path)

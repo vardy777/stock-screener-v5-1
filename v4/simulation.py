@@ -323,7 +323,7 @@ class SimulationEngine:
     def screen_today(self, stage: str = 'auto') -> list:
         """Fetch the full market and let V4 exclusively generate Top5."""
         if MarketDataGateway is None:
-            logger.error("DataFetcher 不可用, 按安全规则空仓")
+            logger.error("唯一行情网关不可用，按安全规则空仓")
             self._candidates = []
             self._last_screen_time = datetime.now().strftime('%H:%M:%S')
             return self._candidates
