@@ -39,7 +39,7 @@ def rebuild_labeled_datasets(
     mixed_path = Path(mixed_path)
     strict_path = Path(strict_path or mixed_path.with_name("strict_dataset.csv.gz"))
     snapshot_root = Path(
-        snapshot_root or daily_dir.parent / "execution_snapshots"
+        snapshot_root or daily_dir.parent / "execution_snapshots" / "strict"
     )
     calendar_path = Path(
         calendar_path or daily_dir.parent / "trading_calendar_cn.csv"

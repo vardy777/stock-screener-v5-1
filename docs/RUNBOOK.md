@@ -38,6 +38,19 @@ Invoke-RestMethod http://127.0.0.1:8898/api/state?mode=chase
 
 运行数据位于 `v4/data/` 和 `phase1/data/`，均被Git忽略。
 
+### P1快照目录
+
+```text
+phase1/data/execution_snapshots/
+├── strict/       # 唯一允许进入执行标签、严格数据集和模型研究的快照
+├── paper_only/   # 模拟账户执行观测，不得进入训练
+├── diagnostic/   # 窗口外人工诊断
+└── quality/      # 逐次质量原因和按日汇总
+```
+
+`strict`、`paper_only` 和 `diagnostic` 不得通过移动文件互相转换。旧版根目录下的
+`buy/sell/signal` 仅作为只读历史资产保留，新标签构建默认不会读取。
+
 ## 故障定位顺序
 
 1. Windows任务是否执行、返回码是什么；

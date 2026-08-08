@@ -2,9 +2,9 @@
   "schema_version": "project-state-v1",
   "project": "a-share-overnight-v4",
   "display_name": "A股隔夜研究与模拟系统 V4",
-  "updated_at": "2026-08-08T12:30:00+08:00",
-  "active_phase": "P1",
-  "active_phase_name": "数据、时间与交易日契约",
+  "updated_at": "2026-08-08T14:00:00+08:00",
+  "active_phase": "P2",
+  "active_phase_name": "候选与决策契约",
   "production_status": "research_locked",
   "runtime_owner": "v4",
   "dashboard": {
@@ -43,7 +43,7 @@
     "confirmation_push_success": true
   },
   "quality": {
-    "tests_passed": 101,
+    "tests_passed": 105,
     "tests_failed": 0,
     "v4_imports_v3": false
   },
@@ -78,14 +78,14 @@
     }
   ],
   "next_tasks": [
-    "将strict与paper-only快照写入独立目录并生成质量报告",
-    "把capture_frame迁移到MarketSnapshotV1质量判定",
-    "补齐停牌、ST/退市、无买一、涨跌停和重复代码的入口回放"
+    "定义不可变MorningPool与ConfirmationDecision实体和原因码",
+    "修复候选日志保存门禁重评前阻断理由",
+    "统一全市场base_score与尾盘confirm_delta口径"
   ],
   "phase_status": {
     "P0": "completed",
-    "P1": "in_progress",
-    "P2": "pending",
+    "P1": "completed",
+    "P2": "in_progress",
     "P3": "pending",
     "P4": "pending",
     "P5": "pending",

@@ -21,7 +21,7 @@ def main() -> int:
     parser.add_argument(
         "--snapshot-root",
         type=Path,
-        default=BASE / "data" / "execution_snapshots",
+        default=BASE / "data" / "execution_snapshots" / "strict",
     )
     parser.add_argument(
         "--calendar",

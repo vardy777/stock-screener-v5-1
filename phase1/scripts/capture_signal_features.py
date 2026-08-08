@@ -64,7 +64,7 @@ def main() -> int:
         print(f"拒绝发布: 严格实时特征覆盖率仅{coverage*100:.1f}%")
         return 1
     output = (
-        BASE / "data" / "execution_snapshots" / "signal"
+        BASE / "data" / "execution_snapshots" / "strict" / "signal"
         / f"{captured_at:%Y-%m-%d_%H%M%S}.csv"
     )
     manifest = {

@@ -16,6 +16,7 @@ from overnight.capture_health import evaluate_capture_session
 from v4.push import send_wechat
 from v4.calendar import TradingCalendar
 from v4.execution import CHINA_TZ
+from v4.snapshots import build_daily_quality_report
 
 
 def main() -> int:
@@ -48,6 +49,9 @@ def main() -> int:
         "sessions": sessions,
         "passed": all(check["passed"] for check in checks),
         "checks": checks,
+        "capture_quality": build_daily_quality_report(
+            args.trade_date, root=root
+        ),
     }
     output_dir = root / "health"
     output_dir.mkdir(parents=True, exist_ok=True)

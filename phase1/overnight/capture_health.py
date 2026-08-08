@@ -60,6 +60,11 @@ def evaluate_capture_session(root: Path, session: str, trade_date: str) -> dict:
     if session not in {"signal", "buy", "sell"}:
         raise ValueError(f"unsupported capture session: {session}")
     root = Path(root)
+    # P1 stores new strict evidence under an explicit cohort directory.  Keep
+    # accepting a caller that already points at the cohort root for replaying
+    # pre-P1 fixtures and read-only historical archives.
+    if (root / "strict").is_dir():
+        root = root / "strict"
     files = sorted((root / session).glob(f"{trade_date}_*.csv"))
     candidates = []
     for path in files:
@@ -152,7 +157,7 @@ def evaluate_capture_session(root: Path, session: str, trade_date: str) -> dict:
                 and _truthy(frame["quote_is_fresh"]).all()
                 and (~_truthy(frame["is_mock"])).all()
                 and manifest.get("contract_version")
-                == "strict-execution-snapshot-v2"
+                in {"strict-execution-snapshot-v2", "strict-execution-snapshot-v3"}
                 and manifest.get("session") == session
                 and manifest.get("order_book_required") is True
                 and _safe_int(manifest.get("order_book_verified_rows", 0))

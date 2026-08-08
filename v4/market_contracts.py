@@ -273,8 +273,8 @@ class MarketSnapshotV1:
         elif maximum_age > maximum_age_seconds:
             reasons.append(QualityReason.PROVIDER_CLOCK_SKEW.value)
         if require_order_book and any(
-            item.bid1 <= 0 or item.ask1 <= 0
-            or item.bid1_volume <= 0 or item.ask1_volume <= 0
+            (session == "buy" and (item.ask1 <= 0 or item.ask1_volume <= 0))
+            or (session == "sell" and (item.bid1 <= 0 or item.bid1_volume <= 0))
             for item in items
         ):
             reasons.append(QualityReason.MISSING_ORDER_BOOK.value)

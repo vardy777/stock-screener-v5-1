@@ -684,7 +684,15 @@ class SimulationEngine:
                     if quotes is not None and not quotes.empty:
                         try:
                             from v4.snapshots import capture_frame
-                            capture_frame(quotes, 'sell')
+                            capture_frame(
+                                quotes,
+                                'sell',
+                                expected_codes=[code],
+                                minimum_coverage=1.0,
+                                require_order_book=True,
+                                capture_role='paper_execution',
+                                evidence_cohort='paper_only',
+                            )
                         except Exception as e:
                             logger.warning("V4真实09:30快照保存失败: %s", e)
                         row = quotes.iloc[0]

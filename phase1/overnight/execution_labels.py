@@ -61,7 +61,9 @@ def _read_session(root: Path, session: str) -> Tuple[pd.DataFrame, dict]:
             expected_codes = int(manifest.get("expected_codes", 0) or 0)
             coverage = float(manifest.get("coverage", 0.0) or 0.0)
             manifest_valid = bool(
-                manifest.get("contract_version") == "strict-execution-snapshot-v2"
+                manifest.get("contract_version")
+                in {"strict-execution-snapshot-v2", "strict-execution-snapshot-v3"}
+                and manifest.get("evidence_cohort", "strict") == "strict"
                 and manifest.get("session") == session
                 and manifest.get("data_file") == path.name
                 and manifest.get("data_sha256") == digest
