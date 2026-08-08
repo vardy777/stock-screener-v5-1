@@ -147,13 +147,16 @@ class OfflineExecutionEngine:
         rejected_ids = {row["intent_id"] for row in results if row["outcome"] == "REJECTED" and row["reason_code"] != "STORAGE_FAILURE"}
         retryable_ids = {row["intent_id"] for row in results if row["outcome"] == "REJECTED" and row["reason_code"] == "STORAGE_FAILURE"}
         known_ids = {row["intent_id"] for row in intents}
+        result_intent_ids = {row["intent_id"] for row in results}
+        missing_result_ids = filled_ids - result_intent_ids
         pending = [row for row in intents if row["intent_id"] not in filled_ids and row["intent_id"] not in rejected_ids]
         return {
             "schema_version": "offline-execution-recovery-v1",
-            "status": "RECOVERY_REQUIRED" if pending or retryable_ids - filled_ids else "CLEAN",
+            "status": "RECOVERY_REQUIRED" if pending or retryable_ids - filled_ids or missing_result_ids else "CLEAN",
             "pending_intents": pending,
             "retryable_intent_ids": sorted(retryable_ids - filled_ids),
             "filled_intent_ids": sorted(filled_ids), "rejected_intent_ids": sorted(rejected_ids),
+            "missing_result_intent_ids": sorted(missing_result_ids),
             "orphan_fill_ids": sorted(row["fill_id"] for row in fills if row["intent_id"] not in known_ids),
         }
 
@@ -161,3 +164,20 @@ class OfflineExecutionEngine:
         """Idempotently retry every persisted intent not terminally resolved."""
         pending = [PaperOrderIntentV1.from_mapping(row) for row in self.recovery_report()["pending_intents"]]
         return self.execute(pending, filled_at=filled_at)
+
+    def repair_audit_gaps(self) -> dict:
+        """Reconstruct only missing FILLED results from immutable ledger facts."""
+        report = self.recovery_report()
+        missing = set(report["missing_result_intent_ids"])
+        repaired = []
+        for raw in self.ledger.fills():
+            if raw["intent_id"] not in missing:
+                continue
+            event = PaperExecutionResultV1.build(
+                intent_id=raw["intent_id"], recorded_at=raw["filled_at"],
+                outcome="FILLED", reason_code="RECOVERED_FROM_LEDGER",
+                fill_id=raw["fill_id"],
+            )
+            self.execution_journal.append(event)
+            repaired.append(event.result_id)
+        return {"repaired_result_ids": repaired, "recovery": self.recovery_report()}

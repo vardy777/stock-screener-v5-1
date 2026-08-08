@@ -21,8 +21,8 @@
   },
   "p3_validation": {
     "engineering_status": "offline_core_accepted_phase_incomplete",
-    "checkpoint": "offline_resilience_and_recovery_passed",
-    "offline_tests": 28,
+    "checkpoint": "offline_1000_roundtrip_crash_matrix_legacy_audit_passed",
+    "offline_tests": 29,
     "operating_mode": "offline_only",
     "scheduling_enabled": false,
     "daily_paper_production_connected": false,
@@ -66,7 +66,7 @@
     "confirmation_push_success": true
   },
   "quality": {
-    "tests_passed": 185,
+    "tests_passed": 186,
     "tests_failed": 0,
     "v4_imports_v3": false
   },
@@ -108,7 +108,7 @@
     }
   ],
   "next_tasks": [
-    "保持P3生产接入冻结；离线韧性验收已通过，等待P1/P2真实窗口证据",
+    "保持P3生产接入冻结；千次压力、崩溃矩阵和实际旧账只读验收已通过",
     "并行验证真实09:25、14:49、14:50和次日09:30窗口并保存P1/P2证据",
     "真实窗口通过前禁止P3调度、生产链路接入和完成标记",
     "P1/P2真实窗口失败时立即暂停P3并优先修复"

@@ -142,10 +142,11 @@ class OfflinePaperLedger:
             for event in self._load()["events"]
         ]
 
-    def _state(self, extra: Iterable[dict] = ()) -> dict:
+    def _state(self, extra: Iterable[dict] = (), *, fills: Iterable[dict] | None = None) -> dict:
         cash = Decimal(str(self.initial_cash))
         positions: dict[str, dict] = {}
-        for fill in [*self.fills(), *extra]:
+        source = self.fills() if fills is None else list(fills)
+        for fill in [*source, *extra]:
             cash += Decimal(str(fill["cash_flow"]))
             code = fill["code"]
             if fill["side"] == "BUY":
@@ -180,7 +181,7 @@ class OfflinePaperLedger:
         if fill.side == "BUY":
             if any(item["decision_id"] == fill.decision_id and item["side"] == "BUY" for item in existing):
                 raise PaperContractViolation("decision already filled")
-            state = self._state()
+            state = self._state(fills=existing)
             if len(state["positions"]) >= DEFAULT_SPEC.max_positions:
                 raise PaperContractViolation("maximum position count reached")
             equity_at_cost = Decimal(str(state["cash"])) + sum(
@@ -189,7 +190,7 @@ class OfflinePaperLedger:
             cap = equity_at_cost / Decimal("3")
             if Decimal(str(-fill.cash_flow)) > cap:
                 raise PaperContractViolation("position exceeds one-third cap")
-        projected = self._state([fill.to_dict()])
+        projected = self._state([fill.to_dict()], fills=existing)
         if projected["cash"] < -0.001:
             raise PaperContractViolation("insufficient cash")
         sequence = len(payload["events"]) + 1
@@ -205,13 +206,14 @@ class OfflinePaperLedger:
         return True
 
     def snapshot(self) -> dict:
-        state = self._state()
+        fills = self.fills()
+        state = self._state(fills=fills)
         return {
             "initial_cash": self.initial_cash, "cash": state["cash"],
             "initial_cash_fen": int(Decimal(str(self.initial_cash)) * 100),
             "cash_fen": int(Decimal(str(state["cash"])) * 100),
             "positions": list(state["positions"].values()),
-            "fill_count": len(self.fills()),
+            "fill_count": len(fills),
         }
 
     def round_trips(self) -> list[dict]:

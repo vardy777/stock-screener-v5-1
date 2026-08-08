@@ -1,6 +1,8 @@
 import json
 import multiprocessing
+import os
 import tempfile
+import time
 import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -9,7 +11,7 @@ from unittest.mock import patch
 from strategy_spec import TradeCostModel
 from v4.execution import CHINA_TZ
 from v4.p3_account import OfflineExecutionJournal, OfflineOrderJournal, OfflinePaperLedger
-from v4.p3_contracts import PaperContractViolation, PaperFillV1, PaperOrderIntentV1
+from v4.p3_contracts import PaperContractViolation, PaperExecutionResultV1, PaperFillV1, PaperOrderIntentV1
 from v4.p3_execution import OfflineExecutionEngine
 from v4.p3_migration import LegacyAccountValidator
 
@@ -37,12 +39,31 @@ def concurrent_append(args):
     return OfflinePaperLedger(Path(directory)).append(PaperFillV1.from_mapping(raw))
 
 
+def crash_at_boundary(stage, directory, raw_order, raw_fill):
+    root = Path(directory)
+    order = PaperOrderIntentV1.from_mapping(raw_order)
+    fill = PaperFillV1.from_mapping(raw_fill)
+    if stage == "before_order":
+        os._exit(91)
+    OfflineOrderJournal(root).append(order)
+    if stage == "after_order":
+        os._exit(92)
+    OfflinePaperLedger(root).append(fill)
+    if stage == "after_fill":
+        os._exit(93)
+    OfflineExecutionJournal(root).append(PaperExecutionResultV1.build(
+        intent_id=order.intent_id, recorded_at=fill.filled_at, outcome="FILLED",
+        reason_code="FILLED", fill_id=fill.fill_id))
+    os._exit(94)
+
+
 class P3OfflineResilienceTests(unittest.TestCase):
-    def test_two_hundred_round_trips_have_exact_cent_cash_and_valid_chain(self):
+    def test_one_thousand_round_trips_have_exact_cent_cash_chain_and_bounded_runtime(self):
         start = datetime(2026, 1, 1, 14, 50, tzinfo=CHINA_TZ)
+        started = time.perf_counter()
         with tempfile.TemporaryDirectory() as directory:
             ledger = OfflinePaperLedger(Path(directory))
-            for index in range(200):
+            for index in range(1000):
                 buy_at = start + timedelta(days=index * 2)
                 sell_at = buy_at + timedelta(days=1, hours=-5, minutes=-20)
                 decision = "cd-" + f"{index:024x}"
@@ -52,10 +73,14 @@ class P3OfflineResilienceTests(unittest.TestCase):
                 ledger.append(make_fill(sell, sell_at, 10.0139))
             report = ledger.reconcile()
             payload = json.loads(ledger.path.read_text(encoding="utf-8"))
+            ledger_bytes = ledger.path.stat().st_size
+        elapsed = time.perf_counter() - started
         self.assertTrue(report["passed"], report)
-        self.assertEqual(report["round_trip_count"], 200)
-        self.assertEqual(payload["event_count"], 400)
+        self.assertEqual(report["round_trip_count"], 1000)
+        self.assertEqual(payload["event_count"], 2000)
         self.assertEqual(report["cash_fen"], round(report["cash"] * 100))
+        self.assertLess(elapsed, 180.0)
+        self.assertLess(ledger_bytes, 4_000_000)
 
     def test_three_symbols_interleave_close_and_reopen(self):
         buy_at = datetime(2026, 8, 3, 14, 50, tzinfo=CHINA_TZ)
@@ -128,6 +153,32 @@ class P3OfflineResilienceTests(unittest.TestCase):
             OfflineOrderJournal(Path(directory)).append(order)
             restarted = OfflineExecutionEngine(OfflinePaperLedger(Path(directory)))
             self.assertEqual(restarted.recovery_report()["pending_intents"][0]["intent_id"], order.intent_id)
+
+    def test_forced_process_crash_matrix_recovers_every_commit_boundary(self):
+        at = datetime(2026, 8, 3, 14, 50, tzinfo=CHINA_TZ)
+        context = multiprocessing.get_context("spawn")
+        for index, stage in enumerate(("before_order", "after_order", "after_fill", "after_result")):
+            with self.subTest(stage=stage), tempfile.TemporaryDirectory() as directory:
+                order = make_intent("BUY", "000001", "cd-" + str(index + 5) * 24, at, "2026-08-04")
+                filled = make_fill(order, at, 10.0)
+                process = context.Process(target=crash_at_boundary, args=(stage, directory, order.to_dict(), filled.to_dict()))
+                process.start(); process.join(15)
+                self.assertFalse(process.is_alive())
+                engine = OfflineExecutionEngine(OfflinePaperLedger(Path(directory)))
+                report = engine.recovery_report()
+                if stage == "before_order":
+                    self.assertEqual(report["status"], "CLEAN")
+                elif stage == "after_order":
+                    self.assertEqual(len(report["pending_intents"]), 1)
+                    self.assertTrue(engine.retry_pending(filled_at=at)["success"])
+                    self.assertEqual(engine.recovery_report()["status"], "CLEAN")
+                elif stage == "after_fill":
+                    self.assertEqual(report["missing_result_intent_ids"], [order.intent_id])
+                    repaired = engine.repair_audit_gaps()
+                    self.assertEqual(len(repaired["repaired_result_ids"]), 1)
+                    self.assertEqual(repaired["recovery"]["status"], "CLEAN")
+                else:
+                    self.assertEqual(report["status"], "CLEAN")
 
     def test_read_only_legacy_validator_never_mutates_or_cuts_over(self):
         payload = {"capital": 89000.0, "initial_capital": 100000.0,

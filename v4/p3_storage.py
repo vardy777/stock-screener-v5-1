@@ -55,7 +55,10 @@ def atomic_json_write(path: Path, payload: dict) -> None:
     temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
     try:
         with temporary.open("w", encoding="utf-8") as handle:
-            json.dump(payload, handle, ensure_ascii=False, sort_keys=True, indent=2)
+            json.dump(
+                payload, handle, ensure_ascii=False, sort_keys=True,
+                separators=(",", ":"),
+            )
             handle.flush()
             os.fsync(handle.fileno())
         temporary.replace(path)
