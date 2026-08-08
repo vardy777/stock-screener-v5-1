@@ -124,6 +124,21 @@ class MarketContractTests(unittest.TestCase):
         self.assertFalse(TradingClock.quote_is_fresh(naive, now=self.now))
         self.assertFalse(TradingClock.quote_is_fresh(self.now, now=naive))
 
+    def test_market_state_metrics_are_deeply_immutable(self):
+        snapshot = MarketSnapshotV1.build(
+            trade_date="2026-08-03", session="morning",
+            batch_started_at=self.now, batch_completed_at=self.now,
+            quotes=[self.quote()], expected_codes=1, require_order_book=False,
+        )
+        state = MarketStateV1.build(
+            snapshot, mode="neutral", data_valid=True,
+            metrics={"nested": {"items": [1, 2]}}, analytics_version="test-v1",
+        )
+        with self.assertRaises(TypeError):
+            state.metrics["nested"]["items"] = []
+        with self.assertRaises(TypeError):
+            state.metrics["nested"]["new"] = 1
+
 
 if __name__ == "__main__":
     unittest.main()

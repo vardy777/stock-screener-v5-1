@@ -376,7 +376,7 @@ class SimulationEngine:
                 stage = 'confirmation' if current.hour == 14 and current.minute >= 50 else 'morning'
             if stage == 'confirmation':
                 try:
-                    from v4.snapshots import capture_frame
+                    from v3.snapshot_compat import capture_frame
                     capture_frame(
                         quotes,
                         'buy',
@@ -699,7 +699,7 @@ class SimulationEngine:
                     quotes = df.batch_fetch_quotes([code])
                     if quotes is not None and not quotes.empty:
                         try:
-                            from v4.snapshots import capture_frame
+                            from v3.snapshot_compat import capture_frame
                             capture_frame(quotes, 'sell')
                         except Exception as e:
                             logger.warning("V4真实09:30快照保存失败: %s", e)

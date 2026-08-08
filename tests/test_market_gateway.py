@@ -76,3 +76,19 @@ class MarketGatewayTests(unittest.TestCase):
             path.write_text(json.dumps(tampered), encoding="utf-8")
             with self.assertRaisesRegex(ContractViolation, "content hash mismatch"):
                 repository.load(path)
+
+    def test_repository_recomputes_quality_under_persisted_policy(self):
+        with TemporaryDirectory() as directory:
+            repository = SnapshotRepository(Path(directory))
+            snapshot = MarketDataGateway(
+                Provider(self.frame()), repository
+            ).fetch_snapshot(
+                ["000001"], session="signal", now=self.now,
+                minimum_coverage=1.0, require_order_book=False,
+            )
+            path = repository.path_for(snapshot)
+            tampered = json.loads(path.read_text(encoding="utf-8"))
+            tampered["quality"]["accepted"] = False
+            with self.assertRaisesRegex(ContractViolation, "recomputation mismatch"):
+                from v4.market_contracts import MarketSnapshotV1
+                MarketSnapshotV1.from_mapping(tampered)

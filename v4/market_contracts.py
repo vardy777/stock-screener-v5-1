@@ -15,6 +15,7 @@ import hashlib
 import json
 from math import isfinite
 from typing import Any, Iterable, Mapping
+from types import MappingProxyType
 
 from .execution import CHINA_TZ
 
@@ -22,6 +23,7 @@ from .execution import CHINA_TZ
 QUOTE_SCHEMA_VERSION = "quote-v1"
 SNAPSHOT_SCHEMA_VERSION = "market-snapshot-v1"
 QUALITY_SCHEMA_VERSION = "snapshot-quality-v1"
+POLICY_SCHEMA_VERSION = "snapshot-policy-v1"
 MARKET_STATE_SCHEMA_VERSION = "market-state-v1"
 
 
@@ -85,6 +87,22 @@ def _integer(value: Any, field: str) -> int:
 def _boolean(value: Any, field: str) -> bool:
     if not isinstance(value, bool):
         raise ContractViolation(f"{field}: boolean is required")
+    return value
+
+
+def _deep_freeze(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return MappingProxyType({str(key): _deep_freeze(item) for key, item in value.items()})
+    if isinstance(value, (list, tuple)):
+        return tuple(_deep_freeze(item) for item in value)
+    return value
+
+
+def _deep_thaw(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {str(key): _deep_thaw(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [_deep_thaw(item) for item in value]
     return value
 
 
@@ -237,6 +255,35 @@ class SnapshotQualityV1:
 
 
 @dataclass(frozen=True)
+class SnapshotPolicyV1:
+    minimum_coverage: float
+    maximum_age_seconds: float
+    maximum_batch_seconds: float
+    require_order_book: bool
+    schema_version: str = POLICY_SCHEMA_VERSION
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_mapping(cls, value: Mapping[str, Any]) -> "SnapshotPolicyV1":
+        if value.get("schema_version") != POLICY_SCHEMA_VERSION:
+            raise ContractViolation("policy: unsupported schema version")
+        try:
+            minimum = _number(value["minimum_coverage"], "policy.minimum_coverage")
+            if not 0 <= minimum <= 1:
+                raise ContractViolation("policy.minimum_coverage: must be within 0..1")
+            return cls(
+                minimum_coverage=minimum,
+                maximum_age_seconds=_number(value["maximum_age_seconds"], "policy.maximum_age_seconds"),
+                maximum_batch_seconds=_number(value["maximum_batch_seconds"], "policy.maximum_batch_seconds"),
+                require_order_book=_boolean(value["require_order_book"], "policy.require_order_book"),
+            )
+        except KeyError as exc:
+            raise ContractViolation(f"policy: missing field {exc.args[0]}") from exc
+
+
+@dataclass(frozen=True)
 class MarketSnapshotV1:
     trade_date: str
     session: str
@@ -244,6 +291,7 @@ class MarketSnapshotV1:
     batch_completed_at: str
     quotes: tuple[QuoteV1, ...]
     quality: SnapshotQualityV1
+    policy: SnapshotPolicyV1
     schema_version: str = SNAPSHOT_SCHEMA_VERSION
 
     @classmethod
@@ -330,6 +378,12 @@ class MarketSnapshotV1:
             maximum_quote_age_seconds=float(maximum_age),
             batch_duration_seconds=float(duration),
         )
+        policy = SnapshotPolicyV1(
+            minimum_coverage=float(minimum_coverage),
+            maximum_age_seconds=float(maximum_age_seconds),
+            maximum_batch_seconds=float(maximum_batch_seconds),
+            require_order_book=bool(require_order_book),
+        )
         return cls(
             trade_date=declared_date.isoformat(),
             session=session,
@@ -337,6 +391,7 @@ class MarketSnapshotV1:
             batch_completed_at=completed.isoformat(),
             quotes=items,
             quality=quality,
+            policy=policy,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -348,6 +403,7 @@ class MarketSnapshotV1:
             "batch_completed_at": self.batch_completed_at,
             "quotes": [quote.to_dict() for quote in self.quotes],
             "quality": self.quality.to_dict(),
+            "policy": self.policy.to_dict(),
         }
         payload["snapshot_id"] = self.snapshot_id
         return payload
@@ -357,13 +413,19 @@ class MarketSnapshotV1:
         if value.get("schema_version") != SNAPSHOT_SCHEMA_VERSION:
             raise ContractViolation("snapshot: unsupported schema version")
         try:
-            snapshot = cls(
-                trade_date=date.fromisoformat(str(value["trade_date"])).isoformat(),
-                session=str(value["session"]),
-                batch_started_at=_aware_datetime(value["batch_started_at"], "batch_started_at").isoformat(),
-                batch_completed_at=_aware_datetime(value["batch_completed_at"], "batch_completed_at").isoformat(),
+            stored_quality = SnapshotQualityV1.from_mapping(value["quality"])
+            policy = SnapshotPolicyV1.from_mapping(value["policy"])
+            snapshot = cls.build(
+                trade_date=str(value["trade_date"]), session=str(value["session"]),
+                batch_started_at=value["batch_started_at"],
+                batch_completed_at=value["batch_completed_at"],
                 quotes=tuple(QuoteV1.from_mapping(item) for item in value["quotes"]),
-                quality=SnapshotQualityV1.from_mapping(value["quality"]),
+                expected_codes=stored_quality.expected_codes,
+                cohort=EvidenceCohort(stored_quality.cohort),
+                minimum_coverage=policy.minimum_coverage,
+                maximum_age_seconds=policy.maximum_age_seconds,
+                maximum_batch_seconds=policy.maximum_batch_seconds,
+                require_order_book=policy.require_order_book,
             )
         except KeyError as exc:
             raise ContractViolation(f"snapshot: missing field {exc.args[0]}") from exc
@@ -378,6 +440,8 @@ class MarketSnapshotV1:
         )
         if abs(snapshot.quality.coverage - expected_coverage) > 1e-12:
             raise ContractViolation("quality.coverage: snapshot mismatch")
+        if snapshot.quality != stored_quality:
+            raise ContractViolation("quality: recomputation mismatch")
         declared_id = value.get("snapshot_id")
         if declared_id != snapshot.snapshot_id:
             raise ContractViolation("snapshot_id: content hash mismatch")
@@ -393,6 +457,7 @@ class MarketSnapshotV1:
             "batch_completed_at": self.batch_completed_at,
             "quotes": [quote.to_dict() for quote in self.quotes],
             "quality": self.quality.to_dict(),
+            "policy": self.policy.to_dict(),
         }
         raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         return "ms1-" + hashlib.sha256(raw.encode("utf-8")).hexdigest()
@@ -408,6 +473,9 @@ class MarketStateV1:
     metrics: Mapping[str, Any]
     analytics_version: str
     schema_version: str = MARKET_STATE_SCHEMA_VERSION
+
+    def __post_init__(self):
+        object.__setattr__(self, "metrics", _deep_freeze(self.metrics))
 
     @classmethod
     def build(
@@ -427,7 +495,7 @@ class MarketStateV1:
             as_of=as_of.isoformat(),
             mode=mode,
             data_valid=data_valid,
-            metrics=dict(metrics),
+            metrics=_deep_freeze(metrics),
             analytics_version=str(analytics_version),
         )
 
@@ -444,7 +512,7 @@ class MarketStateV1:
             "as_of": self.as_of,
             "mode": self.mode,
             "data_valid": self.data_valid,
-            "metrics": dict(self.metrics),
+            "metrics": _deep_thaw(self.metrics),
             "analytics_version": self.analytics_version,
         }
         if include_id:
@@ -453,7 +521,7 @@ class MarketStateV1:
 
     def to_projection(self) -> dict[str, Any]:
         """Compatibility-shaped immutable projection with explicit lineage."""
-        payload = dict(self.metrics)
+        payload = _deep_thaw(self.metrics)
         payload.update({
             "market_state_schema_version": self.schema_version,
             "market_state_id": self.market_state_id,

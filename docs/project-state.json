@@ -8,7 +8,7 @@
   "production_status": "research_locked",
   "p1_validation": {
     "engineering_status": "offline_completed",
-    "offline_acceptance_status": "passed_142_tests",
+    "offline_acceptance_status": "passed_145_tests_strict",
     "live_window_status": "pending_real_windows",
     "required_windows": ["09:25 morning", "14:49 signal", "14:50 strict and paper-only", "next-session 09:30 sell"]
   },
@@ -56,7 +56,7 @@
     "confirmation_push_success": true
   },
   "quality": {
-    "tests_passed": 142,
+    "tests_passed": 145,
     "tests_failed": 0,
     "v4_imports_v3": false
   },
@@ -98,8 +98,8 @@
     }
   ],
   "next_tasks": [
-    "完成P1唯一行情网关、MarketSnapshotV1唯一核心输入和MarketStateV1契约",
-    "完成P1离线验收后再重新实施P2唯一候选事实源",
+    "完成P2最终实体强制血缘与冻结MarketSnapshotV1端到端回放",
+    "完成P2离线验收",
     "P1/P2离线验收完成后验证真实09:25、14:49、14:50和次日09:30窗口",
     "所有验收通过前禁止进入P3"
   ],

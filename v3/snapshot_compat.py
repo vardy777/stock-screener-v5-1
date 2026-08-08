@@ -1,4 +1,4 @@
-"""Validated execution-window snapshots with physically isolated cohorts."""
+"""Legacy frame capture compatibility; V4 core uses MarketDataGateway only."""
 
 from __future__ import annotations
 
@@ -10,8 +10,8 @@ from typing import Optional
 
 import pandas as pd
 
-from .execution import CHINA_TZ, TradingClock
-from .market_contracts import (
+from v4.execution import CHINA_TZ, TradingClock
+from v4.market_contracts import (
     ContractViolation,
     EvidenceCohort,
     MarketSnapshotV1,

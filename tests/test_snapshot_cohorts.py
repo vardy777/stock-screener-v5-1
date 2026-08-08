@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pandas as pd
 
 from v4.execution import CHINA_TZ
-from v4.snapshots import build_daily_quality_report, capture_frame
+from v3.snapshot_compat import build_daily_quality_report, capture_frame
 
 
 class SnapshotCohortTests(unittest.TestCase):
@@ -30,7 +30,7 @@ class SnapshotCohortTests(unittest.TestCase):
     def test_strict_and_paper_only_are_physically_isolated(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            with patch("v4.snapshots.SNAPSHOT_ROOT", root):
+            with patch("v3.snapshot_compat.SNAPSHOT_ROOT", root):
                 strict = capture_frame(
                     pd.DataFrame([self.row()]), "buy", now=self.now,
                     expected_codes=["000001"], require_order_book=True,
@@ -63,7 +63,7 @@ class SnapshotCohortTests(unittest.TestCase):
         for rows, expected_reason in cases:
             with self.subTest(reason=expected_reason), tempfile.TemporaryDirectory() as temp_dir:
                 root = Path(temp_dir)
-                with patch("v4.snapshots.SNAPSHOT_ROOT", root):
+                with patch("v3.snapshot_compat.SNAPSHOT_ROOT", root):
                     output = capture_frame(
                         pd.DataFrame(rows), "buy", now=self.now,
                         expected_codes=["000001"], require_order_book=True,
@@ -90,7 +90,7 @@ class SnapshotCohortTests(unittest.TestCase):
     def test_daily_report_keeps_cohorts_separate(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            with patch("v4.snapshots.SNAPSHOT_ROOT", root):
+            with patch("v3.snapshot_compat.SNAPSHOT_ROOT", root):
                 capture_frame(
                     pd.DataFrame([self.row()]), "buy", now=self.now,
                     expected_codes=["000001"], require_order_book=True,

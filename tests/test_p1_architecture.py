@@ -8,6 +8,16 @@ ALLOWED_PROVIDER_BOUNDARIES = {"data.py", "market_gateway.py"}
 
 
 class P1ArchitectureTests(unittest.TestCase):
+    def test_v4_exposes_no_legacy_frame_capture_or_market_state_fetcher(self):
+        self.assertFalse((ROOT / "v4" / "snapshots.py").exists())
+        data_tree = ast.parse((ROOT / "v4" / "data.py").read_text(encoding="utf-8"))
+        functions = {
+            node.name for node in ast.walk(data_tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        }
+        self.assertNotIn("get_market_state", functions)
+        self.assertNotIn("capture_frame", functions)
+
     def test_only_gateway_or_provider_module_can_access_raw_quote_provider(self):
         violations = []
         for path in sorted((ROOT / "v4").glob("*.py")):

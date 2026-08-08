@@ -2,6 +2,7 @@
 
 ## 2026-08-08
 
+- P1严格收尾：V4删除松散DataFrame捕获器和DataFetcher市场状态业务旁路，旧捕获器迁至V3兼容层；SnapshotPolicyV1进入快照内容哈希，读取时按持久化政策重算质量；MarketStateV1 metrics递归冻结。新增篡改、深度不可变和旁路不存在测试，全量145项通过。
 - P1离线验收通过：清除V4业务路径naive datetime自动补时区、无时区now和隐式本地astimezone；新增AST时间门禁与特征存储fail-closed测试。142项测试通过，P1仅保留四个真实交易窗口验证，离线开发转入P2。
 - P1行情边界收口：物理删除看板内未使用的直接行情/回调选股函数；新增内容寻址的MarketSnapshotV1不可变仓储、原子非覆盖写入、幂等读取、schema/内容哈希/文件名/质量计数校验；新增AST架构门禁，除提供方实现和唯一网关外禁止V4模块导入DataFetcher或调用batch_fetch_quotes。离线测试140项通过。
 - P1重新实施第一批：新增唯一提供方边界 `MarketDataGateway`、稳定 `snapshot_id` 和带快照血缘的 `MarketStateV1`；交易动作与行情时效对naive datetime统一fail-closed；支持09:25 morning快照会话。当前仅完成基础契约，旧核心调用方尚未迁移，P1不得标记完成。

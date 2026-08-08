@@ -13,7 +13,7 @@ from v4.execution import CHINA_TZ, TradingClock
 from v4.readiness import ResearchReadiness
 from v4.runtime import V4Runtime
 from v4.selection import V4CandidateSelector
-from v4.snapshots import capture_frame
+from v3.snapshot_compat import capture_frame
 
 
 class V4Tests(unittest.TestCase):
@@ -247,7 +247,7 @@ class V4Tests(unittest.TestCase):
             ]
         )
         with TemporaryDirectory() as temp_dir:
-            with patch("v4.snapshots.SNAPSHOT_ROOT", Path(temp_dir)):
+            with patch("v3.snapshot_compat.SNAPSHOT_ROOT", Path(temp_dir)):
                 output = capture_frame(frame, "buy", now=now)
                 self.assertIsNotNone(output)
                 saved = pd.read_csv(output, dtype={"code": str})
@@ -279,7 +279,7 @@ class V4Tests(unittest.TestCase):
             ]
         )
         with TemporaryDirectory() as temp_dir:
-            with patch("v4.snapshots.SNAPSHOT_ROOT", Path(temp_dir)):
+            with patch("v3.snapshot_compat.SNAPSHOT_ROOT", Path(temp_dir)):
                 output = capture_frame(
                     frame,
                     "buy",
@@ -307,7 +307,7 @@ class V4Tests(unittest.TestCase):
             ]
         )
         with TemporaryDirectory() as temp_dir:
-            with patch("v4.snapshots.SNAPSHOT_ROOT", Path(temp_dir)):
+            with patch("v3.snapshot_compat.SNAPSHOT_ROOT", Path(temp_dir)):
                 output = capture_frame(
                     frame,
                     "buy",
