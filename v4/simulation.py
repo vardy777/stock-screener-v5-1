@@ -14,7 +14,6 @@ from v4.execution import TradingClock
 
 logger = logging.getLogger(__name__)
 ROOT = Path(__file__).resolve().parent.parent
-V4_DASHBOARD_STATE_PATH = ROOT / 'v4' / 'data' / 'dashboard_state.json'
 V4_PAPER_ACCOUNT_PATH = ROOT / 'v4' / 'data' / 'paper_account.json'
 
 try:
@@ -47,7 +46,6 @@ class SimulationEngine:
 
     def __init__(self):
         self._account: Optional[SimAccount] = None
-        self._candidates: list = []
         self._last_screen_time: Optional[str] = None
         self._sector_ranks = {}
         self._sentiment = {}
@@ -83,9 +81,7 @@ class SimulationEngine:
             return
         try:
             self._account = SimAccount(str(V4_PAPER_ACCOUNT_PATH))
-            # 加载候选数据
-            self._candidates = self.load_candidates_from_file()
-            logger.info(f"模拟账户已加载, 候选{len(self._candidates)}只")
+            logger.info("模拟账户已加载；候选与决策只从candidate_journal读取")
         except Exception as e:
             logger.error(f"加载模拟账户失败: {e}")
             self._account = None
@@ -225,7 +221,7 @@ class SimulationEngine:
                 'position_count': len(positions),
             },
             'positions': positions,
-            'candidates': self._candidates if self._candidates else self.load_candidates_from_file(),
+            'candidates': self._journal_candidates(),
             'trade_history': trade_history,
             'daily_records': daily_records,
             'market_state': market_state,
@@ -325,9 +321,8 @@ class SimulationEngine:
         """Fetch the full market and let V4 exclusively generate Top5."""
         if MarketDataGateway is None:
             logger.error("唯一行情网关不可用，按安全规则空仓")
-            self._candidates = []
             self._last_screen_time = TradingClock.now().isoformat(timespec='seconds')
-            return self._candidates
+            return []
 
         try:
             gateway = MarketDataGateway()
@@ -335,8 +330,7 @@ class SimulationEngine:
             codes = list_universe_codes(root / 'phase1' / 'data' / 'daily')
             if not codes:
                 logger.error('统一全市场股票池为空, 按安全规则空仓')
-                self._candidates = []
-                return self._candidates
+                return []
             current = TradingClock.now()
             if stage == 'auto':
                 stage = 'confirmation' if current.hour == 14 and current.minute >= 50 else 'morning'
@@ -348,9 +342,8 @@ class SimulationEngine:
 
             if not snapshot.quotes:
                 logger.error("无法获取行情数据, 按安全规则空仓")
-                self._candidates = []
                 self._last_screen_time = TradingClock.now().isoformat(timespec='seconds')
-                return self._candidates
+                return []
 
             logger.info("获取版本化行情快照: %d只 %s", len(snapshot.quotes), snapshot.snapshot_id)
             market_state = self._get_market_state(snapshot)
@@ -365,7 +358,6 @@ class SimulationEngine:
                 allowed_codes = {item.get('code') for item in morning_rows if item.get('code')}
                 if not journal.has_morning(trade_date):
                     logger.error('Missing current-session 09:25 mother pool; confirmation is empty')
-                    self._candidates = []
                     self._last_screen_time = current.strftime('%H:%M:%S')
                     market_state['v4_selection'] = {
                         'status': 'blocked',
@@ -378,8 +370,7 @@ class SimulationEngine:
                     DecisionChainService(journal, None).publish_missing_morning(
                         trade_date, market_state
                     )
-                    self._save_candidates([], stage='confirmation')
-                    return self._candidates
+                    return []
                 if not allowed_codes:
                     logger.info('Current-session 09:25 mother pool is valid but empty')
                     journal.save_confirmation(trade_date, [], market_state)
@@ -390,10 +381,8 @@ class SimulationEngine:
                         'reason': '09:25 mother pool was empty',
                     }
                     self._last_market_state = dict(market_state)
-                    self._candidates = []
                     self._last_screen_time = current.strftime('%H:%M:%S')
-                    self._save_candidates([], stage='confirmation')
-                    return self._candidates
+                    return []
                 # The full-market request is intentionally batched and can take
                 # tens of seconds. Refresh the tiny locked mother pool once more
                 # so paper execution is judged on genuinely current 14:50 quotes
@@ -419,9 +408,7 @@ class SimulationEngine:
                 candidates = list(decision.get('candidates', []))
             market_state['v4_selection'] = dict(v4_runtime.last_selection)
             self._last_market_state = dict(market_state)
-            self._candidates = candidates
             self._last_screen_time = TradingClock.now().isoformat(timespec='seconds')
-            self._save_candidates(candidates, stage=stage)
             logger.info(
                 "V4候选生成完成: %d只 source=%s status=%s",
                 len(candidates),
@@ -432,93 +419,26 @@ class SimulationEngine:
 
         except Exception as e:
             logger.error(f"选股失败: {e}")
-            self._candidates = []
             self._last_screen_time = TradingClock.now().isoformat(timespec='seconds')
-            return self._candidates
-
-    def _save_candidates(self, candidates: list, *, stage: str = 'auto') -> None:
-        """Atomically persist only V4-origin candidates for the dashboard."""
-        try:
-            if any(c.get('is_mock') for c in candidates):
-                logger.warning("跳过保存mock候选, 避免自动交易误买")
-                return
-            if any(c.get('v4_candidate_origin') != 'V4' for c in candidates):
-                logger.error("拒绝保存非V4来源候选")
-                return
-            path = V4_DASHBOARD_STATE_PATH
-            path.parent.mkdir(parents=True, exist_ok=True)
-            market_state = self._last_market_state or {}
-            if not market_state and path.exists():
-                try:
-                    existing = json.loads(path.read_text(encoding='utf-8'))
-                    market_state = existing.get('market_state', {}) or {}
-                except (OSError, ValueError, TypeError):
-                    market_state = {}
-            payload = {
-                'candidate_engine': 'V4',
-                'candidates': candidates,
-                'market_state': market_state,
-                'selection': market_state.get('v4_selection', {}),
-                'time': TradingClock.now().isoformat(timespec='seconds'),
-                'date': TradingClock.now().date().isoformat(),
-                'stage': stage,
-            }
-            temporary = path.with_suffix('.tmp')
-            temporary.write_text(
-                json.dumps(payload, ensure_ascii=False, indent=2),
-                encoding='utf-8',
-            )
-            temporary.replace(path)
-        except Exception as e:
-            logger.warning(f"保存候选失败: {e}")
-
-    def load_candidates_from_file(self) -> list:
-        """Load only candidates generated by the V4 engine."""
-        try:
-            if not V4_DASHBOARD_STATE_PATH.exists():
-                return []
-            data = json.loads(V4_DASHBOARD_STATE_PATH.read_text(encoding='utf-8'))
-            if data.get('candidate_engine') != 'V4':
-                return []
-            candidates = data.get('candidates', [])
-            if not isinstance(candidates, list):
-                return []
-            return [
-                item for item in candidates
-                if isinstance(item, dict) and item.get('v4_candidate_origin') == 'V4'
-            ]
-        except Exception:
             return []
 
     def load_market_state_from_file(self) -> dict:
-        """Read the latest V4 market state without triggering a quote request."""
+        """Read the derived market projection; it is never a candidate source."""
         try:
-            if not V4_DASHBOARD_STATE_PATH.exists():
-                return {}
-            data = json.loads(V4_DASHBOARD_STATE_PATH.read_text(encoding='utf-8'))
-            if data.get('candidate_engine') != 'V4':
-                return {}
-            state = data.get('market_state', {})
-            return state if isinstance(state, dict) else {}
+            from v4.market import load_market_cache
+            state = load_market_cache().get("market_state", {})
+            return dict(state) if isinstance(state, dict) else {}
         except Exception:
             return {}
 
-    def _mock_candidates(self) -> list:
-        """模拟候选数据 — 仅用于看板占位, 自动交易跳过"""
-        return [
-            {'code': '600184', 'name': '光电股份', 'score': 87.3, 'strategy': '追高',
-             'price': 28.22, 'change_pct': 3.45, 'buy_price': 28.28, 'rank': 1, 'is_mock': True},
-            {'code': '600133', 'name': '东湖高新', 'score': 82.1, 'strategy': '追高',
-             'price': 8.40, 'change_pct': 2.80, 'buy_price': 8.42, 'rank': 2, 'is_mock': True},
-            {'code': '000006', 'name': '深振业Ａ', 'score': 78.5, 'strategy': '追高',
-             'price': 8.21, 'change_pct': 2.15, 'buy_price': 8.23, 'rank': 3, 'is_mock': True},
-            {'code': '300458', 'name': '全志科技', 'score': 74.2, 'strategy': '回调',
-             'price': 35.16, 'change_pct': -3.12, 'buy_price': 35.22, 'rank': 4, 'is_mock': True},
-            {'code': '002415', 'name': '海康威视', 'score': 71.8, 'strategy': '回调',
-             'price': 35.00, 'change_pct': -2.45, 'buy_price': 35.07, 'rank': 5, 'is_mock': True},
-        ]
+    @staticmethod
+    def _journal_candidates(trade_date: str | None = None) -> list:
+        from v4.candidate_journal import CandidateJournal
+        journal = CandidateJournal()
+        chain = journal.load(trade_date) if trade_date else journal.load_latest()
+        entity = chain.get("confirmation") or chain.get("morning") or {}
+        return list(entity.get("candidates", []))
 
-    # ── 买入 ──────────────────────────────────────────────
 
     def execute_buy(
         self,
@@ -552,33 +472,28 @@ class SimulationEngine:
         if self._account is None:
             return {'success': False, 'message': '模拟账户未初始化', 'bought': 0, 'detail': []}
 
-        final_decision = None
-        if paper_observation and not refresh_candidates:
-            from v4.candidate_journal import CandidateJournal
-            trade_date = TradingClock.now().date().isoformat()
-            final_decision = CandidateJournal().confirmation(trade_date)
-            if not final_decision:
-                return {
-                    'success': False,
-                    'message': '当日ConfirmationDecision缺失，拒绝使用候选缓存买入',
-                    'bought': 0, 'detail': [], 'decision': 'missing',
-                }
-            self._candidates = list(final_decision.get('candidates', []))
-            if final_decision.get('outcome') != 'BUY':
-                return {
-                    'success': True,
-                    'message': f"最终决策为{final_decision.get('outcome', 'BLOCKED')}，模拟账户保持空仓",
-                    'bought': 0, 'detail': [],
-                    'decision': final_decision.get('outcome', 'BLOCKED').lower(),
-                    'decision_id': final_decision.get('decision_id'),
-                    'reason_codes': list(final_decision.get('reason_codes', [])),
-                }
-
-        # 允许窗口内始终重新计算候选，避免使用页面或前一日缓存下单。
-        if refresh_candidates or not self._candidates:
+        if refresh_candidates:
             self.screen_today(stage='confirmation')
-
-        if not self._candidates:
+        from v4.candidate_journal import CandidateJournal
+        trade_date = TradingClock.now().date().isoformat()
+        final_decision = CandidateJournal().confirmation(trade_date)
+        if not final_decision:
+            return {
+                'success': False,
+                'message': '当日ConfirmationDecision缺失，拒绝执行',
+                'bought': 0, 'detail': [], 'decision': 'missing',
+            }
+        candidates = list(final_decision.get('candidates', []))
+        if final_decision.get('outcome') != 'BUY':
+            return {
+                'success': True,
+                'message': f"最终决策为{final_decision.get('outcome', 'BLOCKED')}，模拟账户保持空仓",
+                'bought': 0, 'detail': [],
+                'decision': final_decision.get('outcome', 'BLOCKED').lower(),
+                'decision_id': final_decision.get('decision_id'),
+                'reason_codes': list(final_decision.get('reason_codes', [])),
+            }
+        if not candidates:
             return {
                 'success': True,
                 'message': '当日14:50无合格确认候选，模拟账户保持空仓',
@@ -587,7 +502,7 @@ class SimulationEngine:
                 'decision': 'empty',
             }
 
-        if any(c.get('is_mock') for c in self._candidates):
+        if any(c.get('is_mock') for c in candidates):
             logger.error('检测到模拟候选，拒绝执行买入')
             return {
                 'success': False,
@@ -600,14 +515,11 @@ class SimulationEngine:
             return {'success': False, 'message': 'BuyDecision 不可用', 'bought': 0, 'detail': []}
 
         try:
-            market = (
-                dict(final_decision.get('market_state', {}))
-                if final_decision else self._get_market_state()
-            )
+            market = dict(final_decision.get('market_state', {}))
 
             # 将候选转为 BuyDecision 格式
             buy_candidates = []
-            for c in self._candidates:
+            for c in candidates:
                 # 如果指定了代码列表, 只保留选中的
                 if selected_codes is not None and c['code'] not in selected_codes:
                     continue
@@ -770,7 +682,6 @@ class SimulationEngine:
             self.load_state()
         if self._account is not None:
             self._account.reset(initial_capital)
-            self._candidates = []
             self._last_screen_time = None
             logger.info(f"模拟账户已重置, 初始本金 ¥{initial_capital:,.2f}")
 # P0P1 v2

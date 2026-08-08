@@ -202,9 +202,11 @@ class V4Runtime:
             )
             evaluated.append(item)
 
-        snapshot = self.system_state(market)
-        snapshot["candidates"] = evaluated
-        save_runtime_state(snapshot)
+        diagnostic = self.system_state(market)
+        diagnostic["diagnostic_schema_version"] = "runtime-diagnostic-v1"
+        diagnostic["candidate_count"] = len(evaluated)
+        diagnostic["derived_only"] = True
+        save_runtime_state(diagnostic)
         return evaluated
 
     def evaluate_universe(
