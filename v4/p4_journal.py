@@ -63,6 +63,11 @@ class OfflineTaskJournal:
                     raise TaskContractViolation("task journal: terminal without start")
                 if any(row["status"] in {"SUCCEEDED", "FAILED", "TIMED_OUT"} for row in same_attempt):
                     raise TaskContractViolation("task journal: duplicate terminal")
+            elif receipt.status == "OUTCOME_UNKNOWN":
+                if not any(row["status"] == "STARTED" for row in same_attempt):
+                    raise TaskContractViolation("task journal: unknown without start")
+                if any(row["status"] in {"SUCCEEDED", "FAILED", "TIMED_OUT", "OUTCOME_UNKNOWN"} for row in same_attempt):
+                    raise TaskContractViolation("task journal: duplicate unknown")
             elif receipt.status == "SLA_MISSED" and any(row["status"] == "SLA_MISSED" for row in run):
                 raise TaskContractViolation("task journal: duplicate SLA event")
             previous = "genesis" if not self.path.exists() else json.loads(self.path.read_text(encoding="utf-8"))["head_event_id"]

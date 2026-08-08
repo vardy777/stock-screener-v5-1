@@ -12,8 +12,8 @@
 | 候选日志 | `v4/candidate_journal.py`, `v4/decision_contracts.py` | 不可变早盘母池与最终确认决策 | P2离线通过：唯一事实源、完整血缘、冻结输入回放 | 真实同ID链路验收 |
 | 模拟账户 | `v4/p3_contracts.py`, `v4/p3_account.py`, `v4/p3_execution.py`；旧生产实现`v4/sim_engine.py` | 订单意图、成交、往返、现金、持仓与费用 | P3离线核心终审通过：订单日志、事件链、防删除重排、T+1、失败隔离、故障恢复和对账；阶段仍未完成且禁止生产接入 | 等待P1/P2真实窗口门禁，继续非阻塞压力测试 |
 | 流程编排 | `v4/simulation.py` | 抓取、筛选、买卖 | 职责过重 | P2/P3拆分 |
-| 调度器 | `v4/p4_contracts.py`, `v4/p4_journal.py`, `v4/p4_orchestrator.py`, `v4/p4_deployment.py`；旧生产实现`v4/paper_scheduler.py` | 任务状态、不可变回执、幂等、重试、多日补偿、SLA、心跳、告警和部署静态审计 | P4隔离离线第二检查点通过；生产仍依赖看板且未改接 | 继续长序列、完整崩溃矩阵和哈希端到端验收 |
-| 推送 | `v4/p4_projection.py`与离线`FakeNotificationAdapter`；生产`v4/push.py`, `v4/scripts/` | 冻结实体通知投影、两次必要推送及明确传输结果 | 母池/决策/快照/排序血缘和接受/拒绝/超时/重试通过；真实PushPlus未调用 | 等待生产接入授权与真实回执验证 |
+| 调度器 | `v4/p4_contracts.py`, `v4/p4_journal.py`, `v4/p4_orchestrator.py`, `v4/p4_deployment.py`, `v4/p4_runtime.py`；旧生产实现`v4/paper_scheduler.py` | DAG、不可变回执、幂等、子进程超时、多日补偿、崩溃恢复、SLA、持久化心跳、告警和部署审计 | P4计划内10项离线优化通过；生产仍依赖看板且未改接 | 等待真实窗口和生产接入授权 |
+| 推送 | `v4/p4_projection.py`与离线`FakeNotificationAdapter`；生产`v4/push.py`, `v4/scripts/` | 冻结实体通知投影、payload/请求/回执哈希绑定及明确传输结果 | 完整血缘、接受/拒绝/超时/重试和不确定结果门禁通过；真实PushPlus未调用 | 等待真实回执验证与原子切换授权 |
 | 看板 | `v4/dashboard.py` | 8898控制台 | 可运行，单文件过大 | P5拆分 |
 | 研究评估 | `phase1/overnight/` | 数据集、WF、压力测试 | 样本不足 | P6 |
 | 模型注册 | `v4/model_registry.py` | 发布清单、推理 | 未发布 | P7 |

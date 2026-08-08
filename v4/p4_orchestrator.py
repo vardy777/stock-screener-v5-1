@@ -32,12 +32,13 @@ class OfflineTaskOrchestrator:
         day = now.date() if trade_date is None else datetime.fromisoformat(str(trade_date)).date()
         return datetime.combine(day, time.fromisoformat(spec.scheduled_time), now.tzinfo)
 
-    def _append(self, spec, now, attempt, status, reason, payload="", trade_date=None):
+    def _append(self, spec, now, attempt, status, reason, payload="", trade_date=None, transport_request_id=""):
         day = now.date().isoformat() if trade_date is None else str(trade_date)
         receipt = TaskReceiptV1.build(
             task_name=spec.task_name, trade_date=day, attempt=attempt,
             status=status, reason_code=reason, recorded_at=now,
             scheduled_for=self._scheduled(now, spec, day), payload_sha256=payload,
+            transport_request_id=transport_request_id,
         )
         self.journal.append(receipt)
         return receipt.to_dict()
@@ -49,10 +50,16 @@ class OfflineTaskOrchestrator:
             return {"status": "CLOSED_SESSION", "receipts": []}
         emitted = []
         for spec in self.specs:
+            if not spec.enabled:
+                continue
             clock = now.timetz().replace(tzinfo=None)
             start, end, deadline = map(time.fromisoformat, (spec.scheduled_time, spec.window_end, spec.sla_deadline))
             history = self.journal.run_receipts(spec.task_name, now.date().isoformat())
             if any(row["status"] == "SUCCEEDED" for row in history):
+                continue
+            unresolved = [row for row in history if row["status"] == "OUTCOME_UNKNOWN" and not any(
+                later["attempt"] == row["attempt"] and later["status"] in {"SUCCEEDED", "FAILED", "TIMED_OUT"} for later in history)]
+            if unresolved:
                 continue
             terminal_attempts = [row for row in history if row["status"] in {"SUCCEEDED", "FAILED", "TIMED_OUT"}]
             attempt = len(terminal_attempts) + 1
@@ -66,9 +73,18 @@ class OfflineTaskOrchestrator:
                 continue
             if attempt > spec.max_attempts:
                 continue
-            emitted.append(self._append(
-                spec, now, attempt, "STARTED",
-                "COMPENSATION_STARTED" if compensating else "SCHEDULED_STARTED"))
+            dependency_blocked = any(not any(
+                row["task_name"] == dependency and row["trade_date"] == now.date().isoformat() and row["status"] == "SUCCEEDED"
+                for row in self.journal.receipts()) for dependency in spec.dependencies)
+            if dependency_blocked:
+                continue
+            try:
+                emitted.append(self._append(spec, now, attempt, "STARTED",
+                    "COMPENSATION_STARTED" if compensating else "SCHEDULED_STARTED"))
+            except TaskContractViolation as exc:
+                if "duplicate attempt" in str(exc) or "already succeeded" in str(exc):
+                    continue
+                raise
             try:
                 result = self.executor(spec.task_name, now.date().isoformat(), attempt)
                 status = str(result.get("status", "FAILED")).upper()
@@ -76,11 +92,12 @@ class OfflineTaskOrchestrator:
                     status = "FAILED"
                 reason = str(result.get("reason_code", status))
                 payload = str(result.get("payload_sha256", ""))
+                transport = str(result.get("transport_request_id", ""))
             except TimeoutError:
-                status, reason, payload = "TIMED_OUT", "TRANSPORT_TIMEOUT", ""
+                status, reason, payload, transport = "TIMED_OUT", "TRANSPORT_TIMEOUT", "", ""
             except Exception:
-                status, reason, payload = "FAILED", "EXECUTOR_EXCEPTION", ""
-            emitted.append(self._append(spec, now, attempt, status, reason, payload))
+                status, reason, payload, transport = "FAILED", "EXECUTOR_EXCEPTION", "", ""
+            emitted.append(self._append(spec, now, attempt, status, reason, payload, transport_request_id=transport))
         return {"status": "EMITTED" if emitted else "NOOP", "receipts": emitted}
 
     def sla_report(self, now: datetime):
@@ -125,7 +142,7 @@ class OfflineTaskOrchestrator:
         rows = self.journal.receipts(); inflight = []
         for row in rows:
             if row["status"] != "STARTED": continue
-            if not any(item["run_id"] == row["run_id"] and item["attempt"] == row["attempt"] and item["status"] in {"SUCCEEDED", "FAILED", "TIMED_OUT"} for item in rows):
+            if not any(item["run_id"] == row["run_id"] and item["attempt"] == row["attempt"] and item["status"] in {"SUCCEEDED", "FAILED", "TIMED_OUT", "OUTCOME_UNKNOWN"} for item in rows):
                 inflight.append(row)
         return {"schema_version": "task-recovery-report-v1", "status": "RECOVERY_REQUIRED" if inflight else "CLEAN", "interrupted_attempts": inflight}
 
@@ -133,8 +150,14 @@ class OfflineTaskOrchestrator:
         repaired = []
         for row in self.recovery_report()["interrupted_attempts"]:
             spec = next(item for item in self.specs if item.task_name == row["task_name"])
-            repaired.append(self._append(spec, observed_at, row["attempt"], "FAILED", "PROCESS_INTERRUPTED", trade_date=row["trade_date"]))
+            repaired.append(self._append(spec, observed_at, row["attempt"], "OUTCOME_UNKNOWN", "PROCESS_INTERRUPTED_OUTCOME_UNKNOWN", trade_date=row["trade_date"]))
         return {"repaired": repaired, "recovery": self.recovery_report()}
+
+    def resolve_unknown(self, *, task_name, trade_date, attempt, observed_at, delivered: bool):
+        spec = next(item for item in self.specs if item.task_name == task_name)
+        return self._append(spec, observed_at, attempt, "SUCCEEDED" if delivered else "FAILED",
+                            "EXTERNAL_RESULT_CONFIRMED" if delivered else "EXTERNAL_RESULT_NOT_DELIVERED",
+                            trade_date=trade_date)
 
     def alert_report(self, now: datetime, *, last_heartbeat_at: datetime, heartbeat_limit_seconds=120):
         if last_heartbeat_at.tzinfo is None or last_heartbeat_at.utcoffset() is None:

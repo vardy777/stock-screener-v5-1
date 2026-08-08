@@ -10,6 +10,8 @@ import json
 
 TASK_SPEC_VERSION = "task-spec-v1"
 TASK_RECEIPT_VERSION = "task-receipt-v1"
+TASK_NAMES = {"morning_decision", "morning_push", "feature_freeze", "confirmation_decision",
+              "confirmation_push", "paper_sell", "paper_buy", "health_check", "maintenance"}
 
 
 class TaskContractViolation(ValueError):
@@ -40,12 +42,15 @@ class TaskSpecV1:
     max_attempts: int = 3
     compensation_allowed: bool = True
     historical_compensation_allowed: bool = False
+    dependencies: tuple[str, ...] = ()
+    enabled: bool = True
     schema_version: str = TASK_SPEC_VERSION
 
     @classmethod
     def build(cls, *, task_name, scheduled_time, window_end, sla_deadline,
-              max_attempts=3, compensation_allowed=True, historical_compensation_allowed=False):
-        if task_name not in {"morning_push", "confirmation_push", "paper_sell", "paper_buy"}:
+              max_attempts=3, compensation_allowed=True, historical_compensation_allowed=False,
+              dependencies=(), enabled=True):
+        if task_name not in TASK_NAMES:
             raise TaskContractViolation("task spec: unknown task")
         try:
             start = time.fromisoformat(str(scheduled_time))
@@ -58,8 +63,11 @@ class TaskSpecV1:
         attempts = int(max_attempts)
         if attempts < 1 or attempts > 5:
             raise TaskContractViolation("task spec: attempts out of range")
+        deps = tuple(str(item) for item in dependencies)
+        if task_name in deps or any(item not in TASK_NAMES for item in deps):
+            raise TaskContractViolation("task spec: invalid dependency")
         return cls(task_name, start.isoformat(), end.isoformat(), deadline.isoformat(),
-                   attempts, bool(compensation_allowed), bool(historical_compensation_allowed))
+                   attempts, bool(compensation_allowed), bool(historical_compensation_allowed), deps, bool(enabled))
 
     def to_dict(self):
         return asdict(self)
@@ -77,14 +85,15 @@ class TaskReceiptV1:
     recorded_at: str
     scheduled_for: str
     payload_sha256: str = ""
+    transport_request_id: str = ""
     schema_version: str = TASK_RECEIPT_VERSION
 
     @classmethod
     def build(cls, *, task_name, trade_date, attempt, status, reason_code,
-              recorded_at, scheduled_for, payload_sha256=""):
-        if task_name not in {"morning_push", "confirmation_push", "paper_sell", "paper_buy"}:
+              recorded_at, scheduled_for, payload_sha256="", transport_request_id=""):
+        if task_name not in TASK_NAMES:
             raise TaskContractViolation("receipt: unknown task")
-        if status not in {"STARTED", "SUCCEEDED", "FAILED", "TIMED_OUT", "SLA_MISSED"}:
+        if status not in {"STARTED", "SUCCEEDED", "FAILED", "TIMED_OUT", "OUTCOME_UNKNOWN", "SLA_MISSED"}:
             raise TaskContractViolation("receipt: invalid status")
         day = date.fromisoformat(str(trade_date)).isoformat()
         attempt = int(attempt)
@@ -99,7 +108,8 @@ class TaskReceiptV1:
                    "task_name": task_name, "trade_date": day, "attempt": attempt,
                    "status": status, "reason_code": str(reason_code),
                    "recorded_at": recorded, "scheduled_for": scheduled,
-                   "payload_sha256": str(payload_sha256)}
+                   "payload_sha256": str(payload_sha256),
+                   "transport_request_id": str(transport_request_id)}
         return cls(receipt_id=_identity("trec", payload), **{k: v for k, v in payload.items() if k != "schema_version"})
 
     def to_dict(self):

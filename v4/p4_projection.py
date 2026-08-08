@@ -47,3 +47,22 @@ class FrozenNotificationProjector:
                    "ranking_version": lineage.get("ranking_version", ""),
                    "candidate_codes": list(entity.candidate_codes)}
         return {**payload, "payload_sha256": _hash(payload)}
+
+
+class BoundNotificationExecutor:
+    """Bind frozen entity payload -> request ID -> transport result -> receipt fields."""
+    def __init__(self, adapter, payload_loader):
+        self.adapter = adapter; self.payload_loader = payload_loader
+
+    def __call__(self, task_name, trade_date, attempt):
+        payload = dict(self.payload_loader(task_name, trade_date))
+        payload_hash = payload.pop("payload_sha256", "")
+        if payload_hash != _hash(payload):
+            raise TaskContractViolation("notification: payload hash mismatch")
+        request_id = "nreq-" + _hash({"task_name": task_name, "trade_date": trade_date,
+                                      "payload_sha256": payload_hash})[:24]
+        outcome = self.adapter.send(task_name=task_name, trade_date=trade_date,
+                                    attempt=attempt, request_id=request_id, payload=payload)
+        return {"status": "SUCCEEDED" if outcome == "success" else "FAILED",
+                "reason_code": "TRANSPORT_ACCEPTED" if outcome == "success" else "TRANSPORT_REJECTED",
+                "payload_sha256": payload_hash, "transport_request_id": request_id}

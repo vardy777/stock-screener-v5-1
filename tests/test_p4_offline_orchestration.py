@@ -2,6 +2,8 @@ import ast
 import json
 import multiprocessing
 import os
+import sys
+import time
 import tempfile
 import unittest
 from datetime import date, datetime
@@ -10,12 +12,13 @@ from pathlib import Path
 from v4.execution import CHINA_TZ
 from v4.decision_contracts import ConfirmationDecisionV1, MorningPoolV1
 from v4.p4_contracts import TaskContractViolation, TaskReceiptV1, TaskSpecV1
-from v4.p4_deployment import audit_existing_windows_scripts, offline_notification_manifest
+from v4.p4_deployment import audit_existing_windows_scripts, full_offline_task_manifest, offline_notification_manifest
 from v4.p4_journal import OfflineTaskJournal
 from v4.p4_orchestrator import (
     FakeNotificationAdapter, OfflineNotificationExecutor, OfflineTaskOrchestrator,
 )
-from v4.p4_projection import FrozenNotificationProjector
+from v4.p4_projection import BoundNotificationExecutor, FrozenNotificationProjector
+from v4.p4_runtime import ControlledSubprocessExecutor, OfflineDaemonHarness, OfflineMonitorStore
 from unittest.mock import patch
 
 
@@ -48,6 +51,18 @@ def crash_after_task_start(directory):
     spec = engine.specs[0]
     engine._append(spec, datetime(2026, 8, 3, 9, 25, tzinfo=CHINA_TZ), 1, "STARTED", "SCHEDULED_STARTED")
     os._exit(71)
+
+
+def crash_task_boundary(stage, directory):
+    engine = OfflineTaskOrchestrator(Path(directory), calendar=VerifiedCalendar(),
+        executor=OfflineNotificationExecutor(FakeNotificationAdapter(), message_factory))
+    now = datetime(2026, 8, 3, 9, 25, tzinfo=CHINA_TZ); spec = engine.specs[0]
+    if stage == "before_start": os._exit(81)
+    engine._append(spec, now, 1, "STARTED", "SCHEDULED_STARTED")
+    if stage in {"after_start", "after_external_before_receipt"}: os._exit(82)
+    engine._append(spec, now, 1, "SUCCEEDED", "TRANSPORT_ACCEPTED", "a" * 64,
+                   transport_request_id="nreq-test")
+    os._exit(83)
 
 
 class P4OfflineOrchestrationTests(unittest.TestCase):
@@ -213,9 +228,12 @@ class P4OfflineOrchestrationTests(unittest.TestCase):
             engine, _ = self.engine(directory)
             self.assertEqual(engine.recovery_report()["status"], "RECOVERY_REQUIRED")
             repaired = engine.recover_interrupted(observed_at=self.now(9, 26))
-            self.assertEqual(repaired["repaired"][0]["reason_code"], "PROCESS_INTERRUPTED")
+            self.assertEqual(repaired["repaired"][0]["status"], "OUTCOME_UNKNOWN")
             self.assertEqual(repaired["recovery"]["status"], "CLEAN")
-            self.assertEqual(engine.tick(self.now(9, 27))["receipts"][-1]["attempt"], 2)
+            self.assertEqual(engine.tick(self.now(9, 27))["status"], "NOOP")
+            engine.resolve_unknown(task_name="morning_push", trade_date="2026-08-03", attempt=1,
+                                   observed_at=self.now(9, 28), delivered=False)
+            self.assertEqual(engine.tick(self.now(9, 28, 1))["receipts"][-1]["attempt"], 2)
 
     def test_heartbeat_staleness_and_alert_escalation(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -242,6 +260,104 @@ class P4OfflineOrchestrationTests(unittest.TestCase):
         self.assertEqual(second["morning_pool_id"], morning.pool_id)
         self.assertEqual(second["input_snapshot_id"], market["snapshot_id"])
         self.assertEqual(second, FrozenNotificationProjector.confirmation(decision, morning))
+
+    def test_full_disabled_manifest_and_dependency_dag(self):
+        manifest = full_offline_task_manifest(ROOT)
+        self.assertEqual(len(manifest["tasks"]), 9)
+        self.assertTrue(all(not row["enabled"] for row in manifest["tasks"]))
+        self.assertFalse(manifest["apply_allowed"])
+        decision = TaskSpecV1.build(task_name="morning_decision", scheduled_time="09:25:00",
+            window_end="09:29:00", sla_deadline="09:35:00")
+        push = TaskSpecV1.build(task_name="morning_push", scheduled_time="09:25:00",
+            window_end="09:29:00", sla_deadline="09:35:00", dependencies=("morning_decision",))
+        calls = []
+        with tempfile.TemporaryDirectory() as directory:
+            engine = OfflineTaskOrchestrator(Path(directory), calendar=VerifiedCalendar(),
+                executor=lambda name, day, attempt: calls.append(name) or {"status":"SUCCEEDED","reason_code":"OK"},
+                specs=(decision, push))
+            engine.tick(self.now(9, 25))
+        self.assertEqual(calls, ["morning_decision", "morning_push"])
+
+    def test_controlled_subprocess_exit_timeout_and_no_background_completion(self):
+        success = ControlledSubprocessExecutor([sys.executable, "-c", "print('ok')"], timeout_seconds=2)("x","d",1)
+        failure = ControlledSubprocessExecutor([sys.executable, "-c", "raise SystemExit(7)"], timeout_seconds=2)("x","d",1)
+        with tempfile.TemporaryDirectory() as directory:
+            marker = Path(directory) / "late.txt"
+            code = f"import time;time.sleep(2);open(r'{marker}','w').write('late')"
+            timeout = ControlledSubprocessExecutor([sys.executable, "-c", code], timeout_seconds=.1)("x","d",1)
+            time.sleep(.2)
+            self.assertFalse(marker.exists())
+        self.assertEqual(success["status"], "SUCCEEDED")
+        self.assertEqual(failure["exit_code"], 7)
+        self.assertEqual(timeout["status"], "TIMED_OUT")
+
+    def test_bound_notification_hash_request_and_receipt_are_identical(self):
+        candidate = {"code":"000001","v4_candidate_origin":"V4","score_version":"rank-v1"}
+        market = {"snapshot_id":"ms1-"+"a"*64,"market_state_id":"mstate1-"+"b"*64}
+        morning = MorningPoolV1.build("2026-08-03", self.now(9,25), [candidate], market)
+        payload = FrozenNotificationProjector.morning(morning); adapter = FakeNotificationAdapter()
+        executor = BoundNotificationExecutor(adapter, lambda task, day: payload)
+        with tempfile.TemporaryDirectory() as directory:
+            engine = OfflineTaskOrchestrator(Path(directory), calendar=VerifiedCalendar(), executor=executor)
+            terminal = engine.tick(self.now(9,25))["receipts"][-1]
+        self.assertEqual(terminal["payload_sha256"], payload["payload_sha256"])
+        self.assertEqual(terminal["transport_request_id"], adapter.messages[0]["request_id"])
+
+    def test_persistent_heartbeat_alert_lifecycle_and_daemon_restart(self):
+        with tempfile.TemporaryDirectory() as directory:
+            monitor = OfflineMonitorStore(Path(directory)); engine, _ = self.engine(directory)
+            first = monitor.heartbeat(process_id="daemon", recorded_at=self.now(9,24))
+            alert = monitor.reconcile_alert(key="heartbeat", severity="WARNING", reason_code="LATE",
+                                            observed_at=self.now(9,25), active=True)
+            escalated = monitor.reconcile_alert(key="heartbeat", severity="CRITICAL", reason_code="LATE",
+                                                observed_at=self.now(9,26), active=True)
+            recovered = monitor.reconcile_alert(key="heartbeat", severity="CRITICAL", reason_code="LATE",
+                                                observed_at=self.now(9,27), active=False)
+            harness = OfflineDaemonHarness(engine, monitor); result = harness.run_once(self.now(9,25))
+            restarted, _ = self.engine(directory)
+            second = OfflineDaemonHarness(restarted, monitor).run_once(self.now(9,26))
+            monitor.record_failure(key="push", reason_code="FAIL", observed_at=self.now(9,28))
+            monitor.record_failure(key="push", reason_code="FAIL", observed_at=self.now(9,29))
+            automatic = monitor.record_failure(key="push", reason_code="FAIL", observed_at=self.now(9,30))
+        self.assertEqual(first["process_id"], "daemon")
+        self.assertEqual(alert["alert_id"], escalated["alert_id"])
+        self.assertEqual(escalated["severity"], "CRITICAL")
+        self.assertEqual(recovered["status"], "RECOVERED")
+        self.assertEqual(result["result"]["status"], "EMITTED")
+        self.assertEqual(second["result"]["status"], "NOOP")
+        self.assertEqual(automatic["severity"], "ERROR")
+
+    def test_full_process_crash_boundary_matrix_is_fail_closed(self):
+        context = multiprocessing.get_context("spawn")
+        for stage in ("before_start", "after_start", "after_external_before_receipt", "after_success"):
+            with self.subTest(stage=stage), tempfile.TemporaryDirectory() as directory:
+                process = context.Process(target=crash_task_boundary, args=(stage, directory))
+                process.start(); process.join(15); self.assertFalse(process.is_alive())
+                engine, _ = self.engine(directory); report = engine.recovery_report()
+                if stage == "before_start":
+                    self.assertEqual(report["status"], "CLEAN")
+                elif stage == "after_success":
+                    self.assertEqual(report["status"], "CLEAN")
+                    self.assertEqual(engine.tick(self.now(9,26))["status"], "NOOP")
+                else:
+                    self.assertEqual(report["status"], "RECOVERY_REQUIRED")
+                    engine.recover_interrupted(observed_at=self.now(9,26))
+                    unknown = engine.journal.receipts()[-1]
+                    self.assertEqual(unknown["status"], "OUTCOME_UNKNOWN")
+                    engine.resolve_unknown(task_name="morning_push", trade_date="2026-08-03", attempt=1,
+                        observed_at=self.now(9,27), delivered=stage == "after_external_before_receipt")
+
+    def test_sixty_session_scan_is_idempotent_and_bounded(self):
+        days = [date(2026, 5, 1) + __import__('datetime').timedelta(days=i) for i in range(60)]
+        observed = datetime(2026, 8, 3, 8, 0, tzinfo=CHINA_TZ)
+        with tempfile.TemporaryDirectory() as directory:
+            engine, adapter = self.engine(directory)
+            first = engine.scan_sessions(days, observed_at=observed)
+            second = engine.scan_sessions(days, observed_at=observed)
+            rows = engine.journal.receipts()
+        self.assertEqual(len(first["receipts"]), 120)
+        self.assertEqual(second["receipts"], [])
+        self.assertEqual(len(rows), 120); self.assertEqual(adapter.messages, [])
 
 
 if __name__ == "__main__": unittest.main()
