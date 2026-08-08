@@ -3,8 +3,8 @@
   "project": "a-share-overnight-v4",
   "display_name": "A股隔夜研究与模拟系统 V4",
   "updated_at": "2026-08-08T23:59:59+08:00",
-  "active_phase": "P3",
-  "active_phase_name": "模拟账户与执行引擎（仅离线开发）",
+  "active_phase": "P4",
+  "active_phase_name": "调度、推送与运行可靠性（仅隔离离线开发）",
   "production_status": "research_locked",
   "p1_validation": {
     "engineering_status": "offline_completed",
@@ -28,6 +28,17 @@
     "daily_paper_production_connected": false,
     "completion_allowed": false,
     "preemption_rule": "pause_p3_and_repair_p1_p2_on_any_live_window_failure"
+  },
+  "p4_validation": {
+    "engineering_status": "offline_core_checkpoint_passed_phase_incomplete",
+    "checkpoint": "immutable_receipts_retry_sla_fake_transport_passed",
+    "offline_tests": 9,
+    "operating_mode": "offline_only",
+    "windows_tasks_registered_by_p4": false,
+    "real_pushplus_called": false,
+    "production_entrypoints_connected": false,
+    "completion_allowed": false,
+    "preemption_rule": "pause_p4_and_repair_p1_p2_on_any_live_window_failure"
   },
   "runtime_owner": "v4",
   "dashboard": {
@@ -66,7 +77,7 @@
     "confirmation_push_success": true
   },
   "quality": {
-    "tests_passed": 186,
+    "tests_passed": 195,
     "tests_failed": 0,
     "v4_imports_v3": false
   },
@@ -108,17 +119,17 @@
     }
   ],
   "next_tasks": [
-    "保持P3生产接入冻结；千次压力、崩溃矩阵和实际旧账只读验收已通过",
+    "继续P4隔离离线开发：任务清单静态审计、多日补偿、故障恢复和通知血缘",
     "并行验证真实09:25、14:49、14:50和次日09:30窗口并保存P1/P2证据",
-    "真实窗口通过前禁止P3调度、生产链路接入和完成标记",
-    "P1/P2真实窗口失败时立即暂停P3并优先修复"
+    "真实窗口通过前禁止P3/P4调度、真实推送改接、生产链路接入和完成标记",
+    "P1/P2真实窗口失败时立即暂停P3/P4并优先修复"
   ],
   "phase_status": {
     "P0": "completed",
     "P1": "offline_completed_live_pending",
     "P2": "offline_completed_live_pending",
     "P3": "in_progress",
-    "P4": "pending",
+    "P4": "in_progress",
     "P5": "pending",
     "P6": "pending",
     "P7": "pending",

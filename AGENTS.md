@@ -25,6 +25,9 @@ project.  Every coding session must begin by reading, in order:
   is pending. Do not enable P3 scheduling, connect it to the daily paper-fill
   production chain, or mark P3 complete. Any P1/P2 live-window failure pauses
   P3 immediately and takes repair priority.
+- P4 may proceed only as isolated offline contract development. Do not register
+  Windows tasks, call real PushPlus, import P4 modules from existing production
+  entrypoints, or mark P4 complete. P1/P2 live failures preempt P4 immediately.
 - Preserve user-owned untracked files and unrelated worktree changes.
 
 ## Development workflow

@@ -42,9 +42,9 @@ class ProjectGovernanceTests(unittest.TestCase):
             text = (ROOT / name).read_bytes().decode("utf-8", errors="strict")
             self.assertNotIn("\ufffd", text, name)
 
-    def test_p3_is_offline_only_while_p1_p2_live_validation_is_pending(self):
+    def test_p3_p4_are_offline_only_while_p1_p2_live_validation_is_pending(self):
         state = load_state()
-        self.assertEqual(state["active_phase"], "P3")
+        self.assertEqual(state["active_phase"], "P4")
         self.assertEqual(state["p1_validation"]["engineering_status"], "offline_completed")
         self.assertEqual(state["p1_validation"]["live_window_status"], "pending_real_windows")
         self.assertEqual(state["p2_validation"]["engineering_status"], "offline_completed")
@@ -58,6 +58,12 @@ class ProjectGovernanceTests(unittest.TestCase):
         self.assertFalse(p3["scheduling_enabled"])
         self.assertFalse(p3["daily_paper_production_connected"])
         self.assertFalse(p3["completion_allowed"])
+        p4 = state["p4_validation"]
+        self.assertEqual(p4["operating_mode"], "offline_only")
+        self.assertFalse(p4["windows_tasks_registered_by_p4"])
+        self.assertFalse(p4["real_pushplus_called"])
+        self.assertFalse(p4["production_entrypoints_connected"])
+        self.assertFalse(p4["completion_allowed"])
         modules = (ROOT / "docs" / "MODULES.md").read_text(encoding="utf-8")
         self.assertNotIn("P1完成", modules)
         self.assertNotIn("P2完成", modules)
