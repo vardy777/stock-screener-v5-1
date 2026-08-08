@@ -84,12 +84,16 @@ class LocalRuntimeMigrationTests(unittest.TestCase):
                 {
                     "code": "000001", "name": "测试", "score": 90,
                     "v4_tradable": True, "v4_shadow_confidence": 0.7,
-                    "v4_block_reasons": [],
+                    "v4_block_reasons": [], "v4_paper_eligible": True,
+                    "v4_paper_block_reasons": [], "morning_rank": 1, "rank": 1,
                 },
                 {
                     "code": "000002", "name": "观察", "score": 89,
                     "v4_tradable": False, "v4_shadow_confidence": 0.6,
                     "v4_block_reasons": ["精度优先仅允许Top1"],
+                    "v4_paper_eligible": False,
+                    "v4_paper_block_reasons": ["模拟观测仅执行Top1"],
+                    "morning_rank": 2, "rank": 2,
                 },
             ],
             {"mode_label": "neutral"},
@@ -97,7 +101,7 @@ class LocalRuntimeMigrationTests(unittest.TestCase):
         )
         self.assertIn("唯一确认Top1", card)
         self.assertIn("000001", card)
-        self.assertIn("精度优先仅允许Top1", card)
+        self.assertIn("模拟观测仅执行Top1", card)
 
     @patch("v3.push.PUSHPLUS_TOKEN", "test-token")
     def test_pushplus_requires_api_acceptance(self):
@@ -158,7 +162,7 @@ class LocalRuntimeMigrationTests(unittest.TestCase):
                 with patch.object(morning_push, "_in_window", return_value=True):
                     with patch.object(morning_push, "send_wechat", return_value=True) as send:
                         self.assertEqual(morning_push.main(), 0)
-        engine.screen_today.assert_called_once_with()
+        engine.screen_today.assert_called_once_with(stage="morning")
         send.assert_called_once()
 
     def test_afternoon_job_recalculates_before_confirmation(self):
@@ -179,7 +183,7 @@ class LocalRuntimeMigrationTests(unittest.TestCase):
                 with patch.object(afternoon_push, "_in_window", return_value=True):
                     with patch.object(afternoon_push, "send_wechat", return_value=True) as send:
                         self.assertEqual(afternoon_push.main(), 0)
-        engine.screen_today.assert_called_once_with()
+        engine.screen_today.assert_called_once_with(stage="confirmation")
         send.assert_called_once()
 
     def test_compatibility_engine_contains_no_v3_selection_fallback(self):

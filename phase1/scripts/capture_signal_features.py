@@ -16,7 +16,7 @@ sys.path.insert(0, str(BASE))
 from overnight.dataset import FEATURE_COLUMNS
 from overnight.live_features import compute_live_features, save_signal_features
 from overnight.quote_capture import fetch_quotes_with_retries
-from v3.data import DataFetcher
+from v4.data import DataFetcher
 from v4.calendar import TradingCalendar
 from v4.execution import TradingClock
 from v4.feature_store import LiveFeatureStore

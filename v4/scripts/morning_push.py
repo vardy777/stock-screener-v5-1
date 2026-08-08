@@ -8,8 +8,8 @@ from datetime import datetime, time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from v3.push import build_morning_card, send_wechat
-from v3.simulation import SimulationEngine
+from v4.push import build_morning_card, send_wechat
+from v4.simulation import SimulationEngine
 from v4.calendar import TradingCalendar
 from v4.execution import CHINA_TZ
 

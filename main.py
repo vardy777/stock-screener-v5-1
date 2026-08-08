@@ -297,7 +297,7 @@ def cmd_v3_morning():
     """V3 早盘选股 (手动运行)"""
     banner()
     print("  🌅 V3: 早盘选股...\n")
-    from v3.scripts.morning_push import main as morning_main
+    from v4.scripts.morning_push import main as morning_main
     morning_main()
 
 
@@ -305,7 +305,7 @@ def cmd_v3_afternoon():
     """V3 尾盘确认"""
     banner()
     print("  🎯 V3: 尾盘确认...\n")
-    from v3.scripts.afternoon_push import main as afternoon_main
+    from v4.scripts.afternoon_push import main as afternoon_main
     afternoon_main()
 
 
@@ -361,7 +361,7 @@ def cmd_v3_dashboard():
     banner()
     print("  📊 V3: 启动实时看板...\n")
     print(f"  访问: http://localhost:8898")
-    from v3.dashboard import run_dashboard
+    from v4.dashboard import run_dashboard
     run_dashboard(port=8898)
 
 
@@ -379,7 +379,7 @@ def cmd_v3_cron_list():
 def cmd_sim_status():
     """显示模拟账户状态"""
     banner()
-    from v3.sim_engine import SimAccount
+    from v4.sim_engine import SimAccount
     acct = SimAccount()
     print(f"  💼 模拟账户状态\n")
     print(f"  初始本金: ¥{acct.data['initial_capital']:>10,.2f}")
@@ -396,7 +396,7 @@ def cmd_sim_status():
 def cmd_sim_buy(date_str=None):
     """模拟买入: 保留命令名，内部统一走V4安全链路。"""
     banner()
-    from v3.simulation import SimulationEngine
+    from v4.simulation import SimulationEngine
 
     engine = SimulationEngine()
     engine.load_state()
@@ -412,7 +412,7 @@ def cmd_sim_buy(date_str=None):
 def cmd_sim_sell():
     """模拟卖出: 保留命令名，内部统一走V4行情和时间控制。"""
     banner()
-    from v3.simulation import SimulationEngine
+    from v4.simulation import SimulationEngine
 
     engine = SimulationEngine()
     engine.load_state()
@@ -429,7 +429,7 @@ def cmd_sim_sell():
 
 def cmd_sim_reset():
     """重置模拟账户"""
-    from v3.sim_engine import SimAccount
+    from v4.sim_engine import SimAccount
     acct = SimAccount()
     acct.reset()
     print("  ✅ 模拟账户已重置为初始状态 (¥100,000)")
@@ -442,9 +442,9 @@ def cmd_sim_plan(*, engine=None, runtime=None, output_path=None):
     from datetime import date
     from pathlib import Path
 
-    from v3.config import DATA_DIR
-    from v3.sim_engine import BuyDecision
-    from v3.simulation import SimulationEngine
+    from v4.config import DATA_DIR
+    from v4.sim_engine import BuyDecision
+    from v4.simulation import SimulationEngine
     from v4.runtime import V4Runtime
 
     engine = engine or SimulationEngine()

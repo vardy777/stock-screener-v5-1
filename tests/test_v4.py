@@ -79,6 +79,38 @@ class V4Tests(unittest.TestCase):
         self.assertIn("研究准入未通过", result[0]["v4_block_reasons"])
         self.assertIn("v4_shadow_confidence", result[0])
 
+    def test_paper_candidate_can_use_complete_snapshot_without_unlocking_production(self):
+        runtime = V4Runtime()
+        candidate = {
+            "code": "000001", "name": "测试", "price": 10.0,
+            "score": 92.0, "rank": 1,
+            "quote_time": "2026-08-06T14:50:30+08:00",
+            "selection_stage": "confirmation_1450",
+            "linkage_status": "confirmed_from_morning_pool",
+            "v4_candidate_origin": "V4",
+            "v4_research_ranked": True,
+            "v4_paper_market_valid": True,
+            "v4_paper_market_mode": "neutral",
+        }
+        status = SimpleNamespace(
+            allowed=True, reason="处于允许窗口", to_dict=lambda: {}
+        )
+        with (
+            patch("v4.runtime.TradingClock.action_status", return_value=status),
+            patch("v4.runtime.TradingClock.quote_is_fresh", return_value=True),
+            patch("v4.runtime.save_runtime_state"),
+        ):
+            result = runtime.evaluate_candidates([candidate], {
+                "mode_label": "unavailable",
+                "observed_mode_label": "neutral",
+                "data_valid": False,
+                "snapshot_complete": True,
+                "quote_coverage": 0.998,
+            })
+        self.assertTrue(result[0]["v4_paper_eligible"])
+        self.assertFalse(result[0]["v4_tradable"])
+        self.assertIn("全市场状态数据无效或覆盖不足", result[0]["v4_block_reasons"])
+
     def test_runtime_ignores_legacy_fallback_candidates(self):
         runtime = V4Runtime()
         selector = MagicMock()

@@ -45,7 +45,7 @@ def main() -> int:
 
     engine = SimulationEngine()
     engine.load_state()
-    candidates = engine.screen_today()
+    candidates = engine.screen_today(stage="confirmation")
     market_state = engine._get_market_state()
     positions = engine.positions
 

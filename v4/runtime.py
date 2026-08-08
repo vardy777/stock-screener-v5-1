@@ -24,13 +24,11 @@ class V4Runtime:
     """Evaluate candidates without changing external scheduler contracts."""
 
     SCHEDULER_CONTRACT = [
-        "v3/scripts/afternoon_push.py",
-        "v3/scripts/morning_push.py",
-        "v3/scripts/watchlist_scan.py",
-        "main.py v3-afternoon",
-        "main.py v3-morning",
-        "main.py sim-buy",
-        "main.py sim-sell",
+        "v4/scripts/afternoon_push.py",
+        "v4/scripts/morning_push.py",
+        "v4/scripts/paper_trade.py buy",
+        "v4/scripts/paper_trade.py sell",
+        "python -m v4.dashboard",
     ]
 
     def __init__(self):
@@ -146,6 +144,28 @@ class V4Runtime:
             if not TradingClock.quote_is_fresh(item.get("quote_time")):
                 blocks.append("行情时间戳缺失或过期")
 
+            paper_blocks = []
+            paper_market_mode = item.get("v4_paper_market_mode", market_mode)
+            paper_market_valid = bool(
+                item.get("v4_paper_market_valid", market.get("data_valid") is True)
+            )
+            if item.get("selection_stage") != "confirmation_1450":
+                paper_blocks.append("仅允14:50确认候选进入模拟观测")
+            if item.get("linkage_status") != "confirmed_from_morning_pool":
+                paper_blocks.append("未通过09:25母池链路确认")
+            if rank != 1:
+                paper_blocks.append("模拟观测仅执行Top1")
+            if score < 80.0:
+                paper_blocks.append("规则分低于80")
+            if paper_market_mode == "risk_off" or not paper_market_valid:
+                paper_blocks.append("市场风险或数据质量不允许")
+            if item.get("v4_candidate_origin") != "V4" or item.get("is_mock"):
+                paper_blocks.append("候选来源不合格")
+            if not buy_status.allowed:
+                paper_blocks.append(buy_status.reason)
+            if float(item.get("price", 0.0) or 0.0) <= 0 or not TradingClock.quote_is_fresh(item.get("quote_time")):
+                paper_blocks.append("确认价格或时效不合格")
+
             positive_probability = item.get("predicted_positive_probability")
             loss_probability = item.get("predicted_large_loss_probability")
             predicted_return = item.get("predicted_return")
@@ -176,6 +196,8 @@ class V4Runtime:
                     "rank": rank,
                     "v4_status": self.readiness.get("status", "research_locked"),
                     "v4_tradable": not blocks,
+                    "v4_paper_eligible": not paper_blocks,
+                    "v4_paper_block_reasons": paper_blocks,
                     "v4_decision": "允许模拟" if not blocks else "观察/空仓",
                     "v4_block_reasons": blocks,
                     "v4_shadow_confidence": round(shadow_confidence, 4),
@@ -202,6 +224,7 @@ class V4Runtime:
         *,
         fallback_candidates: Iterable[Dict[str, Any]] = (),
         market_state: Dict[str, Any] | None = None,
+        allowed_codes: set[str] | None = None,
     ) -> List[Dict[str, Any]]:
         """Generate candidates from the complete eligible universe using V4.
 
@@ -219,6 +242,7 @@ class V4Runtime:
                 quotes,
                 market,
                 require_frozen_features=bool(buy_status.allowed),
+                allowed_codes=allowed_codes,
             )
             self.last_selection = dict(self.candidate_selector.last_diagnostics)
             return self.evaluate_candidates(candidates, market)
@@ -251,6 +275,9 @@ class V4Runtime:
             }
             return self.evaluate_candidates([], market)
         quote_frame["code"] = quote_frame["code"].astype(str).str.zfill(6)
+        if allowed_codes is not None:
+            normalized = {str(code).zfill(6) for code in allowed_codes}
+            quote_frame = quote_frame[quote_frame["code"].isin(normalized)].copy()
         quote_frame = quote_frame[
             quote_frame["code"].map(is_eligible_a_share)
         ].drop_duplicates("code", keep="last")

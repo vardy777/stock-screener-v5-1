@@ -1,12 +1,12 @@
 """
-V3 模拟交易引擎 — 仓位管理、本金复利、买卖点、盈亏计算
+V4 独立研究模拟交易引擎。
 
 数据传输:
   - 买入: BuyDecision.select() → 从候选中选择并执行开仓
   - 卖出: 由外部提供 sell_price (通常为次日开盘价), 调用 close_position()
   - 每日结算: daily_settle() 记录当日总权益和收益率
 
-数据持久化: v3/data/sim_account.json
+数据持久化: v4/data/paper_account.json
 """
 
 import json
@@ -21,12 +21,9 @@ from strategy_spec import DEFAULT_SPEC, TradeCostModel
 logger = logging.getLogger(__name__)
 
 # ── 路径 ──────────────────────────────────────────────────
-try:
-    from v3.config import DATA_DIR
-except ImportError:
-    DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+from v4.config import DATA_DIR
 
-DEFAULT_ACCOUNT_PATH = os.path.join(DATA_DIR, 'sim_account.json')
+DEFAULT_ACCOUNT_PATH = os.path.join(DATA_DIR, 'paper_account.json')
 
 # ── 默认账户模板 ──────────────────────────────────────────
 _DEFAULT_DATA = {
@@ -56,7 +53,7 @@ class SimAccount:
     --------
     >>> acct = SimAccount()
     >>> acct.open_position('600000', '浦发银行', 8.50, 1100,
-    ...                    strategy='v3', target_sell=8.67, stop_loss=8.25)
+    ...                    strategy='v4_paper_observation', target_sell=8.67, stop_loss=8.25)
     >>> acct.close_position('600000', 8.67)
     >>> acct.daily_settle('2026-06-22')
     """
@@ -153,7 +150,7 @@ class SimAccount:
     # ── 开仓 ──────────────────────────────────────────────
 
     def open_position(self, code: str, name: str, buy_price: float, shares: int,
-                      strategy: str = 'v3',
+                      strategy: str = 'v4_paper_observation',
                       target_sell: Optional[float] = None,
                       stop_loss: Optional[float] = None):
         """开仓: 扣除资金, 增加持仓
@@ -169,7 +166,7 @@ class SimAccount:
         shares : int
             买入股数。
         strategy : str
-            策略标识，默认 'v3'。
+            策略标识，默认 'v4_paper_observation'。
         target_sell : float, optional
             目标卖出参考价。默认按扣除成本后净收益 +1% 计算。
         stop_loss : float, optional
@@ -288,7 +285,7 @@ class SimAccount:
             'cash_in': round(sell['cash_in'], 2),
             'target_1pct': pnl_pct >= DEFAULT_SPEC.target_net_return * 100,
             'fee_model_version': 'a_share_v1',
-            'strategy': pos.get('strategy', 'v3'),
+            'strategy': pos.get('strategy', 'v4_paper_observation'),
             'sell_reason': sell_reason,
         })
 

@@ -5,6 +5,7 @@ $healthRunner = Join-Path $PSScriptRoot "run_scheduled_health.ps1"
 $maintenanceRunner = Join-Path $PSScriptRoot "run_daily_maintenance.ps1"
 $pushRunner = Join-Path $PSScriptRoot "run_scheduled_push.ps1"
 $dashboardRunner = Join-Path $PSScriptRoot "run_dashboard_local.ps1"
+$paperRunner = Join-Path $PSScriptRoot "run_scheduled_paper_trade.ps1"
 $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
 
 $principal = New-ScheduledTaskPrincipal `
@@ -28,6 +29,13 @@ $specifications = @(
         Description = "Local 09:25 preliminary watchlist and sell reminder via PushPlus; no buy action."
     },
     @{
+        Name = "AStock-V4-Paper-Sell-093020"
+        Mode = "sell"
+        Runner = $paperRunner
+        At = "09:30:20"
+        Description = "Close V4 research paper positions with fresh continuous-auction quotes; no broker order."
+    },
+    @{
         Name = "AStock-V4-Signal-1449"
         Mode = "signal"
         At = "14:49"
@@ -45,7 +53,14 @@ $specifications = @(
         Runner = $pushRunner
         At = "14:50:20"
         ExecutionMinutes = 10
-        Description = "Local 14:50:20 close confirmation via PushPlus; no automatic buy action."
+        Description = "Local 14:50:20 mother-pool close confirmation via PushPlus."
+    },
+    @{
+        Name = "AStock-V4-Paper-Buy-145040"
+        Mode = "buy"
+        Runner = $paperRunner
+        At = "14:50:40"
+        Description = "Buy linked V4 Top1 in the isolated research paper account; no broker order."
     },
     @{
         Name = "AStock-V4-Health-Sell-0936"

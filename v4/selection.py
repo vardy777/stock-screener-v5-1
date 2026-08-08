@@ -202,10 +202,21 @@ class V4CandidateSelector:
         *,
         require_frozen_features: bool,
         maximum_candidates: int = 5,
+        allowed_codes: Optional[set[str]] = None,
     ) -> list[Dict[str, Any]]:
         eligible = self._eligible_quotes(quotes)
+        if allowed_codes is not None:
+            normalized = {str(code).zfill(6) for code in allowed_codes}
+            eligible = eligible[eligible["code"].isin(normalized)].copy()
         stage = "confirmation_1450" if require_frozen_features else "morning_observation"
-        if market_state.get("data_valid") is not True:
+        paper_market_fallback = bool(
+            require_frozen_features
+            and allowed_codes is not None
+            and market_state.get("snapshot_complete") is True
+            and float(market_state.get("quote_coverage", 0.0) or 0.0) >= 0.95
+            and not eligible.empty
+        )
+        if market_state.get("data_valid") is not True and not paper_market_fallback:
             self.last_diagnostics = {
                 "status": "blocked",
                 "reason": "全市场行情覆盖或时效未通过",
@@ -226,6 +237,20 @@ class V4CandidateSelector:
         if require_frozen_features:
             feature_frame, error = self._frozen_features(eligible)
             feature_source = "v4_frozen_1449"
+            # A failed full-market strict archive must remain excluded from the
+            # training dataset, but it must not erase the already locked 09:25
+            # observation pool.  Recompute only that small pool from the live
+            # 14:50 quote and previous-session frozen context.  This is causal,
+            # explicitly paper-only, and never satisfies production readiness.
+            if feature_frame.empty and allowed_codes is not None:
+                feature_frame, fallback_error = self._observation_features(
+                    eligible, market_state
+                )
+                if not feature_frame.empty:
+                    error = ""
+                    feature_source = "v4_live_1450_mother_pool_paper_only"
+                else:
+                    error = fallback_error or error
         else:
             feature_frame, error = self._observation_features(eligible, market_state)
             feature_source = "v4_previous_session_context"
@@ -255,11 +280,16 @@ class V4CandidateSelector:
             return []
 
         scored = self._score(feature_frame)
-        policy = adaptive_strategy_decision(market_state)
+        policy_market = dict(market_state)
+        if paper_market_fallback:
+            policy_market["mode_label"] = market_state.get(
+                "observed_mode_label", "neutral"
+            )
+        policy = adaptive_strategy_decision(policy_market)
         allowed_keys = set(policy.get("candidate_strategy_keys", []))
         if allowed_keys:
             scored = scored[scored["strategy_key"].isin(allowed_keys)].copy()
-        elif policy.get("key") == "observe":
+        elif policy.get("key") == "observe" and require_frozen_features:
             scored = scored.iloc[0:0].copy()
         if scored.empty:
             self.last_diagnostics = {
@@ -319,6 +349,13 @@ class V4CandidateSelector:
                     "feature_source": feature_source,
                     "v4_candidate_origin": "V4",
                     "v4_research_ranked": True,
+                    "v4_paper_market_valid": bool(
+                        market_state.get("data_valid") is True
+                        or paper_market_fallback
+                    ),
+                    "v4_paper_market_mode": policy_market.get(
+                        "mode_label", market_state.get("mode_label", "neutral")
+                    ),
                     "v4_features": vector,
                 }
             )
@@ -333,5 +370,8 @@ class V4CandidateSelector:
             "candidates": int(len(candidates)),
             "policy": policy,
             "research_only": True,
+            "strict_feature_archive_available": feature_source == "v4_frozen_1449",
+            "paper_only_fallback": feature_source == "v4_live_1450_mother_pool_paper_only",
+            "paper_market_fallback": paper_market_fallback,
         }
         return candidates

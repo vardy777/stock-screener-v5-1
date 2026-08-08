@@ -1,10 +1,4 @@
-"""V4 overnight trading core.
-
-V4 is introduced behind the existing V3 command, scheduler and notification
-entrypoints.  External automation keeps calling the same scripts while the
-internal decision, readiness and execution controls are progressively moved
-here.
-"""
+"""Standalone V4 overnight research and paper-trading system."""
 
 from .execution import ExecutionBlocked, TradingClock
 from .model_registry import PublishedModelRegistry

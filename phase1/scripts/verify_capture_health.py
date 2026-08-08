@@ -13,7 +13,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(BASE))
 
 from overnight.capture_health import evaluate_capture_session
-from v3.push import send_wechat
+from v4.push import send_wechat
 from v4.calendar import TradingCalendar
 from v4.execution import CHINA_TZ
 

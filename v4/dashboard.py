@@ -1,7 +1,7 @@
 """
-V4 validation dashboard served through the legacy-compatible module path.
+Standalone V4 validation dashboard.
 
-启动: python main.py v3-dashboard
+启动: python -m v4.dashboard
 访问: http://localhost:8898
 
 数据源: SimulationEngine (包装 SimAccount + BuyDecision + MarketState)
@@ -28,13 +28,13 @@ from urllib.parse import urlparse, parse_qs
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from v3.simulation import SimulationEngine
+from v4.simulation import SimulationEngine
 from decision_policy import adaptive_strategy_decision
 from market_universe import list_universe_codes
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s [%(name)s] %(levelname)s %(message)s')
-logger = logging.getLogger('v3_dashboard')
+logger = logging.getLogger('v4_dashboard')
 
 PORT = 8898
 HOST = '127.0.0.1'
@@ -519,6 +519,44 @@ def _load_json(path: Path, default):
         return default
 
 
+def _load_paper_automation_status() -> dict:
+    """Expose the latest mother-pool and buy/sell receipts on the dashboard."""
+    journal_dir = PROJECT_ROOT / 'v4' / 'data' / 'candidate_journal'
+    receipt_dir = PROJECT_ROOT / 'v4' / 'data' / 'paper_receipts'
+    journals = sorted(journal_dir.glob('*.json')) if journal_dir.exists() else []
+    latest = _load_json(journals[-1], {}) if journals else {}
+    trade_date = str(latest.get('trade_date', ''))
+    morning = latest.get('morning', {}) or {}
+    confirmation = latest.get('confirmation', {}) or {}
+    buy = _load_json(receipt_dir / f'{trade_date}-buy.json', {}) if trade_date else {}
+    next_dates = sorted(receipt_dir.glob('*-sell.json')) if receipt_dir.exists() else []
+    sell = _load_json(next_dates[-1], {}) if next_dates else {}
+    return {
+        'trade_date': trade_date,
+        'morning_count': len(morning.get('candidates', []) or []),
+        'confirmation_count': len(confirmation.get('candidates', []) or []),
+        'morning_at': morning.get('captured_at', ''),
+        'confirmation_at': confirmation.get('captured_at', ''),
+        'buy_receipt': buy,
+        'sell_receipt': sell,
+    }
+
+
+def _build_paper_automation_html(status: dict) -> str:
+    buy_result = status.get('buy_receipt', {}).get('result', {}) or {}
+    sell_result = status.get('sell_receipt', {}).get('result', {}) or {}
+    return f"""
+    <div class="card" style="margin-bottom:16px" data-testid="paper-automation">
+      <div class="card-header"><span>V4自动模拟闭环</span><span class="badge-sm">{_safe(status.get('trade_date') or '等待首个交易日')}</span></div>
+      <div class="card-body"><div class="metric-row">
+        <div class="metric-chip"><div class="k">09:25母池</div><div class="v">{int(status.get('morning_count',0))} 只</div></div>
+        <div class="metric-chip"><div class="k">14:50确认</div><div class="v">{int(status.get('confirmation_count',0))} 只</div></div>
+        <div class="metric-chip"><div class="k">自动买入</div><div class="v">{int(buy_result.get('bought',0) or 0)} 只</div></div>
+        <div class="metric-chip"><div class="k">最近自动卖出</div><div class="v">{int(sell_result.get('sold',0) or 0)} 只</div></div>
+      </div><div class="section-note">买入：{_safe(buy_result.get('message','等待14:50:40'))} · 卖出：{_safe(sell_result.get('message','等待次交易日09:30:20'))}</div></div>
+    </div>"""
+
+
 def _load_research_status() -> dict:
     """Load the newest normal-cost walk-forward report for the dashboard."""
 
@@ -576,7 +614,7 @@ def _load_research_status() -> dict:
 
 
 def _load_fund_flow_summary() -> dict:
-    raw = _load_json(PROJECT_ROOT / 'v3' / 'data' / 'sector_fund_flow.json', {})
+    raw = _load_json(PROJECT_ROOT / 'v4' / 'data' / 'sector_fund_flow.json', {})
     flows = raw.get('sector_flows', {}) if isinstance(raw, dict) else {}
     rows = [
         {'sector': name, **values}
@@ -746,7 +784,7 @@ def _build_v4_status_html(v4: dict) -> str:
       </div>
       <div style="display:grid;gap:6px;text-align:right">
         <span class="status-pill {status_class}">{status.upper()}</span>
-        <span class="status-pill {'ok' if scheduler_ok else 'danger'}">{'原推送链路已兼容' if scheduler_ok else '推送链路异常'}</span>
+        <span class="status-pill {'ok' if scheduler_ok else 'danger'}">{'V4自动链路已启用' if scheduler_ok else 'V4自动链路异常'}</span>
       </div>
     </div>"""
 
@@ -784,7 +822,7 @@ def _build_validation_center_html(validation: dict, v4: dict) -> str:
             </div>
           </div>
           <div class="cohort-card">
-            <div class="cohort-top"><div><div class="cohort-title">旧版模拟账户实绩</div><div class="cohort-source">{_safe(legacy.get('source',''))}</div></div><span class="status-pill warn">旁证</span></div>
+            <div class="cohort-top"><div><div class="cohort-title">V4研究模拟账户实绩</div><div class="cohort-source">{_safe(legacy.get('source',''))}</div></div><span class="status-pill warn">观测</span></div>
             <div><span class="cohort-number">{float(legacy.get('win_rate',0))*100:.1f}%</span><span class="cohort-unit">n={legacy_n}</span></div>
             <div class="metric-row">
               <div class="metric-chip"><div class="k">胜率95%区间</div><div class="v">{float(legacy.get('win_ci_low',0))*100:.1f}–{float(legacy.get('win_ci_high',0))*100:.1f}%</div></div>
@@ -802,7 +840,7 @@ def _build_validation_center_html(validation: dict, v4: dict) -> str:
             </div>
           </div>
         </div>
-        <div class="data-note">只有“V4严格前向样本”可以决定模型准入。旧版模拟账户与15:00代理回测用于发现问题，不能合并计算胜率，也不能据此承诺盈利。</div>
+        <div class="data-note">只有“V4严格前向样本”可以决定模型准入。V4研究模拟账户用于观测自动选股与次日卖出效果；15:00代理回测不能与其合并，也不能据此承诺盈利。</div>
       </div>
     </div>"""
 
@@ -1265,8 +1303,10 @@ def build_html(state: dict, mode: str = 'chase') -> str:
     sell_disabled = '' if sell_allowed else 'disabled'
     if risk_off:
         trade_hint = '市场风险关闭：今日保持空仓'
+    elif any(candidate.get('v4_paper_eligible') for candidate in state.get('candidates', [])):
+        trade_hint = 'V4研究模拟Top1已确认，等待或已完成自动模拟买入'
     elif not v4.get('readiness', {}).get('trade_enabled', False):
-        trade_hint = 'V4研究准入未通过：候选仅观察，不产生买单'
+        trade_hint = '生产门禁锁定；V4研究模拟链路仍可独立执行'
     else:
         trade_hint = v4.get('clock', {}).get('buy', {}).get('reason', '等待14:50窗口')
 
@@ -1297,6 +1337,7 @@ def build_html(state: dict, mode: str = 'chase') -> str:
 </div>
 
 {_build_v4_status_html(v4)}
+{_build_paper_automation_html(state.get('paper_automation',{}))}
 {_build_validation_center_html(state.get('validation',{}), v4)}
 {_build_strategy_policy_html(policy, mode)}
 
@@ -1315,7 +1356,7 @@ def build_html(state: dict, mode: str = 'chase') -> str:
   <div class="card"><div class="card-header"><span>资金与成交活跃度</span><span class="badge-sm">净流入过期自动降级</span></div><div class="card-body">{_build_fund_flow_html(state.get('fund_flow',{}), state.get('sector_ranks',{}), mkt)}</div></div>
 </div>
 
-<div class="card" style="margin-bottom:16px"><div class="card-header"><span>模拟账户概览</span><span class="badge-sm">旧版账户沿用 · 不并入V4胜率</span></div><div class="card-body">{_build_stats_bar(acct)}</div></div>
+<div class="card" style="margin-bottom:16px"><div class="card-header"><span>V4研究模拟账户概览</span><span class="badge-sm">14:50自动买入 · 次日09:30自动卖出 · 独立统计胜率</span></div><div class="card-body">{_build_stats_bar(acct)}</div></div>
 
 <div class="grid grid-2">
   <div class="card"><div class="card-header"><span>当前持仓</span><span class="badge-sm">{acct['position_count']} 只</span></div><div class="card-body">{_build_positions_html(state['positions'])}</div></div>
@@ -1326,7 +1367,7 @@ def build_html(state: dict, mode: str = 'chase') -> str:
 
 <details class="card research-details"><summary>展开：代理Walk-Forward明细、精度—覆盖率与准入检查</summary><div class="details-body">{_build_research_html(state.get('research', {}))}</div></details>
 
-<div class="footer">V4独立候选、市场分析与交易门禁 · 旧v3路径仅保留任务名/地址/账户兼容 · RESEARCH_LOCKED期间不产生可执行买单</div>
+<div class="footer">V4独立候选、市场分析、模拟账户与交易门禁 · RESEARCH_LOCKED期间不产生真实买单</div>
 </main>
 
 <script>
@@ -1334,20 +1375,20 @@ def build_html(state: dict, mode: str = 'chase') -> str:
 (function() {{
   var url = new URL(window.location.href);
   var currentMode = url.searchParams.get('mode');
-  var storedMode = sessionStorage.getItem('v3_mode');
+  var storedMode = sessionStorage.getItem('v4_mode');
   if (!currentMode && storedMode && storedMode !== 'chase') {{
     url.searchParams.set('mode', storedMode);
     window.location.replace(url.toString());
     return;
   }}
   if (currentMode) {{
-    sessionStorage.setItem('v3_mode', currentMode);
+    sessionStorage.setItem('v4_mode', currentMode);
   }}
 }})();
 
 // ── Mode switch ──
 function switchMode(mode) {{
-  sessionStorage.setItem('v3_mode', mode);
+  sessionStorage.setItem('v4_mode', mode);
   var url = new URL(window.location.href);
   url.searchParams.set('mode', mode);
   window.location.href = url.toString();
@@ -1495,6 +1536,7 @@ def _fresh_engine_state(mode: str = 'chase', force: bool = False) -> dict:
         state.get('market_state', {}), state.get('sentiment', {})
     )
     state['validation'] = _compute_validation_summary(state)
+    state['paper_automation'] = _load_paper_automation_status()
     state['trade_allowed'] = bool(
         state.get('v4', {}).get('clock', {}).get('buy', {}).get('allowed', False)
         and state.get('market_state', {}).get('mode_label', 'neutral') != 'risk_off'
@@ -1516,7 +1558,7 @@ def _screen_pullback_candidates() -> list:
     3. 评分排序返回
     """
     try:
-        from v3.data import DataFetcher
+        from v4.data import DataFetcher
         df = DataFetcher()
         
         from market_universe import list_universe_codes

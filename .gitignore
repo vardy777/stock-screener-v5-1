@@ -7,6 +7,7 @@ __pycache__/
 
 # Secrets and machine-local agent state
 v3/.env
+v4/.env
 .hermes/
 
 # Runtime, market-data and generated research artifacts
@@ -18,4 +19,3 @@ v4/data/
 # Logs and temporary files
 *.log
 *.tmp
-

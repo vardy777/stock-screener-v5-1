@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 sys.path.insert(0, r'C:\Users\lisha\stock-screener')
-from v3.data import DataFetcher
+from v4.data import DataFetcher
 
 BASE = Path(__file__).parent.parent
 DATA = BASE / 'data'

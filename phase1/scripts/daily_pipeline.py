@@ -30,7 +30,7 @@ def update_data():
     """仅获取今日最新数据"""
     print("[1/5] 更新今日数据...")
     sys.path.insert(0, r'C:\Users\lisha\stock-screener')
-    from v3.data import DataFetcher
+    from v4.data import DataFetcher
     
     df = DataFetcher()
     today = datetime.now().strftime('%Y-%m-%d')

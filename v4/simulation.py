@@ -1,9 +1,4 @@
-"""Compatibility simulation/account adapter for the V4 engine.
-
-The module path and class name are retained for Windows Task Scheduler, CLI and
-dashboard compatibility.  Candidate generation and current-session market
-analytics are owned exclusively by :mod:`v4`.
-"""
+"""Standalone V4 selection, paper-account and market-data orchestration."""
 import json
 import os
 import logging
@@ -22,8 +17,8 @@ V4_DASHBOARD_STATE_PATH = ROOT / 'v4' / 'data' / 'dashboard_state.json'
 V4_PAPER_ACCOUNT_PATH = ROOT / 'v4' / 'data' / 'paper_account.json'
 
 try:
-    from v3.sim_engine import SimAccount, BuyDecision
-    from v3.data import DataFetcher
+    from v4.sim_engine import SimAccount, BuyDecision
+    from v4.data import DataFetcher
 except ImportError:
     SimAccount = None
     BuyDecision = None
@@ -38,7 +33,7 @@ class SimulationEngine:
     def health_check() -> bool:
         """每日自检: API可达 + 账户可读写"""
         try:
-            from v3.data import DataFetcher
+            from v4.data import DataFetcher
             df = DataFetcher()
             q = df.batch_fetch_quotes(['600519'])
             if q is None or q.empty: return False
@@ -410,6 +405,18 @@ class SimulationEngine:
                     self._last_screen_time = current.strftime('%H:%M:%S')
                     self._save_candidates([], stage='confirmation')
                     return self._candidates
+                # The full-market request is intentionally batched and can take
+                # tens of seconds. Refresh the tiny locked mother pool once more
+                # so paper execution is judged on genuinely current 14:50 quotes
+                # rather than on whichever full-market batch contained a code.
+                refreshed_pool = df.batch_fetch_quotes(sorted(allowed_codes))
+                if refreshed_pool is not None and not refreshed_pool.empty:
+                    refreshed_pool = refreshed_pool.copy()
+                    refreshed_pool['code'] = (
+                        refreshed_pool['code'].astype(str).str.zfill(6)
+                    )
+                    q = q[~q['code'].isin(allowed_codes)].copy()
+                    q = pd.concat([q, refreshed_pool], ignore_index=True)
             v4_runtime = V4Runtime()
             candidates = v4_runtime.evaluate_universe(
                 q,

@@ -10,7 +10,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from v3.config import DATA_DIR, POSITION_SIZE, PUSHPLUS_TOKEN
+from v4.config import DATA_DIR, POSITION_SIZE, PUSHPLUS_TOKEN
 
 logger = logging.getLogger(__name__)
 PUSH_RECEIPT_PATH = Path(DATA_DIR) / "push_receipts.json"

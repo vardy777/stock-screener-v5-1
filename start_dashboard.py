@@ -1,4 +1,4 @@
-"""V4 看板启动器 — 保留原有启动方式和 8898 端口。"""
+"""Standalone V4 dashboard launcher on port 8898."""
 import json
 import os
 import subprocess
@@ -41,12 +41,12 @@ except OSError:
 PYTHON = choose_python()
 
 # 使用 Popen 并立即断开父子关系
-with open(os.path.join(SCRIPT_DIR, "v3", "dashboard.log"), "w") as log:
+with open(os.path.join(SCRIPT_DIR, "v4", "dashboard.log"), "w") as log:
     log.write(f"=== Dashboard started at {time.ctime()} ===\n")
 
 creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 proc = subprocess.Popen(
-    [PYTHON, "-X", "utf8", os.path.join(SCRIPT_DIR, "main.py"), "v3-dashboard"],
+    [PYTHON, "-X", "utf8", "-m", "v4.dashboard"],
     cwd=SCRIPT_DIR,
     stdin=subprocess.DEVNULL,
     stdout=subprocess.DEVNULL,

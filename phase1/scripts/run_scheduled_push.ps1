@@ -10,9 +10,9 @@ $python = Join-Path $projectRoot ".venv\Scripts\python.exe"
 $logDirectory = Join-Path $projectRoot "phase1\data\logs"
 $logFile = Join-Path $logDirectory ("scheduled_push_{0}.log" -f $Mode)
 $script = if ($Mode -eq "morning") {
-    "v3\scripts\morning_push.py"
+    "v4\scripts\morning_push.py"
 } else {
-    "v3\scripts\afternoon_push.py"
+    "v4\scripts\afternoon_push.py"
 }
 
 New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null

@@ -15,7 +15,7 @@ BASE = Path(__file__).resolve().parent.parent
 ROOT = BASE.parent
 sys.path.insert(0, str(ROOT))
 
-from v3.data import DataFetcher
+from v4.data import DataFetcher
 from market_universe import list_universe_codes
 from phase1.overnight.quote_capture import fetch_quotes_with_retries
 from v4.execution import TradingClock

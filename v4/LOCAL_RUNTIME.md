@@ -28,13 +28,13 @@ Codex及其他AI Agent只用于开发维护，不参与每日选股或推送。
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File phase1\scripts\register_v4_snapshot_tasks.ps1
-.\.venv\Scripts\python.exe main.py v3-cron-list
+Get-ScheduledTask -TaskName "AStock-V4-*"
 ```
 
 ## 外部服务边界
 
 系统仍需要新浪/东财行情接口和PushPlus网络服务，但不需要外部Agent。PushPlus
-令牌只放在`v3/.env`：
+令牌只放在`v4/.env`：
 
 ```text
 PUSHPLUS_TOKEN=替换为有效令牌

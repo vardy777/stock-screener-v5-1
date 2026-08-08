@@ -17,7 +17,7 @@ import pandas as pd
 
 from overnight.archive_refresh import merge_archive, save_archive_atomic, validate_archive
 from overnight.dataset import is_eligible_code
-from v3.data import DataFetcher
+from v4.data import DataFetcher
 from v4.calendar import TradingCalendar
 
 
@@ -103,4 +103,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
