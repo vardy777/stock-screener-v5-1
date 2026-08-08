@@ -36,9 +36,8 @@ class TradingClock:
     ) -> ActionStatus:
         current = now or cls.now()
         if current.tzinfo is None:
-            current = current.replace(tzinfo=CHINA_TZ)
-        else:
-            current = current.astimezone(CHINA_TZ)
+            raise ValueError("now must be timezone-aware")
+        current = current.astimezone(CHINA_TZ)
 
         action = action.lower()
         if action == "signal":
@@ -82,13 +81,13 @@ class TradingClock:
             return False
         current = now or cls.now()
         if current.tzinfo is None:
-            current = current.replace(tzinfo=CHINA_TZ)
+            return False
         try:
             parsed = datetime.fromisoformat(str(quote_time))
         except (TypeError, ValueError):
             return False
         if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=CHINA_TZ)
+            return False
         age = (
             current.astimezone(CHINA_TZ) - parsed.astimezone(CHINA_TZ)
         ).total_seconds()

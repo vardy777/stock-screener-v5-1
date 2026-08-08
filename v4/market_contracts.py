@@ -11,6 +11,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from datetime import date, datetime
 from enum import Enum
+import hashlib
+import json
 from math import isfinite
 from typing import Any, Iterable, Mapping
 
@@ -20,6 +22,7 @@ from .execution import CHINA_TZ
 QUOTE_SCHEMA_VERSION = "quote-v1"
 SNAPSHOT_SCHEMA_VERSION = "market-snapshot-v1"
 QUALITY_SCHEMA_VERSION = "snapshot-quality-v1"
+MARKET_STATE_SCHEMA_VERSION = "market-state-v1"
 
 
 class ContractViolation(ValueError):
@@ -236,7 +239,7 @@ class MarketSnapshotV1:
             declared_date = date.fromisoformat(str(trade_date))
         except ValueError as exc:
             raise ContractViolation("trade_date: ISO date required") from exc
-        if session not in {"signal", "buy", "sell"}:
+        if session not in {"morning", "signal", "buy", "sell"}:
             raise ContractViolation("session: unsupported value")
         started = _aware_datetime(batch_started_at, "batch_started_at")
         completed = _aware_datetime(batch_completed_at, "batch_completed_at")
@@ -310,7 +313,7 @@ class MarketSnapshotV1:
         )
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        payload = {
             "schema_version": self.schema_version,
             "trade_date": self.trade_date,
             "session": self.session,
@@ -319,3 +322,73 @@ class MarketSnapshotV1:
             "quotes": [quote.to_dict() for quote in self.quotes],
             "quality": self.quality.to_dict(),
         }
+        payload["snapshot_id"] = self.snapshot_id
+        return payload
+
+    @property
+    def snapshot_id(self) -> str:
+        payload = {
+            "schema_version": self.schema_version,
+            "trade_date": self.trade_date,
+            "session": self.session,
+            "batch_started_at": self.batch_started_at,
+            "batch_completed_at": self.batch_completed_at,
+            "quotes": [quote.to_dict() for quote in self.quotes],
+            "quality": self.quality.to_dict(),
+        }
+        raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        return "ms1-" + hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+@dataclass(frozen=True)
+class MarketStateV1:
+    snapshot_id: str
+    trade_date: str
+    as_of: str
+    mode: str
+    data_valid: bool
+    metrics: Mapping[str, Any]
+    analytics_version: str
+    schema_version: str = MARKET_STATE_SCHEMA_VERSION
+
+    @classmethod
+    def build(
+        cls, snapshot: MarketSnapshotV1, *, mode: str, data_valid: bool,
+        metrics: Mapping[str, Any], analytics_version: str,
+    ) -> "MarketStateV1":
+        if not isinstance(snapshot, MarketSnapshotV1):
+            raise ContractViolation("snapshot: MarketSnapshotV1 required")
+        if mode not in {"risk_off", "neutral", "risk_on", "unavailable"}:
+            raise ContractViolation("mode: unsupported value")
+        if not isinstance(data_valid, bool):
+            raise ContractViolation("data_valid: boolean is required")
+        as_of = _aware_datetime(snapshot.batch_completed_at, "as_of")
+        return cls(
+            snapshot_id=snapshot.snapshot_id,
+            trade_date=snapshot.trade_date,
+            as_of=as_of.isoformat(),
+            mode=mode,
+            data_valid=data_valid,
+            metrics=dict(metrics),
+            analytics_version=str(analytics_version),
+        )
+
+    @property
+    def market_state_id(self) -> str:
+        raw = json.dumps(self.to_dict(include_id=False), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        return "mstate1-" + hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+    def to_dict(self, *, include_id: bool = True) -> dict[str, Any]:
+        payload = {
+            "schema_version": self.schema_version,
+            "snapshot_id": self.snapshot_id,
+            "trade_date": self.trade_date,
+            "as_of": self.as_of,
+            "mode": self.mode,
+            "data_valid": self.data_valid,
+            "metrics": dict(self.metrics),
+            "analytics_version": self.analytics_version,
+        }
+        if include_id:
+            payload["market_state_id"] = self.market_state_id
+        return payload

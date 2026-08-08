@@ -7,6 +7,7 @@ from v4.market_contracts import (
     ContractViolation,
     EvidenceCohort,
     MarketSnapshotV1,
+    MarketStateV1,
     QuoteV1,
 )
 
@@ -98,6 +99,30 @@ class MarketContractTests(unittest.TestCase):
         self.assertEqual(snapshot.quality.valid_codes, 1)
         self.assertIn("duplicate_code", snapshot.quality.reasons)
         self.assertIn("incomplete_coverage", snapshot.quality.reasons)
+
+    def test_snapshot_and_market_state_have_deterministic_lineage_ids(self):
+        snapshot = MarketSnapshotV1.build(
+            trade_date="2026-08-03", session="morning",
+            batch_started_at=self.now - timedelta(seconds=1),
+            batch_completed_at=self.now, quotes=[self.quote()], expected_codes=1,
+            require_order_book=False,
+        )
+        self.assertTrue(snapshot.snapshot_id.startswith("ms1-"))
+        self.assertEqual(snapshot.snapshot_id, snapshot.snapshot_id)
+        state = MarketStateV1.build(
+            snapshot, mode="neutral", data_valid=True,
+            metrics={"advance_ratio": 0.5}, analytics_version="test-v1",
+        )
+        self.assertEqual(state.snapshot_id, snapshot.snapshot_id)
+        self.assertTrue(state.market_state_id.startswith("mstate1-"))
+
+    def test_action_clock_never_assumes_timezone_for_naive_values(self):
+        from v4.execution import TradingClock
+        naive = datetime(2026, 8, 3, 14, 50, 0)
+        with self.assertRaisesRegex(ValueError, "timezone-aware"):
+            TradingClock.action_status("buy", now=naive)
+        self.assertFalse(TradingClock.quote_is_fresh(naive, now=self.now))
+        self.assertFalse(TradingClock.quote_is_fresh(self.now, now=naive))
 
 
 if __name__ == "__main__":
