@@ -2,7 +2,7 @@
   "schema_version": "project-state-v1",
   "project": "a-share-overnight-v4",
   "display_name": "A股隔夜研究与模拟系统 V4",
-  "updated_at": "2026-08-08T23:30:00+08:00",
+  "updated_at": "2026-08-08T23:59:00+08:00",
   "active_phase": "P2",
   "active_phase_name": "候选与决策唯一事实源（离线重构）",
   "production_status": "research_locked",
@@ -14,9 +14,9 @@
   },
   "p2_validation": {
     "engineering_status": "in_progress",
-    "offline_acceptance_status": "pending_full_snapshot_replay",
+    "offline_acceptance_status": "pending_final_acceptance_run",
     "live_window_status": "blocked_until_p1_and_p2_offline_acceptance",
-    "historical_replay_status": "candidate_dict_replay_only_not_accepted",
+    "historical_replay_status": "immutable_snapshot_replay_determinism_passed",
     "historical_fact": "2026-08-03..05 candidate journals missing; 2026-08-06..07 legacy schema retained read-only"
   },
   "runtime_owner": "v4",
@@ -56,7 +56,7 @@
     "confirmation_push_success": true
   },
   "quality": {
-    "tests_passed": 145,
+    "tests_passed": 153,
     "tests_failed": 0,
     "v4_imports_v3": false
   },
@@ -98,8 +98,8 @@
     }
   ],
   "next_tasks": [
-    "完成P2最终实体强制血缘与冻结MarketSnapshotV1端到端回放",
-    "完成P2离线验收",
+    "运行P2最终离线验收并审计冻结上下文依赖",
+    "保留P2真实窗口验收为待验证状态",
     "P1/P2离线验收完成后验证真实09:25、14:49、14:50和次日09:30窗口",
     "所有验收通过前禁止进入P3"
   ],

@@ -90,11 +90,14 @@ class V4Runtime:
         self,
         candidates: Iterable[Dict[str, Any]],
         market_state: Dict[str, Any] | None = None,
+        *,
+        reference_time: datetime | None = None,
+        persist_diagnostics: bool = True,
     ) -> List[Dict[str, Any]]:
         market = market_state or {}
         market_mode = market.get("mode_label", "neutral")
         market_score = self._market_score(market)
-        buy_status = TradingClock.action_status("buy")
+        buy_status = TradingClock.action_status("buy", now=reference_time)
         production_available = self.production_enabled
         evaluated: List[Dict[str, Any]] = []
 
@@ -146,11 +149,13 @@ class V4Runtime:
                 blocks.append("模拟候选")
             if float(item.get("price", 0.0) or 0.0) <= 0:
                 blocks.append("价格无效")
-            if not TradingClock.quote_is_fresh(item.get("quote_time")):
+            if not TradingClock.quote_is_fresh(
+                item.get("quote_time"), now=reference_time
+            ):
                 blocks.append("行情时间戳缺失或过期")
 
             paper_policy = evaluate_paper_candidate(
-                item, market, buy_status=buy_status
+                item, market, buy_status=buy_status, reference_time=reference_time
             )
             paper_blocks = list(paper_policy.reasons)
 
@@ -206,7 +211,8 @@ class V4Runtime:
         diagnostic["diagnostic_schema_version"] = "runtime-diagnostic-v1"
         diagnostic["candidate_count"] = len(evaluated)
         diagnostic["derived_only"] = True
-        save_runtime_state(diagnostic)
+        if persist_diagnostics:
+            save_runtime_state(diagnostic)
         return evaluated
 
     def evaluate_universe(
@@ -217,6 +223,9 @@ class V4Runtime:
         market_state: Dict[str, Any] | None = None,
         allowed_codes: set[str] | None = None,
         morning_candidates: list[Dict[str, Any]] | None = None,
+        decision_stage: str | None = None,
+        reference_time: datetime | None = None,
+        persist_diagnostics: bool = True,
     ) -> List[Dict[str, Any]]:
         """Generate candidates from the complete eligible universe using V4.
 
@@ -228,17 +237,24 @@ class V4Runtime:
         market = market_state or {}
         production_model = self.production_enabled
         _ = fallback_candidates
-        buy_status = TradingClock.action_status("buy")
+        buy_status = TradingClock.action_status("buy", now=reference_time)
+        confirmation_stage = decision_stage == "confirmation" or (
+            decision_stage is None and buy_status.allowed
+        )
         if not production_model or not buy_status.allowed:
             candidates = self.candidate_selector.select_research(
                 snapshot,
                 market,
-                require_frozen_features=bool(buy_status.allowed),
+                require_frozen_features=confirmation_stage,
                 allowed_codes=allowed_codes,
                 morning_candidates=morning_candidates,
+                reference_time=reference_time,
             )
             self.last_selection = dict(self.candidate_selector.last_diagnostics)
-            return self.evaluate_candidates(candidates, market)
+            return self.evaluate_candidates(
+                candidates, market, reference_time=reference_time,
+                persist_diagnostics=persist_diagnostics,
+            )
         quote_frame = snapshot_frame(snapshot)
         if quote_frame.empty:
             self.last_selection = {
@@ -247,7 +263,10 @@ class V4Runtime:
                 "source": "v4_published_model",
                 "stage": "confirmation_1450",
             }
-            return self.evaluate_candidates([], market)
+            return self.evaluate_candidates(
+                [], market, reference_time=reference_time,
+                persist_diagnostics=persist_diagnostics,
+            )
 
         features = LiveFeatureStore.load_all(maximum_age_seconds=120)
         if not features:
@@ -257,7 +276,10 @@ class V4Runtime:
                 "source": "v4_published_model",
                 "stage": "confirmation_1450",
             }
-            return self.evaluate_candidates([], market)
+            return self.evaluate_candidates(
+                [], market, reference_time=reference_time,
+                persist_diagnostics=persist_diagnostics,
+            )
         required = {"code", "name", "price", "quote_time", "ask1"}
         if not required.issubset(quote_frame.columns):
             self.last_selection = {
@@ -266,7 +288,10 @@ class V4Runtime:
                 "source": "v4_published_model",
                 "stage": "confirmation_1450",
             }
-            return self.evaluate_candidates([], market)
+            return self.evaluate_candidates(
+                [], market, reference_time=reference_time,
+                persist_diagnostics=persist_diagnostics,
+            )
         quote_frame["code"] = quote_frame["code"].astype(str).str.zfill(6)
         if allowed_codes is not None:
             normalized = {str(code).zfill(6) for code in allowed_codes}
@@ -283,7 +308,11 @@ class V4Runtime:
         quote_frame = quote_frame[
             quote_frame["ask1"].between(5.0, 200.0, inclusive="both")
             & ~quote_frame["name"].astype(str).str.contains("ST|退", na=False)
-            & quote_frame["quote_time"].map(TradingClock.quote_is_fresh)
+            & quote_frame["quote_time"].map(
+                lambda value: TradingClock.quote_is_fresh(
+                    value, now=reference_time
+                )
+            )
         ].copy()
         quote_frame = quote_frame[quote_frame["code"].isin(features)]
         if quote_frame.empty:
@@ -293,7 +322,10 @@ class V4Runtime:
                 "source": "v4_published_model",
                 "stage": "confirmation_1450",
             }
-            return self.evaluate_candidates([], market)
+            return self.evaluate_candidates(
+                [], market, reference_time=reference_time,
+                persist_diagnostics=persist_diagnostics,
+            )
 
         feature_frame = pd.DataFrame.from_dict(features, orient="index")
         feature_frame.index = feature_frame.index.astype(str).str.zfill(6)
@@ -312,7 +344,10 @@ class V4Runtime:
                 "source": "v4_published_model",
                 "stage": "confirmation_1450",
             }
-            return self.evaluate_candidates([], market)
+            return self.evaluate_candidates(
+                [], market, reference_time=reference_time,
+                persist_diagnostics=persist_diagnostics,
+            )
 
         limit_rate = quote_frame["code"].map(
             lambda code: 0.20 if str(code).startswith("30") else 0.10
@@ -328,7 +363,10 @@ class V4Runtime:
                 "source": "v4_published_model",
                 "stage": "confirmation_1450",
             }
-            return self.evaluate_candidates([], market)
+            return self.evaluate_candidates(
+                [], market, reference_time=reference_time,
+                persist_diagnostics=persist_diagnostics,
+            )
 
         quote_frame = quote_frame.loc[predictions.index].copy()
         for column in predictions.columns:
@@ -390,4 +428,7 @@ class V4Runtime:
             "candidates": int(len(candidates)),
             "research_only": False,
         }
-        return self.evaluate_candidates(candidates, market)
+        return self.evaluate_candidates(
+            candidates, market, reference_time=reference_time,
+            persist_diagnostics=persist_diagnostics,
+        )

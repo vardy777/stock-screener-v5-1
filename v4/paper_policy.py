@@ -31,6 +31,7 @@ def evaluate_paper_candidate(
     market_state: Mapping[str, Any],
     *,
     buy_status=None,
+    reference_time=None,
 ) -> PaperPolicyResult:
     """Admit causal Top1 observations without an outcome-fitted score cutoff."""
 
@@ -80,7 +81,7 @@ def evaluate_paper_candidate(
     if not status.allowed:
         reasons.append(status.reason)
     if float(item.get("price", 0.0) or 0.0) <= 0 or not TradingClock.quote_is_fresh(
-        item.get("quote_time")
+        item.get("quote_time"), now=reference_time
     ):
         reasons.append("确认价格或时效不合格")
     return PaperPolicyResult(not reasons, tuple(dict.fromkeys(reasons)))

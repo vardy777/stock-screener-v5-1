@@ -44,7 +44,6 @@ def main() -> int:
         return 3
     engine = SimulationEngine()
     engine.load_state()
-    engine.screen_today(stage="morning")
     morning = CandidateJournal().morning(today)
     if not morning:
         logger.error("早盘MorningPool实体缺失，拒绝使用内存候选推送")

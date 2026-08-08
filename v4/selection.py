@@ -85,7 +85,9 @@ class V4CandidateSelector:
             return pd.DataFrame(), {}
 
     @staticmethod
-    def _eligible_quotes(snapshot: MarketSnapshotV1) -> pd.DataFrame:
+    def _eligible_quotes(
+        snapshot: MarketSnapshotV1, *, reference_time=None
+    ) -> pd.DataFrame:
         frame = snapshot_frame(snapshot)
         if frame.empty:
             return pd.DataFrame()
@@ -102,7 +104,9 @@ class V4CandidateSelector:
                 inclusive="both",
             )
             & ~frame["name"].astype(str).str.contains("ST|退", case=False, na=False)
-            & frame["quote_time"].map(TradingClock.quote_is_fresh)
+            & frame["quote_time"].map(
+                lambda value: TradingClock.quote_is_fresh(value, now=reference_time)
+            )
         ].drop_duplicates("code", keep="last")
         return frame
 
@@ -273,8 +277,9 @@ class V4CandidateSelector:
         maximum_candidates: int = 5,
         allowed_codes: Optional[set[str]] = None,
         morning_candidates: Optional[list[Dict[str, Any]]] = None,
+        reference_time=None,
     ) -> list[Dict[str, Any]]:
-        eligible = self._eligible_quotes(snapshot)
+        eligible = self._eligible_quotes(snapshot, reference_time=reference_time)
         if allowed_codes is not None:
             normalized = {str(code).zfill(6) for code in allowed_codes}
             eligible = eligible[eligible["code"].isin(normalized)].copy()

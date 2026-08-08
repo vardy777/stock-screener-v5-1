@@ -46,7 +46,6 @@ def main() -> int:
 
     engine = SimulationEngine()
     engine.load_state()
-    engine.screen_today(stage="confirmation")
     decision = CandidateJournal().confirmation(today)
     if not decision:
         logger.error("尾盘最终决策实体缺失，拒绝使用内存候选推送")

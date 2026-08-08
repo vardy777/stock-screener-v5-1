@@ -39,7 +39,7 @@ class DecisionConsumerTests(unittest.TestCase):
         ):
             calendar.return_value.is_open.return_value = True
             self.assertEqual(morning_push.main(), 0)
-        engine.screen_today.assert_called_once_with(stage="morning")
+        engine.screen_today.assert_not_called()
         send.assert_called_once()
 
     def test_afternoon_push_reads_final_confirmation_entity(self):
@@ -61,7 +61,7 @@ class DecisionConsumerTests(unittest.TestCase):
         ):
             calendar.return_value.is_open.return_value = True
             self.assertEqual(afternoon_push.main(), 0)
-        engine.screen_today.assert_called_once_with(stage="confirmation")
+        engine.screen_today.assert_not_called()
         card = send.call_args.args[1]
         self.assertIn("BLOCKED", card)
         self.assertIn("cd-test", card)

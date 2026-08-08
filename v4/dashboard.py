@@ -30,7 +30,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from v4.simulation import SimulationEngine
 from v4.execution import TradingClock
-from decision_policy import adaptive_strategy_decision
 from market_universe import list_universe_codes
 
 logging.basicConfig(level=logging.INFO,
@@ -1537,18 +1536,13 @@ def _fresh_engine_state(mode: str = 'chase', force: bool = False) -> dict:
             'clock': {},
             'scheduler_contract_preserved': True,
         }
-    state['strategy_policy'] = adaptive_strategy_decision(
-        state.get('market_state', {}), state.get('sentiment', {})
+    state['final_decision'] = dict(latest_chain.get('confirmation', {}) or {})
+    state['strategy_policy'] = dict(
+        state.get('final_decision', {}).get('strategy_policy', {})
     )
     state['validation'] = _compute_validation_summary(state)
     state['paper_automation'] = _load_paper_automation_status()
-    state['final_decision'] = dict(latest_chain.get('confirmation', {}) or {})
-    state['trade_allowed'] = bool(
-        state.get('v4', {}).get('clock', {}).get('buy', {}).get('allowed', False)
-        and state.get('market_state', {}).get('mode_label', 'neutral') != 'risk_off'
-        and state.get('strategy_policy', {}).get('key') != 'observe'
-        and state['final_decision'].get('outcome') == 'BUY'
-    )
+    state['trade_allowed'] = state['final_decision'].get('outcome') == 'BUY'
     # 保存到缓存
     _cache_state = dict(state)
     _cache_time = TradingClock.now()

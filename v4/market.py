@@ -126,7 +126,9 @@ def _normalise_quotes(snapshot: MarketSnapshotV1) -> pd.DataFrame:
     return frame
 
 
-def build_market_state(snapshot: MarketSnapshotV1) -> MarketStateV1:
+def build_market_state(
+    snapshot: MarketSnapshotV1, *, reference_time: datetime | None = None
+) -> MarketStateV1:
     """Build the canonical V4 market state from a full-market quote frame."""
 
     frame = _normalise_quotes(snapshot)
@@ -143,7 +145,9 @@ def build_market_state(snapshot: MarketSnapshotV1) -> MarketStateV1:
         return MarketStateV1.build(snapshot, mode="unavailable", data_valid=False, metrics=empty_market_state(), analytics_version=MARKET_ANALYTICS_VERSION)
     parsed_time = pd.to_datetime(frame["quote_time"], errors="coerce")
     latest_time = parsed_time.max() if parsed_time.notna().any() else None
-    fresh_mask = frame["quote_time"].map(TradingClock.quote_is_fresh)
+    fresh_mask = frame["quote_time"].map(
+        lambda value: TradingClock.quote_is_fresh(value, now=reference_time)
+    )
     fresh_codes = int(frame.loc[fresh_mask, "code"].nunique())
     previous = pd.to_numeric(frame["prev_close"], errors="coerce")
     opened = pd.to_numeric(frame["open"], errors="coerce")
@@ -337,21 +341,28 @@ def build_sector_ranks(snapshot: MarketSnapshotV1) -> Dict[str, Any]:
     }
 
 
-def analyze_market(snapshot: MarketSnapshotV1) -> Dict[str, Any]:
-    market_state = build_market_state(snapshot)
+def analyze_market(
+    snapshot: MarketSnapshotV1,
+    *,
+    reference_time: datetime | None = None,
+    persist: bool = True,
+) -> Dict[str, Any]:
+    market_state = build_market_state(snapshot, reference_time=reference_time)
+    generated_at = reference_time or TradingClock.now()
     payload = {
         "market_state": market_state.to_projection(),
         "sentiment": build_sentiment(snapshot),
         "sector_ranks": build_sector_ranks(snapshot),
         "analytics_version": MARKET_ANALYTICS_VERSION,
-        "generated_at": TradingClock.now().isoformat(timespec="seconds"),
+        "generated_at": generated_at.isoformat(timespec="seconds"),
     }
-    MARKET_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    temporary = MARKET_CACHE_PATH.with_suffix(".tmp")
-    temporary.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
-    temporary.replace(MARKET_CACHE_PATH)
+    if persist:
+        MARKET_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        temporary = MARKET_CACHE_PATH.with_suffix(".tmp")
+        temporary.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        temporary.replace(MARKET_CACHE_PATH)
     return payload
 
 

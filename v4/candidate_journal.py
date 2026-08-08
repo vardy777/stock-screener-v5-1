@@ -62,9 +62,9 @@ class CandidateJournal:
     def _now() -> datetime:
         return datetime.now(CHINA_TZ)
 
-    def save_morning(self, trade_date: str, candidates: Iterable[dict], market_state: dict) -> dict:
+    def save_morning(self, trade_date: str, candidates: Iterable[dict], market_state: dict, *, captured_at=None) -> dict:
         rows = [dict(item) for item in candidates if item.get("v4_candidate_origin") == "V4"]
-        entity = MorningPoolV1.build(trade_date, self._now(), rows, market_state)
+        entity = MorningPoolV1.build(trade_date, captured_at or self._now(), rows, market_state)
         payload = self.load(trade_date) or {"trade_date": trade_date}
         existing = payload.get("morning", {})
         if existing:
@@ -105,7 +105,7 @@ class CandidateJournal:
             rows.append(linked)
         return rows
 
-    def save_confirmation(self, trade_date: str, candidates: Iterable[dict], market_state: dict) -> dict:
+    def save_confirmation(self, trade_date: str, candidates: Iterable[dict], market_state: dict, *, decided_at=None) -> dict:
         payload = self.load(trade_date)
         if not payload.get("morning"):
             raise ValueError("missing current-session 09:25 mother pool")
@@ -120,7 +120,7 @@ class CandidateJournal:
             lineage=dict(morning_data.get("lineage", {})),
             schema_version=morning_data.get("schema_version", "morning-pool-v1"),
         )
-        entity = ConfirmationDecisionV1.build(morning, self._now(), rows, market_state)
+        entity = ConfirmationDecisionV1.build(morning, decided_at or self._now(), rows, market_state)
         existing = payload.get("confirmation", {})
         if existing:
             if existing.get("decision_id") == entity.decision_id:

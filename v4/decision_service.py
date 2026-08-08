@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Iterable
 
 from .candidate_journal import CandidateJournal
@@ -13,17 +14,24 @@ class DecisionChainService:
         self.runtime = runtime
 
     def publish_morning(
-        self, trade_date: str, candidates: Iterable[dict], market_state: dict
+        self, trade_date: str, candidates: Iterable[dict], market_state: dict, *, captured_at=None
     ) -> dict:
-        self.journal.save_morning(trade_date, candidates, market_state)
+        self.journal.save_morning(trade_date, candidates, market_state, captured_at=captured_at)
         return self.journal.morning(trade_date)
 
     def publish_confirmation(
-        self, trade_date: str, candidates: Iterable[dict], market_state: dict
+        self, trade_date: str, candidates: Iterable[dict], market_state: dict, *,
+        decided_at=None, persist_diagnostics: bool = True,
     ) -> dict:
         linked = self.journal.link_confirmation_candidates(trade_date, candidates)
-        evaluated = self.runtime.evaluate_candidates(linked, market_state)
-        self.journal.save_confirmation(trade_date, evaluated, market_state)
+        reference_time = (
+            datetime.fromisoformat(str(decided_at)) if decided_at is not None else None
+        )
+        evaluated = self.runtime.evaluate_candidates(
+            linked, market_state, reference_time=reference_time,
+            persist_diagnostics=persist_diagnostics,
+        )
+        self.journal.save_confirmation(trade_date, evaluated, market_state, decided_at=decided_at)
         return self.journal.confirmation(trade_date)
 
     def publish_missing_morning(self, trade_date: str, market_state: dict) -> dict:

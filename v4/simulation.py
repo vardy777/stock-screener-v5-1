@@ -473,8 +473,8 @@ class SimulationEngine:
         if self._account is None:
             return {'success': False, 'message': '模拟账户未初始化', 'bought': 0, 'detail': []}
 
-        if refresh_candidates:
-            self.screen_today(stage='confirmation')
+        # Execution only projects the immutable final decision.
+        _ = refresh_candidates
         from v4.candidate_journal import CandidateJournal
         trade_date = TradingClock.now().date().isoformat()
         final_decision = CandidateJournal().confirmation(trade_date)

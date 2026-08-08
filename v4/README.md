@@ -1,5 +1,18 @@
 # A股隔夜交易系统 V4
 
+## P2 decision publication boundary
+
+Decision production and notification projection are separate. The preserved
+Windows push runner invokes `v4/scripts/decision_job.py` before invoking the
+morning or confirmation push consumer. Dashboard, push and paper execution
+read immutable entities from `candidate_journal`; they do not regenerate or
+reinterpret candidates.
+
+Offline replay starts from repository-validated immutable snapshots through
+`v4.snapshot_replay.replay_frozen_chain`. Freshness and window checks use each
+snapshot's capture time, and replay does not overwrite live market/runtime
+caches.
+
 V4 是一套可在本机独立运行的研究与模拟系统。Codex、Hermes 或其他 AI Agent 只参与开发，均不属于运行依赖。行情、候选、账户、推送、看板和本地调度的实体实现全部位于 `v4/`；V4 代码禁止导入 `v3.*`。
 
 ## 当前架构边界

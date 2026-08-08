@@ -9,11 +9,16 @@ $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $python = Join-Path $projectRoot ".venv\Scripts\python.exe"
 $logDirectory = Join-Path $projectRoot "phase1\data\logs"
 $logFile = Join-Path $logDirectory ("scheduled_push_{0}.log" -f $Mode)
-$script = if ($Mode -eq "morning") {
+$pushScript = if ($Mode -eq "morning") {
     "v4\scripts\morning_push.py"
 } else {
     "v4\scripts\afternoon_push.py"
 }
+$decisionStage = if ($Mode -eq "morning") { "morning" } else { "confirmation" }
+$commands = @(
+    @{ Script = "v4\scripts\decision_job.py"; Arguments = $decisionStage },
+    @{ Script = $pushScript; Arguments = "" }
+)
 
 New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
 $startedAt = Get-Date -Format "yyyy-MM-ddTHH:mm:ssK"
@@ -29,27 +34,31 @@ $previousPythonEncoding = $env:PYTHONIOENCODING
 $utf8Encoding = New-Object System.Text.UTF8Encoding($false)
 $env:PYTHONIOENCODING = "utf-8"
 try {
-    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
-    $startInfo.FileName = $python
-    $startInfo.Arguments = ('-X utf8 "{0}"' -f $script)
-    $startInfo.WorkingDirectory = $projectRoot
-    $startInfo.UseShellExecute = $false
-    $startInfo.CreateNoWindow = $true
-    $startInfo.RedirectStandardOutput = $true
-    $startInfo.RedirectStandardError = $true
-    $startInfo.StandardOutputEncoding = $utf8Encoding
-    $startInfo.StandardErrorEncoding = $utf8Encoding
-    $process = New-Object System.Diagnostics.Process
-    $process.StartInfo = $startInfo
-    $null = $process.Start()
-    $stdoutTask = $process.StandardOutput.ReadToEndAsync()
-    $stderrTask = $process.StandardError.ReadToEndAsync()
-    $process.WaitForExit()
-    $stdout = $stdoutTask.Result
-    $stderr = $stderrTask.Result
-    if ($stdout) { Add-Content -LiteralPath $logFile -Encoding UTF8 -Value $stdout.TrimEnd() }
-    if ($stderr) { Add-Content -LiteralPath $logFile -Encoding UTF8 -Value $stderr.TrimEnd() }
-    $pushExitCode = $process.ExitCode
+    $pushExitCode = 0
+    foreach ($command in $commands) {
+        $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+        $startInfo.FileName = $python
+        $startInfo.Arguments = ('-X utf8 "{0}" {1}' -f $command.Script, $command.Arguments).Trim()
+        $startInfo.WorkingDirectory = $projectRoot
+        $startInfo.UseShellExecute = $false
+        $startInfo.CreateNoWindow = $true
+        $startInfo.RedirectStandardOutput = $true
+        $startInfo.RedirectStandardError = $true
+        $startInfo.StandardOutputEncoding = $utf8Encoding
+        $startInfo.StandardErrorEncoding = $utf8Encoding
+        $process = New-Object System.Diagnostics.Process
+        $process.StartInfo = $startInfo
+        $null = $process.Start()
+        $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+        $stderrTask = $process.StandardError.ReadToEndAsync()
+        $process.WaitForExit()
+        $stdout = $stdoutTask.Result
+        $stderr = $stderrTask.Result
+        if ($stdout) { Add-Content -LiteralPath $logFile -Encoding UTF8 -Value $stdout.TrimEnd() }
+        if ($stderr) { Add-Content -LiteralPath $logFile -Encoding UTF8 -Value $stderr.TrimEnd() }
+        $pushExitCode = $process.ExitCode
+        if ($pushExitCode -ne 0) { break }
+    }
 }
 catch {
     Add-Content -LiteralPath $logFile -Encoding UTF8 -Value $_.Exception.ToString()
