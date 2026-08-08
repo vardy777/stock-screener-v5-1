@@ -390,6 +390,7 @@ class SimulationEngine:
                 snapshot = gateway.fetch_snapshot(
                     sorted(allowed_codes), session='buy', require_order_book=True
                 )
+                market_state = self._get_market_state(snapshot)
             v4_runtime = V4Runtime()
             from v4.decision_service import DecisionChainService
             decision_service = DecisionChainService(journal, v4_runtime)

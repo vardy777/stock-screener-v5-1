@@ -117,6 +117,7 @@ class CandidateJournal:
             candidate_codes=tuple(morning_data.get("candidate_codes", morning_data.get("codes", []))),
             candidates=tuple(morning_data.get("candidates", [])),
             market_state=dict(morning_data.get("market_state", {})),
+            lineage=dict(morning_data.get("lineage", {})),
             schema_version=morning_data.get("schema_version", "morning-pool-v1"),
         )
         entity = ConfirmationDecisionV1.build(morning, self._now(), rows, market_state)

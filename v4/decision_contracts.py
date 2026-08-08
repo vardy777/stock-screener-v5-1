@@ -15,6 +15,8 @@ from .execution import CHINA_TZ
 
 MORNING_POOL_VERSION = "morning-pool-v1"
 CONFIRMATION_VERSION = "confirmation-decision-v1"
+STRATEGY_VERSION = "v4-strategy-spec-v1"
+MORNING_POLICY_VERSION = "morning-observation-policy-v1"
 
 
 class DecisionContractViolation(ValueError):
@@ -100,6 +102,35 @@ def _candidate_rows(candidates: Iterable[Mapping[str, Any]]) -> tuple[dict, ...]
     return rows
 
 
+def _lineage(rows: tuple[dict, ...], market_state: Mapping[str, Any], *, confirmation: bool) -> dict:
+    snapshot_id = str(market_state.get("snapshot_id", ""))
+    market_state_id = str(market_state.get("market_state_id", ""))
+    if not snapshot_id.startswith("ms1-"):
+        raise DecisionContractViolation("lineage.input_snapshot_id: required")
+    if not market_state_id.startswith("mstate1-"):
+        raise DecisionContractViolation("lineage.market_state_id: required")
+    versions = {str(item.get("score_version", "")) for item in rows}
+    versions.discard("")
+    if len(versions) > 1:
+        raise DecisionContractViolation("lineage.ranking_version: mixed values")
+    ranking = next(iter(versions), "empty-ranking-v1")
+    if confirmation:
+        policies = {str(item.get("v4_paper_policy_version", "")) for item in rows}
+        policies.discard("")
+        if rows and len(policies) != 1:
+            raise DecisionContractViolation("lineage.policy_version: required and uniform")
+        policy = next(iter(policies), "empty-confirmation-policy-v1")
+    else:
+        policy = MORNING_POLICY_VERSION
+    return {
+        "input_snapshot_id": snapshot_id,
+        "market_state_id": market_state_id,
+        "ranking_version": ranking,
+        "strategy_version": STRATEGY_VERSION,
+        "policy_version": policy,
+    }
+
+
 _REASON_TEXT = (
     ("14:50确认候选", DecisionReason.STAGE_INVALID),
     ("研究准入", DecisionReason.RESEARCH_LOCKED),
@@ -142,29 +173,33 @@ class MorningPoolV1:
     candidate_codes: tuple[str, ...]
     candidates: tuple[dict, ...]
     market_state: dict
+    lineage: dict
     schema_version: str = MORNING_POOL_VERSION
 
     def __post_init__(self):
         object.__setattr__(self, "candidate_codes", tuple(self.candidate_codes))
         object.__setattr__(self, "candidates", _freeze(self.candidates))
         object.__setattr__(self, "market_state", _freeze(self.market_state))
+        object.__setattr__(self, "lineage", _freeze(self.lineage))
 
     @classmethod
     def build(cls, trade_date: str, captured_at: Any, candidates, market_state) -> "MorningPoolV1":
         day = _trade_date(trade_date)
         timestamp = _timestamp(captured_at, "captured_at")
         rows = _candidate_rows(candidates)
+        lineage = _lineage(rows, market_state, confirmation=False)
         identity_payload = {
             "schema_version": MORNING_POOL_VERSION,
             "trade_date": day,
             "candidates": rows,
             "market_state": dict(market_state),
+            "lineage": lineage,
         }
         return cls(
             pool_id=_identity("mp", identity_payload), trade_date=day,
             captured_at=timestamp,
             candidate_codes=tuple(item["code"] for item in rows),
-            candidates=rows, market_state=dict(market_state),
+            candidates=rows, market_state=dict(market_state), lineage=lineage,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -174,6 +209,7 @@ class MorningPoolV1:
             "candidate_codes": list(self.candidate_codes),
             "candidates": _thaw(self.candidates),
             "market_state": _thaw(self.market_state),
+            "lineage": _thaw(self.lineage),
         }
 
 
@@ -188,6 +224,7 @@ class ConfirmationDecisionV1:
     candidate_codes: tuple[str, ...]
     candidates: tuple[dict, ...]
     market_state: dict
+    lineage: dict
     schema_version: str = CONFIRMATION_VERSION
 
     def __post_init__(self):
@@ -195,10 +232,12 @@ class ConfirmationDecisionV1:
         object.__setattr__(self, "candidate_codes", tuple(self.candidate_codes))
         object.__setattr__(self, "candidates", _freeze(self.candidates))
         object.__setattr__(self, "market_state", _freeze(self.market_state))
+        object.__setattr__(self, "lineage", _freeze(self.lineage))
 
     @classmethod
     def build(cls, morning: MorningPoolV1, decided_at: Any, candidates, market_state):
         rows = _candidate_rows(candidates)
+        lineage = _lineage(rows, market_state, confirmation=True)
         outside = [item["code"] for item in rows if item["code"] not in morning.candidate_codes]
         if outside:
             raise DecisionContractViolation(
@@ -224,6 +263,7 @@ class ConfirmationDecisionV1:
             "reason_codes": reasons,
             "candidates": rows,
             "market_state": dict(market_state),
+            "lineage": lineage,
         }
         return cls(
             decision_id=_identity("cd", identity_payload),
@@ -231,7 +271,7 @@ class ConfirmationDecisionV1:
             decided_at=_timestamp(decided_at, "decided_at"), outcome=outcome.value,
             reason_codes=reasons,
             candidate_codes=tuple(item["code"] for item in rows),
-            candidates=rows, market_state=dict(market_state),
+            candidates=rows, market_state=dict(market_state), lineage=lineage,
         )
 
     @classmethod
@@ -240,6 +280,7 @@ class ConfirmationDecisionV1:
     ) -> "ConfirmationDecisionV1":
         day = _trade_date(trade_date)
         reasons = (DecisionReason.MISSING_MORNING_POOL.value,)
+        lineage = _lineage((), market_state, confirmation=True)
         identity_payload = {
             "schema_version": CONFIRMATION_VERSION,
             "morning_pool_id": "missing",
@@ -248,13 +289,14 @@ class ConfirmationDecisionV1:
             "reason_codes": reasons,
             "candidates": [],
             "market_state": dict(market_state),
+            "lineage": lineage,
         }
         return cls(
             decision_id=_identity("cd", identity_payload),
             morning_pool_id="missing", trade_date=day,
             decided_at=_timestamp(decided_at, "decided_at"),
             outcome=DecisionOutcome.BLOCKED.value, reason_codes=reasons,
-            candidate_codes=(), candidates=(), market_state=dict(market_state),
+            candidate_codes=(), candidates=(), market_state=dict(market_state), lineage=lineage,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -267,4 +309,5 @@ class ConfirmationDecisionV1:
             "candidate_codes": list(self.candidate_codes),
             "candidates": _thaw(self.candidates),
             "market_state": _thaw(self.market_state),
+            "lineage": _thaw(self.lineage),
         }

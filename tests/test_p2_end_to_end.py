@@ -22,6 +22,8 @@ class P2EndToEndTests(unittest.TestCase):
             "quote_coverage": 0.98, "mode_label": "neutral",
             "advance_ratio": 0.55, "market_mean_signal_return": 0.001,
             "market_mean_gap": 0.0,
+            "snapshot_id": "ms1-" + "a" * 64,
+            "market_state_id": "mstate1-" + "b" * 64,
         }
 
     @staticmethod

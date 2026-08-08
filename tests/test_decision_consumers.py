@@ -19,6 +19,8 @@ class DecisionConsumerTests(unittest.TestCase):
             "v4_candidate_origin": "V4", "v4_paper_eligible": eligible,
             "v4_paper_block_reasons": [] if eligible else ["规则分低于80"],
             "candidate_source": "v4-causal-rule-rank-v1",
+            "score_version": "v4-base-plus-confirm-delta-v1",
+            "v4_paper_policy_version": "test-policy-v1",
         }
 
     def test_morning_push_reads_persisted_morning_entity(self):
@@ -117,8 +119,10 @@ class DecisionConsumerTests(unittest.TestCase):
             morning = dict(candidate, selection_stage="morning_observation",
                            score_version="v4-causal-rule-rank-v1")
             with patch.object(CandidateJournal, "_now", return_value=fixed):
-                journal.save_morning("2026-08-03", [morning], {})
-                journal.save_confirmation("2026-08-03", [candidate], {})
+                market = {"snapshot_id": "ms1-" + "a" * 64,
+                          "market_state_id": "mstate1-" + "b" * 64}
+                journal.save_morning("2026-08-03", [morning], market)
+                journal.save_confirmation("2026-08-03", [candidate], market)
             decision = journal.confirmation("2026-08-03")
 
             engine = SimulationEngine()
