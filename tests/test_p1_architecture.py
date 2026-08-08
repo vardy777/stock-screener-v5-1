@@ -36,3 +36,27 @@ class P1ArchitectureTests(unittest.TestCase):
             with self.subTest(consumer=consumer.__name__):
                 with self.assertRaises(ContractViolation):
                     consumer({"quotes": []})
+
+    def test_v4_has_no_implicit_local_timezone_or_naive_now(self):
+        violations = []
+        for path in sorted((ROOT / "v4").glob("*.py")):
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+                    continue
+                if (
+                    node.func.attr == "now"
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == "datetime"
+                    and not node.args and not node.keywords
+                ):
+                    violations.append(f"{path.name}:{node.lineno}:naive datetime.now")
+                if node.func.attr == "astimezone" and not node.args and not node.keywords:
+                    violations.append(f"{path.name}:{node.lineno}:implicit local astimezone")
+                if node.func.attr == "replace":
+                    for keyword in node.keywords:
+                        if keyword.arg == "tzinfo" and not (
+                            isinstance(keyword.value, ast.Constant) and keyword.value.value is None
+                        ):
+                            violations.append(f"{path.name}:{node.lineno}:timezone injection")
+        self.assertEqual(violations, [])

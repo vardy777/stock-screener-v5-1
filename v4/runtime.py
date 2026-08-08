@@ -83,7 +83,7 @@ class V4Runtime:
             "scheduler_entrypoints": list(self.SCHEDULER_CONTRACT),
             "candidate_engine": "V4",
             "selection": dict(getattr(self, "last_selection", {"status": "not_run"})),
-            "generated_at": datetime.now().isoformat(timespec="seconds"),
+            "generated_at": TradingClock.now().isoformat(timespec="seconds"),
         }
 
     def evaluate_candidates(

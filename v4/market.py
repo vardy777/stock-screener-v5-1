@@ -213,7 +213,7 @@ def build_market_state(snapshot: MarketSnapshotV1) -> MarketStateV1:
         "latest_quote_time": latest_time.isoformat() if latest_time is not None else "",
         "data_source": "V4新浪全市场批量行情快照",
         "metric_definition": "沪深主板及创业板可用样本；涨跌均值为全市场等权口径",
-        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "generated_at": TradingClock.now().isoformat(timespec="seconds"),
         "analytics_version": MARKET_ANALYTICS_VERSION,
     }
     return MarketStateV1.build(
@@ -344,7 +344,7 @@ def analyze_market(snapshot: MarketSnapshotV1) -> Dict[str, Any]:
         "sentiment": build_sentiment(snapshot),
         "sector_ranks": build_sector_ranks(snapshot),
         "analytics_version": MARKET_ANALYTICS_VERSION,
-        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "generated_at": TradingClock.now().isoformat(timespec="seconds"),
     }
     MARKET_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
     temporary = MARKET_CACHE_PATH.with_suffix(".tmp")

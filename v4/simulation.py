@@ -10,6 +10,7 @@ import pandas as pd
 
 from market_universe import is_eligible_a_share, list_universe_codes
 from strategy_spec import DEFAULT_SPEC, TradeCostModel
+from v4.execution import TradingClock
 
 logger = logging.getLogger(__name__)
 ROOT = Path(__file__).resolve().parent.parent
@@ -230,7 +231,7 @@ class SimulationEngine:
             'market_state': market_state,
             'sector_ranks': self._get_sector_ranks(),
             'sentiment': self._get_sentiment(),
-            'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'time': TradingClock.now().isoformat(timespec='seconds'),
         }
 
     def _get_sentiment(self) -> dict:
@@ -315,7 +316,7 @@ class SimulationEngine:
             'market_state': self._get_market_state(),
             'sector_ranks': self._get_sector_ranks(),
             'sentiment': self._get_sentiment(),
-            'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'time': TradingClock.now().isoformat(timespec='seconds'),
         }
 
     # ── 选股 ──────────────────────────────────────────────
@@ -325,7 +326,7 @@ class SimulationEngine:
         if MarketDataGateway is None:
             logger.error("唯一行情网关不可用，按安全规则空仓")
             self._candidates = []
-            self._last_screen_time = datetime.now().strftime('%H:%M:%S')
+            self._last_screen_time = TradingClock.now().isoformat(timespec='seconds')
             return self._candidates
 
         try:
@@ -336,7 +337,7 @@ class SimulationEngine:
                 logger.error('统一全市场股票池为空, 按安全规则空仓')
                 self._candidates = []
                 return self._candidates
-            current = datetime.now().astimezone()
+            current = TradingClock.now()
             if stage == 'auto':
                 stage = 'confirmation' if current.hour == 14 and current.minute >= 50 else 'morning'
             snapshot = gateway.fetch_snapshot(
@@ -348,7 +349,7 @@ class SimulationEngine:
             if not snapshot.quotes:
                 logger.error("无法获取行情数据, 按安全规则空仓")
                 self._candidates = []
-                self._last_screen_time = datetime.now().strftime('%H:%M:%S')
+                self._last_screen_time = TradingClock.now().isoformat(timespec='seconds')
                 return self._candidates
 
             logger.info("获取版本化行情快照: %d只 %s", len(snapshot.quotes), snapshot.snapshot_id)
@@ -419,7 +420,7 @@ class SimulationEngine:
             market_state['v4_selection'] = dict(v4_runtime.last_selection)
             self._last_market_state = dict(market_state)
             self._candidates = candidates
-            self._last_screen_time = datetime.now().strftime('%H:%M:%S')
+            self._last_screen_time = TradingClock.now().isoformat(timespec='seconds')
             self._save_candidates(candidates, stage=stage)
             logger.info(
                 "V4候选生成完成: %d只 source=%s status=%s",
@@ -432,7 +433,7 @@ class SimulationEngine:
         except Exception as e:
             logger.error(f"选股失败: {e}")
             self._candidates = []
-            self._last_screen_time = datetime.now().strftime('%H:%M:%S')
+            self._last_screen_time = TradingClock.now().isoformat(timespec='seconds')
             return self._candidates
 
     def _save_candidates(self, candidates: list, *, stage: str = 'auto') -> None:
@@ -458,8 +459,8 @@ class SimulationEngine:
                 'candidates': candidates,
                 'market_state': market_state,
                 'selection': market_state.get('v4_selection', {}),
-                'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                'date': datetime.now().strftime('%Y-%m-%d'),
+                'time': TradingClock.now().isoformat(timespec='seconds'),
+                'date': TradingClock.now().date().isoformat(),
                 'stage': stage,
             }
             temporary = path.with_suffix('.tmp')

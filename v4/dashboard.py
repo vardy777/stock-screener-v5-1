@@ -29,6 +29,7 @@ from urllib.parse import urlparse, parse_qs
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from v4.simulation import SimulationEngine
+from v4.execution import TradingClock
 from decision_policy import adaptive_strategy_decision
 from market_universe import list_universe_codes
 
@@ -1468,7 +1469,7 @@ def _fresh_engine_state(mode: str = 'chase', force: bool = False) -> dict:
     global _cache_state, _cache_time
     
     # 使用缓存避免超时
-    now = datetime.now()
+    now = TradingClock.now()
     if not force and _cache_state is not None and _cache_time is not None:
         if (now - _cache_time).total_seconds() < _cache_ttl:
             return dict(_cache_state)  # 返回副本避免修改
@@ -1550,7 +1551,7 @@ def _fresh_engine_state(mode: str = 'chase', force: bool = False) -> dict:
     )
     # 保存到缓存
     _cache_state = dict(state)
-    _cache_time = datetime.now()
+    _cache_time = TradingClock.now()
     return state
 
 
@@ -1617,7 +1618,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     'system_version': 'V4',
                     'host': HOST,
                     'port': PORT,
-                    'time': datetime.now().isoformat(timespec='seconds'),
+                    'time': TradingClock.now().isoformat(timespec='seconds'),
                 })
             elif path == '/api/v4/status':
                 from v4.runtime import V4Runtime

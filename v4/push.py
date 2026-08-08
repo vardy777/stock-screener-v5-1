@@ -38,7 +38,7 @@ def _record_sent(message_key: str, title: str, content: str) -> None:
         try:
             sent_at = datetime.fromisoformat(str(value.get("sent_at", "")))
             if sent_at.tzinfo is None:
-                sent_at = sent_at.replace(tzinfo=timezone.utc)
+                continue
             if sent_at >= cutoff:
                 clean[key] = value
         except (AttributeError, TypeError, ValueError):

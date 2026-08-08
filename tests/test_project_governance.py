@@ -42,12 +42,13 @@ class ProjectGovernanceTests(unittest.TestCase):
             text = (ROOT / name).read_bytes().decode("utf-8", errors="strict")
             self.assertNotIn("\ufffd", text, name)
 
-    def test_reopened_p1_p2_status_matches_documented_reality(self):
+    def test_p1_offline_complete_and_p2_active_match_documented_reality(self):
         state = load_state()
-        self.assertEqual(state["active_phase"], "P1")
-        self.assertEqual(state["p1_validation"]["engineering_status"], "reopened_incomplete")
-        self.assertEqual(state["p2_validation"]["engineering_status"], "reopened_blocked_by_p1")
-        self.assertEqual(state["phase_status"]["P2"], "pending")
+        self.assertEqual(state["active_phase"], "P2")
+        self.assertEqual(state["p1_validation"]["engineering_status"], "offline_completed")
+        self.assertEqual(state["p1_validation"]["live_window_status"], "pending_real_windows")
+        self.assertEqual(state["p2_validation"]["engineering_status"], "in_progress")
+        self.assertEqual(state["phase_status"]["P2"], "in_progress")
         modules = (ROOT / "docs" / "MODULES.md").read_text(encoding="utf-8")
         self.assertNotIn("P1完成", modules)
         self.assertNotIn("P2完成", modules)

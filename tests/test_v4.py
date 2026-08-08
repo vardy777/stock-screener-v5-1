@@ -17,6 +17,15 @@ from v4.snapshots import capture_frame
 
 
 class V4Tests(unittest.TestCase):
+    def test_live_feature_store_rejects_naive_timestamps(self):
+        from v4.feature_store import LiveFeatureStore
+
+        with self.assertRaisesRegex(ValueError, "timezone-aware"):
+            LiveFeatureStore.publish({}, as_of=datetime(2026, 8, 3, 14, 49))
+        self.assertEqual(
+            LiveFeatureStore.load_all(now=datetime(2026, 8, 3, 14, 49)), {}
+        )
+
     def test_scheduler_entrypoints_are_preserved(self):
         root = Path(__file__).resolve().parent.parent
         for relative in (

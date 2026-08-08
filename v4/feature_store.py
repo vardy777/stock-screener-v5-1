@@ -21,7 +21,8 @@ class LiveFeatureStore:
     def publish(rows: Dict[str, Dict[str, Any]], *, as_of: Optional[datetime] = None) -> None:
         timestamp = as_of or TradingClock.now()
         if timestamp.tzinfo is None:
-            timestamp = timestamp.replace(tzinfo=CHINA_TZ)
+            raise ValueError("as_of must be timezone-aware")
+        timestamp = timestamp.astimezone(CHINA_TZ)
         clean = {}
         for code, features in rows.items():
             missing = [name for name in FEATURE_COLUMNS if name not in features]
@@ -51,10 +52,10 @@ class LiveFeatureStore:
                 payload = json.load(handle)
             as_of = datetime.fromisoformat(payload["as_of"])
             if as_of.tzinfo is None:
-                as_of = as_of.replace(tzinfo=CHINA_TZ)
+                return {}
             current = now or TradingClock.now()
             if current.tzinfo is None:
-                current = current.replace(tzinfo=CHINA_TZ)
+                return {}
             age = (
                 current.astimezone(CHINA_TZ) - as_of.astimezone(CHINA_TZ)
             ).total_seconds()
