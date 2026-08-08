@@ -20,6 +20,7 @@ from v4.data import DataFetcher
 from v4.calendar import TradingCalendar
 from v4.execution import TradingClock
 from v4.feature_store import LiveFeatureStore
+from v4.replay_contracts import FeatureContextV1
 
 
 def main() -> int:
@@ -86,6 +87,17 @@ def main() -> int:
         for row in features.to_dict("records")
     }
     LiveFeatureStore.publish(rows, as_of=captured_at)
+    replay_context = FeatureContextV1.build(
+        trade_date=captured_at.date().isoformat(),
+        expected_previous_session=previous.isoformat(),
+        feature_as_of=captured_at,
+        previous_context=context.to_dict("records"),
+        confirmation_features=rows,
+    )
+    replay_context.save(
+        ROOT / "v4" / "data" / "replay_context"
+        / f"{captured_at.date().isoformat()}.json"
+    )
     print(
         f"严格信号特征 {len(features)} 行，覆盖率{coverage*100:.2f}%，"
         f"抓取{fetch_report['attempt_count']}次，已保存: {output}"

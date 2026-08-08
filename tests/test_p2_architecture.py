@@ -47,6 +47,9 @@ class P2ArchitectureTests(unittest.TestCase):
         self.assertEqual(source.count("repository.load("), 2)
         self.assertIn("persist=False", source)
         self.assertIn("persist_diagnostics=False", source)
+        self.assertIn("FeatureContextV1.load", source)
+        self.assertNotIn("LiveFeatureStore", source)
+        self.assertNotIn("CONTEXT_PATH", source)
 
     def test_legacy_scheduled_push_entry_produces_then_projects(self):
         source = (ROOT / "phase1" / "scripts" / "run_scheduled_push.ps1").read_text(
@@ -55,3 +58,10 @@ class P2ArchitectureTests(unittest.TestCase):
         producer = source.index('Script = "v4\\scripts\\decision_job.py"')
         consumer = source.index("Script = $pushScript")
         self.assertLess(producer, consumer)
+
+    def test_signal_job_archives_replay_feature_context(self):
+        source = (
+            ROOT / "phase1" / "scripts" / "capture_signal_features.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("FeatureContextV1.build", source)
+        self.assertIn('"replay_context"', source)

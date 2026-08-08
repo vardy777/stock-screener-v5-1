@@ -54,17 +54,28 @@ def _percentile(series: pd.Series) -> pd.Series:
 class V4CandidateSelector:
     """Generate V4 candidates from the complete eligible live universe."""
 
-    def __init__(self, context_path: Optional[Path] = None):
+    def __init__(
+        self, context_path: Optional[Path] = None, *, context_rows=None,
+        context_metadata=None, frozen_features=None, feature_context_id=None,
+        previous_context_id=None,
+    ):
         self.context_path = Path(context_path) if context_path else CONTEXT_PATH
         self.context_meta_path = self.context_path.with_suffix(
             self.context_path.suffix + ".meta.json"
         )
+        self.context_rows = context_rows
+        self.context_metadata = context_metadata
+        self.frozen_features = frozen_features
+        self.feature_context_id = feature_context_id
+        self.previous_context_id = previous_context_id
         self.last_diagnostics: Dict[str, Any] = {
             "status": "not_run",
             "source": RESEARCH_RANK_VERSION,
         }
 
     def _load_context(self) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+        if self.context_rows is not None:
+            return pd.DataFrame(self.context_rows), dict(self.context_metadata or {})
         try:
             metadata = json.loads(self.context_meta_path.read_text(encoding="utf-8"))
             if not isinstance(metadata, dict) or not metadata.get("strict_context_ready"):
@@ -162,9 +173,10 @@ class V4CandidateSelector:
             return pd.DataFrame(), "冻结上下文日期血缘不一致"
         return merged, ""
 
-    @staticmethod
-    def _frozen_features(quotes: pd.DataFrame) -> Tuple[pd.DataFrame, str]:
-        features = LiveFeatureStore.load_all(maximum_age_seconds=180)
+    def _frozen_features(self, quotes: pd.DataFrame) -> Tuple[pd.DataFrame, str]:
+        features = self.frozen_features
+        if features is None:
+            features = LiveFeatureStore.load_all(maximum_age_seconds=180)
         if not features:
             return pd.DataFrame(), "14:49冻结特征缺失或过期"
         feature_frame = pd.DataFrame.from_dict(features, orient="index")
@@ -445,6 +457,10 @@ class V4CandidateSelector:
                         "mode_label", market_state.get("mode_label", "neutral")
                     ),
                     "v4_features": vector,
+                    "input_context_id": (
+                        self.feature_context_id if require_frozen_features
+                        else self.previous_context_id
+                    ),
                 }
             )
         self.last_diagnostics = {

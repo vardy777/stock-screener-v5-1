@@ -217,7 +217,9 @@ def build_market_state(
         "latest_quote_time": latest_time.isoformat() if latest_time is not None else "",
         "data_source": "V4新浪全市场批量行情快照",
         "metric_definition": "沪深主板及创业板可用样本；涨跌均值为全市场等权口径",
-        "generated_at": TradingClock.now().isoformat(timespec="seconds"),
+        "generated_at": (
+            reference_time or TradingClock.now()
+        ).isoformat(timespec="seconds"),
         "analytics_version": MARKET_ANALYTICS_VERSION,
     }
     return MarketStateV1.build(
