@@ -20,9 +20,9 @@
     "historical_fact": "2026-08-03..05 candidate journals missing; 2026-08-06..07 legacy schema retained read-only"
   },
   "p3_validation": {
-    "engineering_status": "offline_in_progress",
-    "checkpoint": "offline_execution_replay_and_reconciliation_passed",
-    "offline_tests": 14,
+    "engineering_status": "offline_core_accepted_phase_incomplete",
+    "checkpoint": "offline_core_final_audit_passed",
+    "offline_tests": 19,
     "operating_mode": "offline_only",
     "scheduling_enabled": false,
     "daily_paper_production_connected": false,
@@ -66,7 +66,7 @@
     "confirmation_push_success": true
   },
   "quality": {
-    "tests_passed": 171,
+    "tests_passed": 176,
     "tests_failed": 0,
     "v4_imports_v3": false
   },
@@ -108,7 +108,7 @@
     }
   ],
   "next_tasks": [
-    "审计P3离线核心验收并设计未来生产迁移边界（暂不接入）",
+    "保持P3生产接入冻结并继续补充非阻塞离线压力场景",
     "并行验证真实09:25、14:49、14:50和次日09:30窗口并保存P1/P2证据",
     "真实窗口通过前禁止P3调度、生产链路接入和完成标记",
     "P1/P2真实窗口失败时立即暂停P3并优先修复"

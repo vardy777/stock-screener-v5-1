@@ -8,7 +8,7 @@ from typing import Iterable
 from strategy_spec import DEFAULT_SPEC, TradeCostModel
 from .calendar import TradingCalendar
 from .market_contracts import MarketSnapshotV1
-from .p3_account import OfflinePaperLedger
+from .p3_account import OfflineOrderJournal, OfflinePaperLedger
 from .p3_contracts import PaperContractViolation, PaperFillV1, PaperOrderIntentV1
 
 
@@ -75,14 +75,18 @@ class OfflineIntentFactory:
 
 
 class OfflineExecutionEngine:
-    def __init__(self, ledger: OfflinePaperLedger, *, costs=None):
+    def __init__(
+        self, ledger: OfflinePaperLedger, *, costs=None, order_journal=None
+    ):
         self.ledger = ledger
         self.costs = costs or TradeCostModel(DEFAULT_SPEC)
+        self.order_journal = order_journal or OfflineOrderJournal(ledger.directory)
 
     def execute(self, intents: Iterable[PaperOrderIntentV1], *, filled_at: datetime) -> dict:
         results = []
         for intent in intents:
             try:
+                self.order_journal.append(intent)
                 reference = intent.reference_price
                 fill_price = (
                     self.costs.buy_fill_price(reference)

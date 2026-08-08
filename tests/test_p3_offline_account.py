@@ -8,7 +8,7 @@ from datetime import date
 
 from strategy_spec import TradeCostModel
 from v4.execution import CHINA_TZ
-from v4.p3_account import OfflinePaperLedger
+from v4.p3_account import OfflineOrderJournal, OfflinePaperLedger
 from v4.p3_contracts import (
     PaperContractViolation, PaperFillV1, PaperOrderIntentV1, PaperRoundTripV1,
 )
@@ -23,10 +23,10 @@ DECISION = "cd-" + "b" * 24
 
 def intent(
     side, trade_date, created_at, *, eligible="2026-08-04", shares=1000,
-    cash_budget=33_333.33,
+    cash_budget=33_333.33, decision_id=DECISION,
 ):
     return PaperOrderIntentV1.build(
-        decision_id=DECISION, side=side, code="000001", name="测试",
+        decision_id=decision_id, side=side, code="000001", name="测试",
         trade_date=trade_date, created_at=created_at, reference_price=10.0,
         shares=shares, cash_budget=cash_budget,
         market_snapshot_id=SNAPSHOT, eligible_sell_date=eligible,
@@ -54,6 +54,10 @@ class P3OfflineAccountTests(unittest.TestCase):
         self.assertEqual(first, second)
         with self.assertRaisesRegex(PaperContractViolation, "timezone"):
             intent("BUY", "2026-08-03", datetime(2026, 8, 3, 14, 50))
+        tampered = first.to_dict()
+        tampered["cash_budget"] = 1.0
+        with self.assertRaisesRegex(PaperContractViolation, "content hash"):
+            PaperOrderIntentV1.from_mapping(tampered)
 
     def test_fill_is_idempotent_and_cash_is_reconciled(self):
         order = intent("BUY", "2026-08-03", self.buy_time)
@@ -110,6 +114,28 @@ class P3OfflineAccountTests(unittest.TestCase):
         with self.assertRaisesRegex(PaperContractViolation, "cash budget"):
             fill(order, self.buy_time, 10.0)
 
+    def test_account_hard_caps_position_count(self):
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = OfflinePaperLedger(Path(directory))
+            for offset in range(3):
+                order = PaperOrderIntentV1.build(
+                    decision_id="cd-" + str(offset) * 24, side="BUY",
+                    code=f"00000{offset + 1}", name="测试",
+                    trade_date="2026-08-03", created_at=self.buy_time,
+                    reference_price=10.0, shares=100, cash_budget=2_000,
+                    market_snapshot_id=SNAPSHOT,
+                    eligible_sell_date="2026-08-04",
+                )
+                ledger.append(fill(order, self.buy_time, 10.0))
+            fourth = PaperOrderIntentV1.build(
+                decision_id="cd-" + "9" * 24, side="BUY", code="000004",
+                name="测试", trade_date="2026-08-03", created_at=self.buy_time,
+                reference_price=10.0, shares=100, cash_budget=2_000,
+                market_snapshot_id=SNAPSHOT, eligible_sell_date="2026-08-04",
+            )
+            with self.assertRaisesRegex(PaperContractViolation, "position count"):
+                ledger.append(fill(fourth, self.buy_time, 10.0))
+
     def test_ledger_rebuilds_same_state_from_append_only_fills(self):
         bought = fill(intent("BUY", "2026-08-03", self.buy_time), self.buy_time, 10.0)
         sold = fill(intent("SELL", "2026-08-04", self.sell_time), self.sell_time, 10.2)
@@ -130,10 +156,44 @@ class P3OfflineAccountTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             ledger = OfflinePaperLedger(Path(directory))
             ledger.append(bought)
-            row = json.loads(ledger.path.read_text(encoding="utf-8"))
-            row["cash_flow"] = -1.0
-            ledger.path.write_text(json.dumps(row) + "\n", encoding="utf-8")
+            payload = json.loads(ledger.path.read_text(encoding="utf-8"))
+            payload["events"][0]["fill"]["cash_flow"] = -1.0
+            ledger.path.write_text(json.dumps(payload), encoding="utf-8")
             with self.assertRaisesRegex(PaperContractViolation, "content hash"):
+                ledger.snapshot()
+
+    def test_order_journal_is_idempotent_and_rejects_tampering(self):
+        order = intent("BUY", "2026-08-03", self.buy_time)
+        with tempfile.TemporaryDirectory() as directory:
+            journal = OfflineOrderJournal(Path(directory))
+            self.assertTrue(journal.append(order))
+            self.assertFalse(journal.append(order))
+            payload = json.loads(journal.path.read_text(encoding="utf-8"))
+            payload["intents"][0]["shares"] = 2000
+            journal.path.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(PaperContractViolation, "content hash"):
+                journal.intents()
+
+    def test_ledger_rejects_deleted_or_reordered_events(self):
+        bought = fill(intent("BUY", "2026-08-03", self.buy_time), self.buy_time, 10.0)
+        sold = fill(intent("SELL", "2026-08-04", self.sell_time), self.sell_time, 10.2)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = OfflinePaperLedger(root)
+            ledger.append(bought)
+            ledger.append(sold)
+            original = json.loads(ledger.path.read_text(encoding="utf-8"))
+
+            deleted = dict(original)
+            deleted["events"] = list(original["events"][:-1])
+            ledger.path.write_text(json.dumps(deleted), encoding="utf-8")
+            with self.assertRaisesRegex(PaperContractViolation, "event count"):
+                ledger.snapshot()
+
+            reordered = dict(original)
+            reordered["events"] = list(reversed(original["events"]))
+            ledger.path.write_text(json.dumps(reordered), encoding="utf-8")
+            with self.assertRaisesRegex(PaperContractViolation, "event chain"):
                 ledger.snapshot()
 
     def test_atomic_write_failure_preserves_existing_ledger(self):
@@ -159,6 +219,31 @@ class P3OfflineAccountTests(unittest.TestCase):
             report = ledger.reconcile()
         self.assertTrue(report["passed"], report["checks"])
         self.assertTrue(report["checks"]["flat_pnl_matches_cash"])
+
+    def test_sell_must_match_position_decision_and_reopen_reconciles(self):
+        bought = fill(intent("BUY", "2026-08-03", self.buy_time), self.buy_time, 10.0)
+        wrong = fill(intent(
+            "SELL", "2026-08-04", self.sell_time,
+            decision_id="cd-" + "c" * 24,
+        ), self.sell_time, 10.2)
+        with tempfile.TemporaryDirectory() as directory:
+            ledger = OfflinePaperLedger(Path(directory))
+            ledger.append(bought)
+            with self.assertRaisesRegex(PaperContractViolation, "decision"):
+                ledger.append(wrong)
+
+            sold = fill(intent("SELL", "2026-08-04", self.sell_time), self.sell_time, 10.2)
+            ledger.append(sold)
+            reopen_time = datetime(2026, 8, 4, 14, 50, 20, tzinfo=CHINA_TZ)
+            reopened = fill(intent(
+                "BUY", "2026-08-04", reopen_time, eligible="2026-08-05",
+                decision_id="cd-" + "d" * 24,
+            ), reopen_time, 10.1)
+            ledger.append(reopened)
+            report = ledger.reconcile()
+            positions = ledger.snapshot()["positions"]
+        self.assertTrue(report["passed"], report["checks"])
+        self.assertEqual([item["decision_id"] for item in positions], ["cd-" + "d" * 24])
 
 
 class FakeCalendar:
@@ -245,10 +330,13 @@ class P3OfflineExecutionTests(unittest.TestCase):
                 position, sell_snapshot, created_at=sell_at
             )
             self.assertTrue(engine.execute([sell_order], filled_at=sell_at)["success"])
-            report = ledger.reconcile()
+            report = ledger.reconcile(engine.order_journal)
             trips = ledger.round_trips()
+            orders = engine.order_journal.intents()
         self.assertTrue(report["passed"], report["checks"])
         self.assertEqual(len(trips), 1)
+        self.assertEqual(len(orders), 2)
+        self.assertTrue(report["checks"]["fills_link_to_orders"])
         self.assertEqual(trips[0]["buy_fill_id"].split("-")[0], "pf")
 
 

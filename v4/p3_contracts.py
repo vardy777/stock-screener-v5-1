@@ -107,6 +107,22 @@ class PaperOrderIntentV1:
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
+    def verify(self) -> "PaperOrderIntentV1":
+        if self.schema_version != ORDER_VERSION:
+            raise PaperContractViolation("intent: schema mismatch")
+        payload = self.to_dict()
+        payload.pop("intent_id")
+        if self.intent_id != _identity("poi", payload):
+            raise PaperContractViolation("intent: content hash mismatch")
+        return self
+
+    @classmethod
+    def from_mapping(cls, value: Mapping[str, Any]) -> "PaperOrderIntentV1":
+        try:
+            return cls(**dict(value)).verify()
+        except TypeError as exc:
+            raise PaperContractViolation("intent: invalid fields") from exc
+
 
 @dataclass(frozen=True)
 class PaperFillV1:
@@ -134,6 +150,7 @@ class PaperFillV1:
     def build(cls, intent: PaperOrderIntentV1, *, filled_at, fill_price, costs) -> "PaperFillV1":
         if not isinstance(intent, PaperOrderIntentV1):
             raise PaperContractViolation("intent: PaperOrderIntentV1 required")
+        intent.verify()
         price = _positive(fill_price, "fill_price")
         fees = {name: float(costs.get(name, 0.0)) for name in (
             "notional", "commission", "transfer_fee", "stamp_duty", "total"
