@@ -275,12 +275,35 @@ class SimulationEngine:
         try:
             if quotes is None or quotes.empty:
                 return self._empty_market_state()
-            from v4.market import analyze_market
-
-            analysis = analyze_market(quotes, expected_codes=expected_codes)
-            state = analysis.get('market_state', {})
-            self._sentiment = analysis.get('sentiment', {})
-            self._sector_ranks = analysis.get('sector_ranks', {})
+            # Historical V3 compatibility remains frame-based and must not
+            # weaken V4's snapshot-only core boundary.
+            frame = quotes.copy().drop_duplicates('code', keep='last')
+            from v4.execution import TradingClock
+            fresh = frame['quote_time'].map(TradingClock.quote_is_fresh)
+            observed = int(frame['code'].nunique())
+            expected = max(0, int(expected_codes or 0))
+            coverage = observed / expected if expected else 0.0
+            fresh_coverage = int(frame.loc[fresh, 'code'].nunique()) / expected if expected else 0.0
+            amount = pd.to_numeric(
+                frame['amount'] if 'amount' in frame.columns else pd.Series(0.0, index=frame.index),
+                errors='coerce',
+            )
+            pct = pd.to_numeric(frame.get('change_pct'), errors='coerce')
+            state = self._empty_market_state()
+            state.update({
+                'quote_coverage': min(1.0, coverage),
+                'fresh_quote_coverage': min(1.0, fresh_coverage),
+                'snapshot_complete': bool(expected and coverage >= 0.95),
+                'data_valid': bool(expected and fresh_coverage >= 0.95),
+                'expected_codes': expected,
+                'observed_codes': observed,
+                'fresh_codes': int(frame.loc[fresh, 'code'].nunique()),
+                'market_total_amount_yi': float(amount.sum() / 1e8),
+                'amount_coverage': float(amount.gt(0).mean()),
+                'rise_count': int(pct.gt(0).sum()),
+                'fall_count': int(pct.lt(0).sum()),
+                'flat_count': int(pct.eq(0).sum()),
+            })
             self._last_market_state = dict(state)
             return state
         except Exception as exc:

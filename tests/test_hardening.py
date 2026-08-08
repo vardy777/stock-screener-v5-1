@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pandas as pd
+from snapshot_factory import snapshot_from_frame
 
 from phase1.overnight.dataset import FEATURE_COLUMNS, load_or_build_dataset
 from phase1.overnight.backtesting import fit_final_model_and_policy
@@ -233,7 +234,7 @@ class FullUniverseRuntimeTests(unittest.TestCase):
             patch("v4.runtime.save_runtime_state"),
         ):
             result = self._runtime().evaluate_universe(
-                quotes,
+                snapshot_from_frame(quotes),
                 fallback_candidates=fallback,
                 market_state={"mode_label": "neutral", "data_valid": True},
             )

@@ -18,11 +18,11 @@ V4_PAPER_ACCOUNT_PATH = ROOT / 'v4' / 'data' / 'paper_account.json'
 
 try:
     from v4.sim_engine import SimAccount, BuyDecision
-    from v4.data import DataFetcher
+    from v4.market_gateway import MarketDataGateway
 except ImportError:
     SimAccount = None
     BuyDecision = None
-    DataFetcher = None
+    MarketDataGateway = None
     logger.warning("兼容账户或行情模块导入失败, SimulationEngine 可能不可用")
 
 
@@ -33,10 +33,11 @@ class SimulationEngine:
     def health_check() -> bool:
         """每日自检: API可达 + 账户可读写"""
         try:
-            from v4.data import DataFetcher
-            df = DataFetcher()
-            q = df.batch_fetch_quotes(['600519'])
-            if q is None or q.empty: return False
+            from v4.market_gateway import MarketDataGateway
+            q = MarketDataGateway().fetch_snapshot(
+                ['600519'], session='morning', require_order_book=False
+            )
+            if not q.quotes: return False
             e = SimulationEngine(); e.load_state()
             if e._account is None: return False
             return True
@@ -263,16 +264,16 @@ class SimulationEngine:
                 'classification': 'V4名称关键词代理行业',
             }
 
-    def _get_market_state(self, quotes=None, *, expected_codes: int = 0) -> dict:
+    def _get_market_state(self, snapshot=None) -> dict:
         """Delegate current-session market analytics exclusively to V4."""
-        if quotes is None and self._last_market_state is not None:
+        if snapshot is None and self._last_market_state is not None:
             return dict(self._last_market_state)
         try:
-            if quotes is None or quotes.empty:
+            if snapshot is None or not snapshot.quotes:
                 return self._empty_market_state()
             from v4.market import analyze_market
 
-            analysis = analyze_market(quotes, expected_codes=expected_codes)
+            analysis = analyze_market(snapshot)
             state = analysis.get('market_state', {})
             self._sentiment = analysis.get('sentiment', {})
             self._sector_ranks = analysis.get('sector_ranks', {})
@@ -321,54 +322,37 @@ class SimulationEngine:
 
     def screen_today(self, stage: str = 'auto') -> list:
         """Fetch the full market and let V4 exclusively generate Top5."""
-        if DataFetcher is None:
+        if MarketDataGateway is None:
             logger.error("DataFetcher 不可用, 按安全规则空仓")
             self._candidates = []
             self._last_screen_time = datetime.now().strftime('%H:%M:%S')
             return self._candidates
 
         try:
-            df = DataFetcher()
+            gateway = MarketDataGateway()
             root = Path(__file__).resolve().parent.parent
             codes = list_universe_codes(root / 'phase1' / 'data' / 'daily')
             if not codes:
                 logger.error('统一全市场股票池为空, 按安全规则空仓')
                 self._candidates = []
                 return self._candidates
-            quotes = df.batch_fetch_quotes(codes)
+            current = datetime.now().astimezone()
+            if stage == 'auto':
+                stage = 'confirmation' if current.hour == 14 and current.minute >= 50 else 'morning'
+            snapshot = gateway.fetch_snapshot(
+                codes,
+                session='buy' if stage == 'confirmation' else 'morning',
+                require_order_book=stage == 'confirmation',
+            )
 
-            if quotes is None or quotes.empty:
+            if not snapshot.quotes:
                 logger.error("无法获取行情数据, 按安全规则空仓")
                 self._candidates = []
                 self._last_screen_time = datetime.now().strftime('%H:%M:%S')
                 return self._candidates
 
-            current = datetime.now()
-            if stage == 'auto':
-                stage = 'confirmation' if current.hour == 14 and current.minute >= 50 else 'morning'
-            if stage == 'confirmation':
-                try:
-                    from v4.snapshots import capture_frame
-                    capture_frame(
-                        quotes,
-                        'buy',
-                        expected_codes=codes,
-                        minimum_coverage=0.95,
-                        capture_metadata={
-                            'source': 'afternoon_confirmation_screen',
-                            'requested_codes': len(codes),
-                        },
-                        require_order_book=True,
-                        capture_role='decision_confirmation',
-                    )
-                except Exception as e:
-                    logger.warning("V4真实14:50快照保存失败: %s", e)
-
-            q = quotes[quotes['price'] > 0].copy()
-            q['code'] = q['code'].astype(str).str.zfill(6)
-            q = q[q['code'].map(is_eligible_a_share)].copy()
-            logger.info(f"获取行情: {len(q)} 只")
-            market_state = self._get_market_state(q, expected_codes=len(codes))
+            logger.info("获取版本化行情快照: %d只 %s", len(snapshot.quotes), snapshot.snapshot_id)
+            market_state = self._get_market_state(snapshot)
             from v4.runtime import V4Runtime
 
             from v4.candidate_journal import CandidateJournal
@@ -413,19 +397,14 @@ class SimulationEngine:
                 # tens of seconds. Refresh the tiny locked mother pool once more
                 # so paper execution is judged on genuinely current 14:50 quotes
                 # rather than on whichever full-market batch contained a code.
-                refreshed_pool = df.batch_fetch_quotes(sorted(allowed_codes))
-                if refreshed_pool is not None and not refreshed_pool.empty:
-                    refreshed_pool = refreshed_pool.copy()
-                    refreshed_pool['code'] = (
-                        refreshed_pool['code'].astype(str).str.zfill(6)
-                    )
-                    q = q[~q['code'].isin(allowed_codes)].copy()
-                    q = pd.concat([q, refreshed_pool], ignore_index=True)
+                snapshot = gateway.fetch_snapshot(
+                    sorted(allowed_codes), session='buy', require_order_book=True
+                )
             v4_runtime = V4Runtime()
             from v4.decision_service import DecisionChainService
             decision_service = DecisionChainService(journal, v4_runtime)
             candidates = v4_runtime.evaluate_universe(
-                q,
+                snapshot,
                 market_state=market_state,
                 allowed_codes=allowed_codes,
                 morning_candidates=morning_rows if stage == 'confirmation' else None,
@@ -706,7 +685,7 @@ class SimulationEngine:
             return {'success': True, 'message': '当前无持仓', 'sold': 0, 'detail': []}
 
         try:
-            df = DataFetcher()
+            gateway = MarketDataGateway()
             costs = TradeCostModel(DEFAULT_SPEC)
             detail = []
 
@@ -715,22 +694,17 @@ class SimulationEngine:
                 sell_reference = None
 
                 try:
-                    quotes = df.batch_fetch_quotes([code])
-                    if quotes is not None and not quotes.empty:
-                        try:
-                            from v4.snapshots import capture_frame
-                            capture_frame(
-                                quotes,
-                                'sell',
-                                expected_codes=[code],
-                                minimum_coverage=1.0,
-                                require_order_book=True,
-                                capture_role='paper_execution',
-                                evidence_cohort='paper_only',
-                            )
-                        except Exception as e:
-                            logger.warning("V4真实09:30快照保存失败: %s", e)
-                        row = quotes.iloc[0]
+                    snapshot = gateway.fetch_snapshot(
+                        [code], session='sell', minimum_coverage=1.0,
+                        require_order_book=True,
+                    )
+                    if snapshot.quality.accepted and snapshot.quotes:
+                        row = {
+                            'price': snapshot.quotes[0].last_price,
+                            'trade': snapshot.quotes[0].last_price,
+                            'open': snapshot.quotes[0].open_price,
+                            'quote_time': snapshot.quotes[0].exchange_time,
+                        }
                         from v4.execution import TradingClock
                         if not TradingClock.quote_is_fresh(row.get('quote_time')):
                             raise ValueError('行情时间戳缺失或已过期')

@@ -15,6 +15,9 @@ from typing import Any, Dict, Optional, Tuple
 import numpy as np
 import pandas as pd
 
+from .market_contracts import MarketSnapshotV1
+from .snapshot_frame import snapshot_frame
+
 from decision_policy import adaptive_strategy_decision
 from market_universe import is_eligible_a_share
 from phase1.overnight.dataset import FEATURE_COLUMNS
@@ -82,13 +85,13 @@ class V4CandidateSelector:
             return pd.DataFrame(), {}
 
     @staticmethod
-    def _eligible_quotes(quotes) -> pd.DataFrame:
-        if quotes is None or getattr(quotes, "empty", True):
+    def _eligible_quotes(snapshot: MarketSnapshotV1) -> pd.DataFrame:
+        frame = snapshot_frame(snapshot)
+        if frame.empty:
             return pd.DataFrame()
         required = {"code", "name", "price", "quote_time"}
-        if not required.issubset(quotes.columns):
+        if not required.issubset(frame.columns):
             return pd.DataFrame()
-        frame = quotes.copy()
         frame["code"] = frame["code"].astype(str).str.zfill(6)
         frame = frame[frame["code"].map(is_eligible_a_share)].copy()
         frame["price"] = pd.to_numeric(frame["price"], errors="coerce")
@@ -263,7 +266,7 @@ class V4CandidateSelector:
 
     def select_research(
         self,
-        quotes,
+        snapshot: MarketSnapshotV1,
         market_state: Dict[str, Any],
         *,
         require_frozen_features: bool,
@@ -271,7 +274,7 @@ class V4CandidateSelector:
         allowed_codes: Optional[set[str]] = None,
         morning_candidates: Optional[list[Dict[str, Any]]] = None,
     ) -> list[Dict[str, Any]]:
-        eligible = self._eligible_quotes(quotes)
+        eligible = self._eligible_quotes(snapshot)
         if allowed_codes is not None:
             normalized = {str(code).zfill(6) for code in allowed_codes}
             eligible = eligible[eligible["code"].isin(normalized)].copy()

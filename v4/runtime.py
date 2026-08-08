@@ -7,6 +7,9 @@ from typing import Any, Dict, Iterable, List
 
 import pandas as pd
 
+from .market_contracts import MarketSnapshotV1
+from .snapshot_frame import snapshot_frame
+
 from decision_policy import market_regime_score
 from market_universe import is_eligible_a_share
 from phase1.overnight.dataset import FEATURE_COLUMNS
@@ -206,7 +209,7 @@ class V4Runtime:
 
     def evaluate_universe(
         self,
-        quotes,
+        snapshot: MarketSnapshotV1,
         *,
         fallback_candidates: Iterable[Dict[str, Any]] = (),
         market_state: Dict[str, Any] | None = None,
@@ -226,7 +229,7 @@ class V4Runtime:
         buy_status = TradingClock.action_status("buy")
         if not production_model or not buy_status.allowed:
             candidates = self.candidate_selector.select_research(
-                quotes,
+                snapshot,
                 market,
                 require_frozen_features=bool(buy_status.allowed),
                 allowed_codes=allowed_codes,
@@ -234,7 +237,8 @@ class V4Runtime:
             )
             self.last_selection = dict(self.candidate_selector.last_diagnostics)
             return self.evaluate_candidates(candidates, market)
-        if quotes is None or getattr(quotes, "empty", True):
+        quote_frame = snapshot_frame(snapshot)
+        if quote_frame.empty:
             self.last_selection = {
                 "status": "blocked",
                 "reason": "全市场行情为空",
@@ -252,7 +256,6 @@ class V4Runtime:
                 "stage": "confirmation_1450",
             }
             return self.evaluate_candidates([], market)
-        quote_frame = quotes.copy()
         required = {"code", "name", "price", "quote_time", "ask1"}
         if not required.issubset(quote_frame.columns):
             self.last_selection = {

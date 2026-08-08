@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
+from snapshot_factory import snapshot_from_frame
 
 from v4.execution import CHINA_TZ, TradingClock
 from v4.readiness import ResearchReadiness
@@ -192,7 +193,7 @@ class V4Tests(unittest.TestCase):
             selector = V4CandidateSelector(context_path=context_path)
             with patch("v4.selection.TradingClock.quote_is_fresh", return_value=True):
                 result = selector.select_research(
-                    quotes,
+                    snapshot_from_frame(quotes),
                     {
                         "data_valid": True, "mode_label": "neutral",
                         "advance_ratio": 0.60,

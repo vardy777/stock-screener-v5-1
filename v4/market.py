@@ -19,6 +19,8 @@ import pandas as pd
 from decision_policy import market_is_risk_off, market_regime_score
 from market_universe import is_eligible_a_share
 from .execution import TradingClock
+from .market_contracts import MarketSnapshotV1, MarketStateV1
+from .snapshot_frame import snapshot_frame
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -102,8 +104,9 @@ def empty_market_state() -> Dict[str, Any]:
     }
 
 
-def _normalise_quotes(quotes) -> pd.DataFrame:
-    if quotes is None or getattr(quotes, "empty", True):
+def _normalise_quotes(snapshot: MarketSnapshotV1) -> pd.DataFrame:
+    quotes = snapshot_frame(snapshot)
+    if quotes.empty:
         return pd.DataFrame()
     required = {"code", "price", "quote_time"}
     if not required.issubset(quotes.columns):
@@ -123,12 +126,13 @@ def _normalise_quotes(quotes) -> pd.DataFrame:
     return frame
 
 
-def build_market_state(quotes, *, expected_codes: int = 0) -> Dict[str, Any]:
+def build_market_state(snapshot: MarketSnapshotV1) -> MarketStateV1:
     """Build the canonical V4 market state from a full-market quote frame."""
 
-    frame = _normalise_quotes(quotes)
+    frame = _normalise_quotes(snapshot)
+    expected_codes = snapshot.quality.expected_codes
     if frame.empty or not {"prev_close", "open"}.issubset(frame.columns):
-        return empty_market_state()
+        return MarketStateV1.build(snapshot, mode="unavailable", data_valid=False, metrics=empty_market_state(), analytics_version=MARKET_ANALYTICS_VERSION)
     pct = pd.to_numeric(
         frame.get("change_pct", frame.get("pct_chg")), errors="coerce"
     )
@@ -136,7 +140,7 @@ def build_market_state(quotes, *, expected_codes: int = 0) -> Dict[str, Any]:
     frame = frame.loc[valid].copy()
     pct = pct.loc[valid]
     if frame.empty:
-        return empty_market_state()
+        return MarketStateV1.build(snapshot, mode="unavailable", data_valid=False, metrics=empty_market_state(), analytics_version=MARKET_ANALYTICS_VERSION)
     parsed_time = pd.to_datetime(frame["quote_time"], errors="coerce")
     latest_time = parsed_time.max() if parsed_time.notna().any() else None
     fresh_mask = frame["quote_time"].map(TradingClock.quote_is_fresh)
@@ -167,7 +171,7 @@ def build_market_state(quotes, *, expected_codes: int = 0) -> Dict[str, Any]:
     limit_threshold = pd.Series(9.5, index=frame.index, dtype=float)
     limit_threshold.loc[frame["code"].str.startswith("30")] = 19.5
     limit_threshold.loc[names.str.contains("ST", case=False, na=False)] = 4.8
-    return {
+    metrics = {
         # Retained compatibility fields are explicitly equal-weight metrics.
         "sh_1d_pct": market_return * 100.0,
         "sh_5d_pct": 0.0,
@@ -212,10 +216,14 @@ def build_market_state(quotes, *, expected_codes: int = 0) -> Dict[str, Any]:
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "analytics_version": MARKET_ANALYTICS_VERSION,
     }
+    return MarketStateV1.build(
+        snapshot, mode=metrics["mode_label"], data_valid=metrics["data_valid"],
+        metrics=metrics, analytics_version=MARKET_ANALYTICS_VERSION,
+    )
 
 
-def build_sentiment(quotes) -> Dict[str, Any]:
-    frame = _normalise_quotes(quotes)
+def build_sentiment(snapshot: MarketSnapshotV1) -> Dict[str, Any]:
+    frame = _normalise_quotes(snapshot)
     if frame.empty:
         return {
             "limit_up": 0,
@@ -233,7 +241,7 @@ def build_sentiment(quotes) -> Dict[str, Any]:
     frame = frame.loc[pct.notna()].copy()
     pct = pct.loc[pct.notna()]
     if frame.empty:
-        return build_sentiment(None)
+        return {"limit_up": 0, "limit_down": 0, "up_ratio": 0.5, "avg_change": 0.0, "score": 5, "label": "不可用", "as_of": "", "source": "V4无可用全市场快照"}
     thresholds = pd.Series(9.5, index=frame.index, dtype=float)
     thresholds.loc[frame["code"].str.startswith("30")] = 19.5
     names = frame.get("name", pd.Series("", index=frame.index)).astype(str)
@@ -262,8 +270,8 @@ def build_sentiment(quotes) -> Dict[str, Any]:
     }
 
 
-def build_sector_ranks(quotes) -> Dict[str, Any]:
-    frame = _normalise_quotes(quotes)
+def build_sector_ranks(snapshot: MarketSnapshotV1) -> Dict[str, Any]:
+    frame = _normalise_quotes(snapshot)
     if frame.empty or "name" not in frame.columns:
         return {
             "top": [], "bottom": [], "activity_top": [], "time": "", "as_of": "",
@@ -329,11 +337,12 @@ def build_sector_ranks(quotes) -> Dict[str, Any]:
     }
 
 
-def analyze_market(quotes, *, expected_codes: int = 0) -> Dict[str, Any]:
+def analyze_market(snapshot: MarketSnapshotV1) -> Dict[str, Any]:
+    market_state = build_market_state(snapshot)
     payload = {
-        "market_state": build_market_state(quotes, expected_codes=expected_codes),
-        "sentiment": build_sentiment(quotes),
-        "sector_ranks": build_sector_ranks(quotes),
+        "market_state": market_state.to_projection(),
+        "sentiment": build_sentiment(snapshot),
+        "sector_ranks": build_sector_ranks(snapshot),
         "analytics_version": MARKET_ANALYTICS_VERSION,
         "generated_at": datetime.now().isoformat(timespec="seconds"),
     }

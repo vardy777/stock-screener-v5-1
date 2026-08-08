@@ -98,6 +98,9 @@ class QuoteV1:
     received_at: str
     last_price: float
     previous_close: float
+    open_price: float
+    high_price: float
+    low_price: float
     bid1: float
     bid1_volume: int
     ask1: float
@@ -150,6 +153,9 @@ class QuoteV1:
             received_at=received.isoformat(),
             last_price=_number(row["last_price"], "last_price", positive=True),
             previous_close=_number(row["previous_close"], "previous_close", positive=True),
+            open_price=_number(row.get("open_price", row["previous_close"]), "open_price", positive=True),
+            high_price=_number(row.get("high_price", row["last_price"]), "high_price", positive=True),
+            low_price=_number(row.get("low_price", row["last_price"]), "low_price", positive=True),
             bid1=_number(row["bid1"], "bid1"),
             bid1_volume=_integer(row["bid1_volume"], "bid1_volume"),
             ask1=_number(row["ask1"], "ask1"),
@@ -178,6 +184,9 @@ class QuoteV1:
             "received_at": row.get("received_at"),
             "last_price": row.get("price"),
             "previous_close": row.get("prev_close"),
+            "open_price": row.get("open") or row.get("prev_close"),
+            "high_price": row.get("high") or row.get("price"),
+            "low_price": row.get("low") or row.get("price"),
             "bid1": row.get("bid1"),
             "bid1_volume": row.get("bid1_volume"),
             "ask1": row.get("ask1"),
@@ -391,4 +400,19 @@ class MarketStateV1:
         }
         if include_id:
             payload["market_state_id"] = self.market_state_id
+        return payload
+
+    def to_projection(self) -> dict[str, Any]:
+        """Compatibility-shaped immutable projection with explicit lineage."""
+        payload = dict(self.metrics)
+        payload.update({
+            "market_state_schema_version": self.schema_version,
+            "market_state_id": self.market_state_id,
+            "snapshot_id": self.snapshot_id,
+            "trade_date": self.trade_date,
+            "as_of": self.as_of,
+            "mode_label": self.mode,
+            "data_valid": self.data_valid,
+            "analytics_version": self.analytics_version,
+        })
         return payload
