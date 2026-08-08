@@ -2,7 +2,7 @@
   "schema_version": "project-state-v1",
   "project": "a-share-overnight-v4",
   "display_name": "A股隔夜研究与模拟系统 V4",
-  "updated_at": "2026-08-08T11:15:00+08:00",
+  "updated_at": "2026-08-08T12:30:00+08:00",
   "active_phase": "P1",
   "active_phase_name": "数据、时间与交易日契约",
   "production_status": "research_locked",
@@ -43,7 +43,7 @@
     "confirmation_push_success": true
   },
   "quality": {
-    "tests_passed": 94,
+    "tests_passed": 101,
     "tests_failed": 0,
     "v4_imports_v3": false
   },
@@ -78,9 +78,9 @@
     }
   ],
   "next_tasks": [
-    "定义版本化MarketSnapshot与Quote数据契约",
-    "分离严格证据时效与paper-only执行时效",
-    "为批次延迟、时钟偏差、停牌、缺失和涨跌停补齐契约测试"
+    "将strict与paper-only快照写入独立目录并生成质量报告",
+    "把capture_frame迁移到MarketSnapshotV1质量判定",
+    "补齐停牌、ST/退市、无买一、涨跌停和重复代码的入口回放"
   ],
   "phase_status": {
     "P0": "completed",

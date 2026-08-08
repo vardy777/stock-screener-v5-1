@@ -1,6 +1,9 @@
 import unittest
+from datetime import datetime
 
-from v3.data import DataFetcher
+from v4.data import DataFetcher
+from v4.execution import CHINA_TZ
+from v4.market_contracts import QuoteV1
 
 
 class MarketDataParserTests(unittest.TestCase):
@@ -12,13 +15,24 @@ class MarketDataParserTests(unittest.TestCase):
             '532889,11.630,2908900,11.640,930020,11.650,407800,11.660,'
             '166900,11.670,2026-07-31,16:30:00,00";'
         )
-        frame = DataFetcher()._parse_sina_quotes(text)
+        received = datetime(2026, 7, 31, 16, 30, 1, tzinfo=CHINA_TZ)
+        frame = DataFetcher()._parse_sina_quotes(text, received_at=received)
         row = frame.iloc[0]
         self.assertEqual(int(row["volume"]), 202_497_895)
         self.assertEqual(float(row["bid1"]), 11.62)
         self.assertEqual(float(row["ask1"]), 11.63)
         self.assertEqual(int(row["bid1_volume"]), 152_600)
         self.assertEqual(int(row["ask1_volume"]), 532_889)
+        self.assertEqual(row["provider"], "sina")
+        self.assertEqual(row["provider_time_source"], "same_as_exchange_time")
+        self.assertEqual(row["received_at"], received.isoformat(timespec="microseconds"))
+        quote = QuoteV1.from_provider_row(row.to_dict())
+        self.assertEqual(quote.trade_date, "2026-07-31")
+        self.assertEqual(quote.schema_version, "quote-v1")
+
+    def test_parser_refuses_naive_receipt_time(self):
+        with self.assertRaisesRegex(ValueError, "timezone-aware"):
+            DataFetcher()._parse_sina_quotes("", received_at=datetime(2026, 8, 3))
 
 
 if __name__ == "__main__":

@@ -18,6 +18,8 @@ import logging
 from datetime import datetime, date, timedelta
 from typing import Optional
 
+from .execution import CHINA_TZ
+
 logger = logging.getLogger(__name__)
 
 # ── HTTP 头 ──────────────────────────────────────────────
@@ -132,6 +134,7 @@ class DataFetcher:
         if not codes:
             return None
 
+        batch_started_at = datetime.now(CHINA_TZ)
         all_dfs = []
         for i in range(0, len(codes), self.batch_size):
             batch = codes[i:i + self.batch_size]
@@ -144,7 +147,9 @@ class DataFetcher:
             url = 'https://hq.sinajs.cn/list=' + ','.join(sina_codes)
             text = _fetch_url(url)
             if text:
-                df = self._parse_sina_quotes(text)
+                df = self._parse_sina_quotes(
+                    text, received_at=datetime.now(CHINA_TZ)
+                )
                 if df is not None and not df.empty:
                     all_dfs.append(df)
 
@@ -153,11 +158,20 @@ class DataFetcher:
 
         if all_dfs:
             result = pd.concat(all_dfs, ignore_index=True)
+            result.attrs["provider"] = "sina"
+            result.attrs["batch_started_at"] = batch_started_at.isoformat()
+            result.attrs["batch_completed_at"] = datetime.now(CHINA_TZ).isoformat()
             return result
         return None
 
-    def _parse_sina_quotes(self, text: str) -> Optional[pd.DataFrame]:
+    def _parse_sina_quotes(
+        self, text: str, *, received_at: Optional[datetime] = None
+    ) -> Optional[pd.DataFrame]:
         """解析新浪实时行情响应。"""
+        received = received_at or datetime.now(CHINA_TZ)
+        if received.tzinfo is None:
+            raise ValueError("received_at must be timezone-aware")
+        received = received.astimezone(CHINA_TZ)
         rows = []
         for line in text.strip().split('\n'):
             line = line.strip()
@@ -198,6 +212,9 @@ class DataFetcher:
                 code = code_match.group(2) if code_match else '000000'
 
                 change_pct = round((price - prev_close) / prev_close * 100, 2)
+                limit_ratio = 0.20 if code.startswith(("300", "688")) else 0.10
+                limit_up_price = round(prev_close * (1 + limit_ratio) + 1e-8, 2)
+                limit_down_price = round(prev_close * (1 - limit_ratio) + 1e-8, 2)
 
                 rows.append({
                     'code': code,
@@ -220,6 +237,18 @@ class DataFetcher:
                     'bid1_vol': int(bid1_volume),
                     'ask1_vol': int(ask1_volume),
                     'quote_time': quote_time,
+                    # Sina exposes one exchange quote timestamp, not a separate
+                    # provider-generation timestamp. Preserve that fact rather
+                    # than fabricating a second clock reading.
+                    'exchange_time': quote_time,
+                    'provider_time': quote_time,
+                    'provider_time_source': 'same_as_exchange_time',
+                    'received_at': received.isoformat(timespec='microseconds'),
+                    'provider': 'sina',
+                    'trade_date': fields[30] if len(fields) > 30 else '',
+                    'halted': False,
+                    'limit_up': bool(price >= limit_up_price and ask1 <= 0),
+                    'limit_down': bool(price <= limit_down_price and bid1 <= 0),
                 })
             except (ValueError, IndexError, TypeError):
                 continue
