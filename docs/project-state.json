@@ -2,9 +2,9 @@
   "schema_version": "project-state-v1",
   "project": "a-share-overnight-v4",
   "display_name": "A股隔夜研究与模拟系统 V4",
-  "updated_at": "2026-08-08T19:00:00+08:00",
-  "active_phase": "P3",
-  "active_phase_name": "模拟账户与执行引擎",
+  "updated_at": "2026-08-08T21:00:00+08:00",
+  "active_phase": "P2",
+  "active_phase_name": "候选与决策契约（严格验收）",
   "production_status": "research_locked",
   "p1_validation": {
     "engineering_status": "completed",
@@ -12,7 +12,8 @@
     "required_windows": ["14:49 signal", "14:50 strict and paper-only", "next-session 09:30 sell"]
   },
   "p2_validation": {
-    "engineering_status": "completed",
+    "engineering_status": "implemented_pending_acceptance",
+    "offline_acceptance_status": "passed_131_tests",
     "live_window_status": "pending_first_v1_decision_chain",
     "historical_replay_status": "synthetic_contract_golden_only",
     "historical_fact": "2026-08-03..05 candidate journals missing; 2026-08-06..07 legacy schema retained read-only"
@@ -54,7 +55,7 @@
     "confirmation_push_success": true
   },
   "quality": {
-    "tests_passed": 124,
+    "tests_passed": 131,
     "tests_failed": 0,
     "v4_imports_v3": false
   },
@@ -81,6 +82,13 @@
       "status": "open"
     },
     {
+      "id": "P4-002",
+      "severity": "P1",
+      "title": "独立paper买卖Windows任务未注册，重注册被当前进程权限拒绝",
+      "phase": "P3/P4",
+      "status": "open_access_denied_2026-08-08"
+    },
+    {
       "id": "P5-001",
       "severity": "P1",
       "title": "看板单文件职责过多且状态由多个JSON现场拼装",
@@ -89,15 +97,15 @@
     }
   ],
   "next_tasks": [
-    "定义PaperOrderIntent、PaperFill和PaperRoundTrip不可变实体",
-    "将模拟账户改为事件账本唯一事实源并逐分对账",
-    "实现T+1下一开放交易日卖出、失败保留持仓和幂等恢复"
+    "等待2026-08-10真实09:25 MorningPoolV1",
+    "等待同日14:50 ConfirmationDecisionV1与两次推送ID一致",
+    "要求14:53 p2-session-acceptance-v1报告passed=true后才完成P2"
   ],
   "phase_status": {
     "P0": "completed",
     "P1": "completed",
-    "P2": "completed",
-    "P3": "in_progress",
+    "P2": "in_progress",
+    "P3": "pending",
     "P4": "pending",
     "P5": "pending",
     "P6": "pending",

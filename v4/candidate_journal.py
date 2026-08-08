@@ -46,8 +46,17 @@ class CandidateJournal:
         self.directory.mkdir(parents=True, exist_ok=True)
         path = self.path_for(trade_date)
         temporary = path.with_suffix(".tmp")
-        temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        temporary.replace(path)
+        try:
+            temporary.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            temporary.replace(path)
+        except Exception:
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                pass
+            raise
 
     @staticmethod
     def _now() -> datetime:

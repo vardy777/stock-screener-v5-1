@@ -73,7 +73,11 @@ def main() -> int:
     if sent is False:
         logger.error("推送失败")
         return 1
-    logger.info("真实候选 %d 只，推送完成", len(candidates[:3]))
+    logger.info(
+        "真实候选 %d 只，推送完成 decision_id=%s outcome=%s",
+        len(candidates[:3]), decision.get("decision_id", "missing"),
+        decision.get("outcome", "missing"),
+    )
     return 0
 
 

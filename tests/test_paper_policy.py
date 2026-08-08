@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from v4.paper_policy import evaluate_paper_candidate
+from v4.decision_contracts import reason_codes
 
 
 class PaperPolicyTests(unittest.TestCase):
@@ -55,6 +56,23 @@ class PaperPolicyTests(unittest.TestCase):
     def test_only_linked_confirmation_top1_is_eligible(self):
         self.assertFalse(self.evaluate(self.candidate(rank=2)).eligible)
         self.assertFalse(self.evaluate(self.candidate(linkage_status="missing")).eligible)
+
+    def test_every_policy_block_has_a_stable_non_unknown_reason_code(self):
+        cases = [
+            self.evaluate(self.candidate(selection_stage="morning_observation")),
+            self.evaluate(self.candidate(linkage_status="missing")),
+            self.evaluate(self.candidate(rank=2)),
+            self.evaluate(self.candidate(decision_score=99)),
+            self.evaluate(market=self.market(fresh_quote_coverage=0.5)),
+            self.evaluate(market=self.market(mode_label="risk_off")),
+            self.evaluate(self.candidate(v4_candidate_origin="other")),
+            self.evaluate(self.candidate(price=0)),
+        ]
+        for result in cases:
+            with self.subTest(reasons=result.reasons):
+                codes = reason_codes({"v4_paper_block_reasons": result.reasons})
+                self.assertTrue(codes)
+                self.assertNotIn("unknown_block", codes)
 
 
 if __name__ == "__main__":

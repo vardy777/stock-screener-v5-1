@@ -1,10 +1,13 @@
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from v4.simulation import SimulationEngine
 from v4.scripts import afternoon_push, morning_push
+from v4.candidate_journal import CandidateJournal
+from v4.execution import CHINA_TZ
 
 
 class DecisionConsumerTests(unittest.TestCase):
@@ -98,6 +101,43 @@ class DecisionConsumerTests(unittest.TestCase):
         self.assertEqual(result["bought"], 0)
         self.assertEqual(result["decision_id"], "cd-blocked")
         engine._account._save.assert_not_called()
+
+    def test_buy_execution_consumes_persisted_buy_decision_id(self):
+        fixed = datetime(2026, 8, 3, 14, 50, 45, tzinfo=CHINA_TZ)
+        candidate = self.candidate(True)
+        candidate.update({
+            "selection_stage": "confirmation_1450",
+            "linkage_status": "confirmed_from_morning_pool",
+            "base_score": 60.0, "confirm_delta": 1.0,
+            "decision_score": 61.0,
+            "score_version": "v4-base-plus-confirm-delta-v1",
+        })
+        with tempfile.TemporaryDirectory() as directory:
+            journal = CandidateJournal(Path(directory))
+            morning = dict(candidate, selection_stage="morning_observation",
+                           score_version="v4-causal-rule-rank-v1")
+            with patch.object(CandidateJournal, "_now", return_value=fixed):
+                journal.save_morning("2026-08-03", [morning], {})
+                journal.save_confirmation("2026-08-03", [candidate], {})
+            decision = journal.confirmation("2026-08-03")
+
+            engine = SimulationEngine()
+            engine._account = MagicMock()
+            engine._account._save = MagicMock()
+            selected = [{"code": "000001", "shares": 100, "buy_price": 10.0}]
+            with (
+                patch("v4.execution.TradingClock.require"),
+                patch("v4.execution.TradingClock.now", return_value=fixed),
+                patch("v4.candidate_journal.JOURNAL_DIR", Path(directory)),
+                patch("v4.simulation.BuyDecision.select", return_value=selected),
+                patch("v4.simulation.BuyDecision.execute", return_value=1),
+            ):
+                result = engine.execute_buy(
+                    force=True, refresh_candidates=False, paper_observation=True
+                )
+        self.assertTrue(result["success"])
+        self.assertEqual(result["bought"], 1)
+        self.assertEqual(result["decision_id"], decision["decision_id"])
 
 
 if __name__ == "__main__":

@@ -389,7 +389,10 @@ class SimulationEngine:
                         'reason': 'missing current-session 09:25 mother pool',
                     }
                     self._last_market_state = dict(market_state)
-                    journal.save_missing_morning_confirmation(trade_date, market_state)
+                    from v4.decision_service import DecisionChainService
+                    DecisionChainService(journal, None).publish_missing_morning(
+                        trade_date, market_state
+                    )
                     self._save_candidates([], stage='confirmation')
                     return self._candidates
                 if not allowed_codes:
@@ -419,6 +422,8 @@ class SimulationEngine:
                     q = q[~q['code'].isin(allowed_codes)].copy()
                     q = pd.concat([q, refreshed_pool], ignore_index=True)
             v4_runtime = V4Runtime()
+            from v4.decision_service import DecisionChainService
+            decision_service = DecisionChainService(journal, v4_runtime)
             candidates = v4_runtime.evaluate_universe(
                 q,
                 market_state=market_state,
@@ -426,12 +431,12 @@ class SimulationEngine:
                 morning_candidates=morning_rows if stage == 'confirmation' else None,
             )
             if stage == 'morning':
-                journal.save_morning(trade_date, candidates, market_state)
+                decision_service.publish_morning(trade_date, candidates, market_state)
             else:
-                candidates = journal.link_confirmation_candidates(trade_date, candidates)
-                candidates = v4_runtime.evaluate_candidates(candidates, market_state)
-                journal.save_confirmation(trade_date, candidates, market_state)
-                candidates = journal.load(trade_date).get('confirmation', {}).get('candidates', [])
+                decision = decision_service.publish_confirmation(
+                    trade_date, candidates, market_state
+                )
+                candidates = list(decision.get('candidates', []))
             market_state['v4_selection'] = dict(v4_runtime.last_selection)
             self._last_market_state = dict(market_state)
             self._candidates = candidates

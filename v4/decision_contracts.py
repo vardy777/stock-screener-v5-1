@@ -41,6 +41,7 @@ class DecisionReason(str, Enum):
     SCORE_POLICY = "score_policy"
     SOURCE_INVALID = "source_invalid"
     QUOTE_INVALID = "quote_invalid"
+    STAGE_INVALID = "stage_invalid"
     UNKNOWN_BLOCK = "unknown_block"
 
 
@@ -100,6 +101,7 @@ def _candidate_rows(candidates: Iterable[Mapping[str, Any]]) -> tuple[dict, ...]
 
 
 _REASON_TEXT = (
+    ("14:50确认候选", DecisionReason.STAGE_INVALID),
     ("研究准入", DecisionReason.RESEARCH_LOCKED),
     ("生产模型", DecisionReason.MODEL_UNPUBLISHED),
     ("执行窗口", DecisionReason.OUTSIDE_BUY_WINDOW),
@@ -108,6 +110,7 @@ _REASON_TEXT = (
     ("市场风险", DecisionReason.MARKET_RISK),
     ("数据质量", DecisionReason.DATA_INVALID),
     ("状态数据无效", DecisionReason.DATA_INVALID),
+    ("市场数据覆盖", DecisionReason.DATA_INVALID),
     ("Top1", DecisionReason.NOT_TOP1),
     ("规则分", DecisionReason.SCORE_POLICY),
     ("评分血缘", DecisionReason.SCORE_POLICY),

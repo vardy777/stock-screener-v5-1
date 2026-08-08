@@ -64,7 +64,10 @@ def main() -> int:
         card,
         message_key=f"v4-morning:{today}",
     )
-    logger.info("早盘候选 %d 只，待卖持仓 %d 只", len(candidates[:5]), len(positions))
+    logger.info(
+        "早盘候选 %d 只，待卖持仓 %d 只 pool_id=%s",
+        len(candidates[:5]), len(positions), morning.get("pool_id", "missing"),
+    )
     return 0 if sent is not False else 1
 
 

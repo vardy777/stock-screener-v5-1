@@ -17,6 +17,7 @@ from v4.push import send_wechat
 from v4.calendar import TradingCalendar
 from v4.execution import CHINA_TZ
 from v4.snapshots import build_daily_quality_report
+from v4.p2_acceptance import validate_p2_session
 
 
 def main() -> int:
@@ -42,16 +43,28 @@ def main() -> int:
         evaluate_capture_session(root, session, args.trade_date)
         for session in sessions
     ]
+    p2_acceptance = None
+    if {"signal", "buy"}.issubset(sessions):
+        p2_acceptance = validate_p2_session(
+            args.trade_date,
+            journal_dir=ROOT / "v4" / "data" / "candidate_journal",
+            log_dir=BASE / "data" / "logs",
+        )
+    overall_passed = bool(
+        all(check["passed"] for check in checks)
+        and (p2_acceptance is None or p2_acceptance["passed"])
+    )
     report = {
         "contract_version": "strict-capture-health-v1",
         "generated_at": datetime.now(CHINA_TZ).isoformat(timespec="seconds"),
         "trade_date": args.trade_date,
         "sessions": sessions,
-        "passed": all(check["passed"] for check in checks),
+        "passed": overall_passed,
         "checks": checks,
         "capture_quality": build_daily_quality_report(
             args.trade_date, root=root
         ),
+        "p2_decision_acceptance": p2_acceptance,
     }
     output_dir = root / "health"
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -86,6 +99,15 @@ def main() -> int:
             f'{check.get("session", "?")}: {failure_reason(check)}'
             for check in failed
         )
+        if p2_acceptance is not None and not p2_acceptance.get("passed"):
+            failed_p2 = [
+                key for key, passed in p2_acceptance.get("checks", {}).items()
+                if not passed
+            ]
+            details += (
+                ("<br>" if details else "")
+                + "P2决策链: " + "、".join(failed_p2)
+            )
         send_wechat(
             f"⚠️ V4严格快照异常 {args.trade_date}",
             (
