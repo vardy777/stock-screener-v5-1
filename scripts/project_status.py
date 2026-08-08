@@ -80,6 +80,11 @@ def build_report() -> dict:
 
 
 def main() -> int:
+    # Windows consoles and redirected task logs do not reliably inherit UTF-8.
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8", errors="backslashreplace")
     parser = argparse.ArgumentParser()
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
