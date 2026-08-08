@@ -28,6 +28,10 @@ project.  Every coding session must begin by reading, in order:
 - P4 may proceed only as isolated offline contract development. Do not register
   Windows tasks, call real PushPlus, import P4 modules from existing production
   entrypoints, or mark P4 complete. P1/P2 live failures preempt P4 immediately.
+- P5 may proceed only as an isolated read-only dashboard replacement. Keep the
+  existing port 8898 dashboard untouched until offline visual and contract
+  acceptance passes; never let P5 fetch quotes, select stocks, push, trade, or
+  mutate accounts. Production cutover requires separate authorization.
 - Preserve user-owned untracked files and unrelated worktree changes.
 
 ## Development workflow

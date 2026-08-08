@@ -14,7 +14,7 @@
 | 流程编排 | `v4/simulation.py` | 抓取、筛选、买卖 | 职责过重 | P2/P3拆分 |
 | 调度器 | `v4/p4_contracts.py`, `v4/p4_journal.py`, `v4/p4_orchestrator.py`, `v4/p4_deployment.py`, `v4/p4_runtime.py`；旧生产实现`v4/paper_scheduler.py` | DAG、不可变回执、幂等、子进程超时、多日补偿、崩溃恢复、SLA、持久化心跳、告警和部署审计 | P4计划内10项离线优化通过；生产仍依赖看板且未改接 | 等待真实窗口和生产接入授权 |
 | 推送 | `v4/p4_projection.py`与离线`FakeNotificationAdapter`；生产`v4/push.py`, `v4/scripts/` | 冻结实体通知投影、payload/请求/回执哈希绑定及明确传输结果 | 完整血缘、接受/拒绝/超时/重试和不确定结果门禁通过；真实PushPlus未调用 | 等待真实回执验证与原子切换授权 |
-| 看板 | `v4/dashboard.py` | 8898控制台 | 可运行，单文件过大 | P5拆分 |
+  | 看板 | P5离线`v4/p5_read_model.py`, `v4/p5_dashboard.py`；现有生产`v4/dashboard.py` | 唯一只读读模型、当日链路、账户、证据、市场、任务和降级状态 | P5第一隔离检查点与桌面/移动浏览器验收通过；8898未改接 | 继续视觉场景、真实文件只读适配器和统计图表 |
 | 研究评估 | `phase1/overnight/` | 数据集、WF、压力测试 | 样本不足 | P6 |
 | 模型注册 | `v4/model_registry.py` | 发布清单、推理 | 未发布 | P7 |
 

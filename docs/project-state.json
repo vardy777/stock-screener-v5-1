@@ -3,8 +3,8 @@
   "project": "a-share-overnight-v4",
   "display_name": "A股隔夜研究与模拟系统 V4",
   "updated_at": "2026-08-08T23:59:59+08:00",
-  "active_phase": "P4",
-  "active_phase_name": "调度、推送与运行可靠性（仅隔离离线开发）",
+  "active_phase": "P5",
+  "active_phase_name": "只读控制台重建（仅隔离离线开发）",
   "production_status": "research_locked",
   "p1_validation": {
     "engineering_status": "offline_completed",
@@ -39,6 +39,15 @@
     "production_entrypoints_connected": false,
     "completion_allowed": false,
     "preemption_rule": "pause_p4_and_repair_p1_p2_on_any_live_window_failure"
+  },
+  "p5_validation": {
+    "engineering_status": "offline_read_model_checkpoint_passed_phase_incomplete",
+    "checkpoint": "readonly_model_http_and_responsive_visual_passed",
+    "offline_tests": 5,
+    "operating_mode": "offline_preview_only",
+    "existing_8898_connected": false,
+    "mutation_endpoints_enabled": false,
+    "production_cutover_allowed": false
   },
   "runtime_owner": "v4",
   "dashboard": {
@@ -77,7 +86,7 @@
     "confirmation_push_success": true
   },
   "quality": {
-    "tests_passed": 206,
+    "tests_passed": 211,
     "tests_failed": 0,
     "v4_imports_v3": false
   },
@@ -119,10 +128,10 @@
     }
   ],
   "next_tasks": [
-    "保持P4生产接入冻结；计划内10项离线优化已通过，等待真实窗口和生产授权",
+    "继续P5隔离只读开发：视觉场景、真实文件只读适配器、收益/回撤与资金流模块",
     "并行验证真实09:25、14:49、14:50和次日09:30窗口并保存P1/P2证据",
-    "真实窗口通过前禁止P3/P4调度、真实推送改接、生产链路接入和完成标记",
-    "P1/P2真实窗口失败时立即暂停P3/P4并优先修复"
+    "现有8898保持不变；P5离线验收和单独授权前禁止原子切换",
+    "P1/P2真实窗口失败时立即暂停P3/P4/P5并优先修复"
   ],
   "phase_status": {
     "P0": "completed",
@@ -130,7 +139,7 @@
     "P2": "offline_completed_live_pending",
     "P3": "in_progress",
     "P4": "in_progress",
-    "P5": "pending",
+    "P5": "in_progress",
     "P6": "pending",
     "P7": "pending",
     "P8": "pending"
