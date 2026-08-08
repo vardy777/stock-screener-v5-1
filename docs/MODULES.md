@@ -3,13 +3,13 @@
 | 模块 | 当前实现 | 责任 | 当前状态 | 下一阶段 |
 |---|---|---|---|---|
 | 配置与密钥 | `v4/config.py` | 本地路径、环境配置 | 可用 | P0校验 |
-| 交易日与时间 | `v4/calendar.py`, `v4/execution.py` | 交易日、窗口、时效 | P1重开：仍存在naive datetime自动补时区 | 禁止自动补时区并全路径验收 |
-| 行情接入 | `v4/data.py`, `v4/market_contracts.py`, `v4/snapshots.py` | 新浪/东财行情、版本化点时契约 | P1重开：核心仍可接收松散DataFrame并绕过快照 | 建立唯一行情网关，核心只接受MarketSnapshotV1 |
-| 市场状态 | `v4/market.py` | 宽度、成交额、风险模式 | P1重开：当前为派生字典，缺少稳定身份和血缘 | 建立MarketStateV1契约 |
+| 交易日与时间 | `v4/calendar.py`, `v4/execution.py` | 交易日、窗口、时效 | P1离线通过：naive datetime统一fail-closed | 真实四窗口验收 |
+| 行情接入 | `v4/data.py`, `v4/market_contracts.py`, `v4/market_gateway.py` | 新浪/东财行情、版本化点时契约 | P1离线通过：唯一网关与MarketSnapshotV1不可变存储 | 真实覆盖率、延迟与盘口验收 |
+| 市场状态 | `v4/market.py`, `v4/market_contracts.py` | 宽度、成交额、风险模式 | P1离线通过：MarketStateV1具备快照血缘和稳定身份 | 真实窗口市场状态核对 |
 | 上下文与特征 | `v4/feature_store.py`, `phase1/overnight/` | 点时特征、严格归档 | 研究锁定 | P1/P6 |
-| 候选选择 | `v4/selection.py` | 早盘基础分、尾盘固定确认增量 | P2重开：仍有内存/JSON候选旁路 | 只写候选日志最终实体 |
-| 决策门禁 | `v4/runtime.py`, `v4/paper_policy.py` | 生产门禁与无偏paper完整性政策 | P2重开：消费者仍会现场重算状态 | 只消费最终决策实体 |
-| 候选日志 | `v4/candidate_journal.py`, `v4/decision_contracts.py` | 不可变早盘母池与最终确认决策 | P2重开：尚非唯一事实源且血缘不完整 | 唯一事实源、强制完整血缘、快照起点回放 |
+| 候选选择 | `v4/selection.py` | 早盘基础分、尾盘固定确认增量 | P2离线通过：只由生产作业生成并写最终实体 | 真实母池与确认子集验收 |
+| 决策门禁 | `v4/runtime.py`, `v4/paper_policy.py` | 生产门禁与无偏paper完整性政策 | P2离线通过：消费者只投影最终决策 | 真实阻断原因与窗口验收 |
+| 候选日志 | `v4/candidate_journal.py`, `v4/decision_contracts.py` | 不可变早盘母池与最终确认决策 | P2离线通过：唯一事实源、完整血缘、冻结输入回放 | 真实同ID链路验收 |
 | 模拟账户 | `v4/sim_engine.py` | 现金、持仓、费用、历史 | 可运行 | P3 |
 | 流程编排 | `v4/simulation.py` | 抓取、筛选、买卖 | 职责过重 | P2/P3拆分 |
 | 调度器 | `v4/paper_scheduler.py` | 买卖定时与回执 | 依赖看板常驻 | P4 |
@@ -18,7 +18,7 @@
 | 研究评估 | `phase1/overnight/` | 数据集、WF、压力测试 | 样本不足 | P6 |
 | 模型注册 | `v4/model_registry.py` | 发布清单、推理 | 未发布 | P7 |
 
-## 统一业务实体（P2强制目标，尚未验收）
+## 统一业务实体（P2离线契约已验收，真实窗口待验）
 
 - `MorningPool`: 交易日、候选、全市场状态、输入快照、排序版本；
 - `ConfirmationDecision`: 母池成员、确认排序、买/空仓/阻断、原因码；

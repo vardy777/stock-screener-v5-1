@@ -4,7 +4,7 @@
   "display_name": "A股隔夜研究与模拟系统 V4",
   "updated_at": "2026-08-08T23:59:59+08:00",
   "active_phase": "P2",
-  "active_phase_name": "候选与决策唯一事实源（离线重构）",
+  "active_phase_name": "候选与决策唯一事实源（真实窗口验收）",
   "production_status": "research_locked",
   "p1_validation": {
     "engineering_status": "offline_completed",
