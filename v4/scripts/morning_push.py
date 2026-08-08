@@ -12,6 +12,7 @@ from v4.push import build_morning_card, send_wechat
 from v4.simulation import SimulationEngine
 from v4.calendar import TradingCalendar
 from v4.execution import CHINA_TZ
+from v4.candidate_journal import CandidateJournal
 
 
 logging.basicConfig(
@@ -43,8 +44,13 @@ def main() -> int:
         return 3
     engine = SimulationEngine()
     engine.load_state()
-    candidates = engine.screen_today(stage="morning")
-    market_state = engine._get_market_state()
+    engine.screen_today(stage="morning")
+    morning = CandidateJournal().morning(today)
+    if not morning:
+        logger.error("早盘MorningPool实体缺失，拒绝使用内存候选推送")
+        return 2
+    candidates = list(morning.get("candidates", []))
+    market_state = dict(morning.get("market_state", {}))
     positions = engine.positions
     if any(candidate.get("is_mock") for candidate in candidates):
         logger.error("检测到模拟候选，拒绝推送")

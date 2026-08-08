@@ -30,6 +30,18 @@ class CandidateJournal:
         except (OSError, ValueError, TypeError):
             return {}
 
+    def load_latest(self) -> Dict[str, Any]:
+        paths = sorted(self.directory.glob("*.json")) if self.directory.exists() else []
+        if not paths:
+            return {}
+        return self.load(paths[-1].stem)
+
+    def morning(self, trade_date: str) -> dict:
+        return dict(self.load(trade_date).get("morning", {}) or {})
+
+    def confirmation(self, trade_date: str) -> dict:
+        return dict(self.load(trade_date).get("confirmation", {}) or {})
+
     def _write(self, trade_date: str, payload: Dict[str, Any]) -> None:
         self.directory.mkdir(parents=True, exist_ok=True)
         path = self.path_for(trade_date)
@@ -55,7 +67,7 @@ class CandidateJournal:
         return payload
 
     def morning_candidates(self, trade_date: str) -> list[dict]:
-        return list(self.load(trade_date).get("morning", {}).get("candidates", []))
+        return list(self.morning(trade_date).get("candidates", []))
 
     def has_morning(self, trade_date: str) -> bool:
         return "morning" in self.load(trade_date)

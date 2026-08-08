@@ -225,6 +225,7 @@ class V4Runtime:
         fallback_candidates: Iterable[Dict[str, Any]] = (),
         market_state: Dict[str, Any] | None = None,
         allowed_codes: set[str] | None = None,
+        morning_candidates: list[Dict[str, Any]] | None = None,
     ) -> List[Dict[str, Any]]:
         """Generate candidates from the complete eligible universe using V4.
 
@@ -243,6 +244,7 @@ class V4Runtime:
                 market,
                 require_frozen_features=bool(buy_status.allowed),
                 allowed_codes=allowed_codes,
+                morning_candidates=morning_candidates,
             )
             self.last_selection = dict(self.candidate_selector.last_diagnostics)
             return self.evaluate_candidates(candidates, market)

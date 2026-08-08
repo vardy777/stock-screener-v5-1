@@ -12,6 +12,7 @@ from v4.push import build_afternoon_card, send_wechat
 from v4.simulation import SimulationEngine
 from v4.calendar import TradingCalendar
 from v4.execution import CHINA_TZ
+from v4.candidate_journal import CandidateJournal
 
 
 logging.basicConfig(
@@ -45,8 +46,13 @@ def main() -> int:
 
     engine = SimulationEngine()
     engine.load_state()
-    candidates = engine.screen_today(stage="confirmation")
-    market_state = engine._get_market_state()
+    engine.screen_today(stage="confirmation")
+    decision = CandidateJournal().confirmation(today)
+    if not decision:
+        logger.error("尾盘最终决策实体缺失，拒绝使用内存候选推送")
+        return 2
+    candidates = list(decision.get("candidates", []))
+    market_state = dict(decision.get("market_state", {}))
     positions = engine.positions
 
     if any(candidate.get("is_mock") for candidate in candidates):
@@ -58,7 +64,7 @@ def main() -> int:
     if not candidates:
         logger.warning("无真实候选或行情不可用，今日空仓")
 
-    card = build_afternoon_card(candidates[:3], market_state, positions)
+    card = build_afternoon_card(candidates[:3], market_state, positions, decision=decision)
     sent = send_wechat(
         f"🎯 V4独立 14:50尾盘确认 {today}",
         card,

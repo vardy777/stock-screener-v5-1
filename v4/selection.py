@@ -28,6 +28,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CONTEXT_PATH = ROOT / "phase1" / "data" / "overnight" / "live_feature_context.csv.gz"
 CONTEXT_META_PATH = CONTEXT_PATH.with_suffix(CONTEXT_PATH.suffix + ".meta.json")
 RESEARCH_RANK_VERSION = "v4-causal-rule-rank-v1"
+CONFIRMATION_SCORE_VERSION = "v4-base-plus-confirm-delta-v1"
 
 # Must stay aligned with phase1.overnight.backtesting.add_rule_score.  These
 # are fixed, transparent research weights, not fitted production parameters.
@@ -195,6 +196,71 @@ class V4CandidateSelector:
         )
         return scored
 
+    @staticmethod
+    def _apply_confirmation_score(
+        frame: pd.DataFrame, morning_candidates: list[Dict[str, Any]]
+    ) -> pd.DataFrame:
+        """Keep the full-universe morning percentile and add a fixed live delta."""
+
+        morning = {
+            str(item.get("code", "")).zfill(6): item
+            for item in morning_candidates
+            if item.get("code")
+        }
+        scored = frame.copy()
+        scored["code"] = scored["code"].astype(str).str.zfill(6)
+        scored = scored[scored["code"].isin(morning)].copy()
+        if scored.empty:
+            return scored
+        scored["base_score"] = scored["code"].map(
+            lambda code: float(morning[code].get(
+                "base_score", morning[code].get("score", 0.0)
+            ) or 0.0)
+        )
+        morning_signal = scored["code"].map(
+            lambda code: float(morning[code].get("v4_features", {}).get(
+                "signal_return", 0.0
+            ) or 0.0)
+        )
+        morning_close = scored["code"].map(
+            lambda code: float(morning[code].get("v4_features", {}).get(
+                "signal_close_position", 0.5
+            ) or 0.5)
+        )
+        morning_volume = scored["code"].map(
+            lambda code: max(0.0, float(morning[code].get("v4_features", {}).get(
+                "volume_ratio_20", 0.0
+            ) or 0.0))
+        )
+        return_delta_points = (
+            (pd.to_numeric(scored["signal_return"], errors="coerce") - morning_signal)
+            * 100.0 * 1.5
+        )
+        close_delta_points = (
+            pd.to_numeric(scored["signal_close_position"], errors="coerce")
+            - morning_close
+        ) * 5.0
+        current_volume = pd.to_numeric(
+            scored["volume_ratio_20"], errors="coerce"
+        ).clip(lower=0.0)
+        volume_delta_points = (
+            np.log1p(current_volume) - np.log1p(morning_volume)
+        ).clip(-1.0, 1.0)
+        scored["confirm_delta"] = (
+            return_delta_points + close_delta_points + volume_delta_points
+        ).clip(-5.0, 5.0).round(4)
+        scored["decision_score"] = (
+            scored["base_score"] + scored["confirm_delta"]
+        ).clip(0.0, 100.0).round(4)
+        scored["v4_research_rule_score"] = scored["decision_score"] / 100.0
+        scored["strategy_key"] = scored["code"].map(
+            lambda code: morning[code].get("strategy_key", "momentum")
+        )
+        scored["strategy"] = scored["code"].map(
+            lambda code: morning[code].get("strategy", "V4强势延续")
+        )
+        return scored
+
     def select_research(
         self,
         quotes,
@@ -203,6 +269,7 @@ class V4CandidateSelector:
         require_frozen_features: bool,
         maximum_candidates: int = 5,
         allowed_codes: Optional[set[str]] = None,
+        morning_candidates: Optional[list[Dict[str, Any]]] = None,
     ) -> list[Dict[str, Any]]:
         eligible = self._eligible_quotes(quotes)
         if allowed_codes is not None:
@@ -279,7 +346,13 @@ class V4CandidateSelector:
             }
             return []
 
-        scored = self._score(feature_frame)
+        if require_frozen_features and morning_candidates is not None:
+            scored = self._apply_confirmation_score(feature_frame, morning_candidates)
+        else:
+            scored = self._score(feature_frame)
+            scored["base_score"] = scored["v4_research_rule_score"] * 100.0
+            scored["confirm_delta"] = 0.0
+            scored["decision_score"] = scored["base_score"]
         policy_market = dict(market_state)
         if paper_market_fallback:
             policy_market["mode_label"] = market_state.get(
@@ -307,7 +380,7 @@ class V4CandidateSelector:
             else pd.Series(0.0, index=scored.index)
         )
         scored = scored.sort_values(
-            ["v4_research_rule_score", "_amount", "code"],
+            ["decision_score", "_amount", "code"],
             ascending=[False, False, True],
         ).head(max(1, int(maximum_candidates)))
         cost_model = TradeCostModel(DEFAULT_SPEC)
@@ -330,8 +403,11 @@ class V4CandidateSelector:
                     "quote_time": row.get("quote_time"),
                     "change_pct": float(row.get("change_pct", row.get("pct_chg", 0.0)) or 0.0),
                     "pct_chg": float(row.get("change_pct", row.get("pct_chg", 0.0)) or 0.0),
-                    "score": round(float(row["v4_research_rule_score"]) * 100.0, 2),
-                    "final_score": round(float(row["v4_research_rule_score"]) * 100.0, 2),
+                    "base_score": round(float(row["base_score"]), 4),
+                    "confirm_delta": round(float(row["confirm_delta"]), 4),
+                    "decision_score": round(float(row["decision_score"]), 4),
+                    "score": round(float(row["decision_score"]), 2),
+                    "final_score": round(float(row["decision_score"]), 2),
                     "v4_research_rule_score": round(float(row["v4_research_rule_score"]), 6),
                     "strategy": str(row["strategy"]),
                     "strategy_key": str(row["strategy_key"]),
@@ -346,6 +422,10 @@ class V4CandidateSelector:
                     "execution_price_source": "ask1" if ask1 > 0 else "last_observation_only",
                     "selection_stage": stage,
                     "candidate_source": RESEARCH_RANK_VERSION,
+                    "score_version": (
+                        CONFIRMATION_SCORE_VERSION if require_frozen_features
+                        else RESEARCH_RANK_VERSION
+                    ),
                     "feature_source": feature_source,
                     "v4_candidate_origin": "V4",
                     "v4_research_ranked": True,

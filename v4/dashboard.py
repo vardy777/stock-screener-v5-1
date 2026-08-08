@@ -536,7 +536,10 @@ def _load_paper_automation_status() -> dict:
         'morning_count': len(morning.get('candidates', []) or []),
         'confirmation_count': len(confirmation.get('candidates', []) or []),
         'morning_at': morning.get('captured_at', ''),
-        'confirmation_at': confirmation.get('captured_at', ''),
+        'confirmation_at': confirmation.get('decided_at', confirmation.get('captured_at', '')),
+        'confirmation_outcome': confirmation.get('outcome', ''),
+        'confirmation_decision_id': confirmation.get('decision_id', ''),
+        'confirmation_reason_codes': confirmation.get('reason_codes', []),
         'buy_receipt': buy,
         'sell_receipt': sell,
     }
@@ -550,10 +553,10 @@ def _build_paper_automation_html(status: dict) -> str:
       <div class="card-header"><span>V4自动模拟闭环</span><span class="badge-sm">{_safe(status.get('trade_date') or '等待首个交易日')}</span></div>
       <div class="card-body"><div class="metric-row">
         <div class="metric-chip"><div class="k">09:25母池</div><div class="v">{int(status.get('morning_count',0))} 只</div></div>
-        <div class="metric-chip"><div class="k">14:50确认</div><div class="v">{int(status.get('confirmation_count',0))} 只</div></div>
+        <div class="metric-chip"><div class="k">14:50确认</div><div class="v">{_safe(status.get('confirmation_outcome') or '等待')} · {int(status.get('confirmation_count',0))} 只</div></div>
         <div class="metric-chip"><div class="k">自动买入</div><div class="v">{int(buy_result.get('bought',0) or 0)} 只</div></div>
         <div class="metric-chip"><div class="k">最近自动卖出</div><div class="v">{int(sell_result.get('sold',0) or 0)} 只</div></div>
-      </div><div class="section-note">买入：{_safe(buy_result.get('message','等待14:50:40'))} · 卖出：{_safe(sell_result.get('message','等待次交易日09:30:20'))}</div></div>
+      </div><div class="section-note">决策ID：{_safe(status.get('confirmation_decision_id') or '—')} · 原因码：{_safe('、'.join(status.get('confirmation_reason_codes',[])) or '—')}<br>买入：{_safe(buy_result.get('message','等待14:50:40'))} · 卖出：{_safe(sell_result.get('message','等待次交易日09:30:20'))}</div></div>
     </div>"""
 
 
@@ -1475,7 +1478,12 @@ def _fresh_engine_state(mode: str = 'chase', force: bool = False) -> dict:
     
     # URL mode is a read-only view filter.  The market policy, not the URL,
     # decides which research pool is currently preferred.
-    candidates = engine.load_candidates_from_file()
+    from v4.candidate_journal import CandidateJournal
+    latest_chain = CandidateJournal().load_latest()
+    final_entity = (
+        latest_chain.get('confirmation') or latest_chain.get('morning') or {}
+    )
+    candidates = list(final_entity.get('candidates', []))
     state = engine.get_state()
     state['candidates'] = candidates
     cached_market = engine.load_market_state_from_file()
@@ -1519,10 +1527,6 @@ def _fresh_engine_state(mode: str = 'chase', force: bool = False) -> dict:
     try:
         from v4.runtime import V4Runtime
         runtime = V4Runtime()
-        if any('v4_tradable' not in candidate for candidate in state.get('candidates', [])):
-            state['candidates'] = runtime.evaluate_candidates(
-                state.get('candidates', []), state.get('market_state', {})
-            )
         state['v4'] = runtime.system_state(state.get('market_state', {}))
     except Exception as e:
         logger.exception('V4看板状态加载失败: %s', e)
@@ -1537,11 +1541,12 @@ def _fresh_engine_state(mode: str = 'chase', force: bool = False) -> dict:
     )
     state['validation'] = _compute_validation_summary(state)
     state['paper_automation'] = _load_paper_automation_status()
+    state['final_decision'] = dict(latest_chain.get('confirmation', {}) or {})
     state['trade_allowed'] = bool(
         state.get('v4', {}).get('clock', {}).get('buy', {}).get('allowed', False)
         and state.get('market_state', {}).get('mode_label', 'neutral') != 'risk_off'
         and state.get('strategy_policy', {}).get('key') != 'observe'
-        and any(candidate.get('v4_paper_eligible') for candidate in state.get('candidates', []))
+        and state['final_decision'].get('outcome') == 'BUY'
     )
     # 保存到缓存
     _cache_state = dict(state)

@@ -422,6 +422,7 @@ class SimulationEngine:
                 q,
                 market_state=market_state,
                 allowed_codes=allowed_codes,
+                morning_candidates=morning_rows if stage == 'confirmation' else None,
             )
             if stage == 'morning':
                 journal.save_morning(trade_date, candidates, market_state)
@@ -565,6 +566,28 @@ class SimulationEngine:
         if self._account is None:
             return {'success': False, 'message': '模拟账户未初始化', 'bought': 0, 'detail': []}
 
+        final_decision = None
+        if paper_observation and not refresh_candidates:
+            from v4.candidate_journal import CandidateJournal
+            trade_date = TradingClock.now().date().isoformat()
+            final_decision = CandidateJournal().confirmation(trade_date)
+            if not final_decision:
+                return {
+                    'success': False,
+                    'message': '当日ConfirmationDecision缺失，拒绝使用候选缓存买入',
+                    'bought': 0, 'detail': [], 'decision': 'missing',
+                }
+            self._candidates = list(final_decision.get('candidates', []))
+            if final_decision.get('outcome') != 'BUY':
+                return {
+                    'success': True,
+                    'message': f"最终决策为{final_decision.get('outcome', 'BLOCKED')}，模拟账户保持空仓",
+                    'bought': 0, 'detail': [],
+                    'decision': final_decision.get('outcome', 'BLOCKED').lower(),
+                    'decision_id': final_decision.get('decision_id'),
+                    'reason_codes': list(final_decision.get('reason_codes', [])),
+                }
+
         # 允许窗口内始终重新计算候选，避免使用页面或前一日缓存下单。
         if refresh_candidates or not self._candidates:
             self.screen_today(stage='confirmation')
@@ -591,7 +614,10 @@ class SimulationEngine:
             return {'success': False, 'message': 'BuyDecision 不可用', 'bought': 0, 'detail': []}
 
         try:
-            market = self._get_market_state()
+            market = (
+                dict(final_decision.get('market_state', {}))
+                if final_decision else self._get_market_state()
+            )
 
             # 将候选转为 BuyDecision 格式
             buy_candidates = []
@@ -637,6 +663,7 @@ class SimulationEngine:
                 'message': f'成功买入 {count} 只',
                 'bought': count,
                 'detail': decisions,
+                'decision_id': final_decision.get('decision_id') if final_decision else None,
             }
 
         except Exception as e:

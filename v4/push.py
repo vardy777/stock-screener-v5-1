@@ -172,7 +172,7 @@ def build_morning_card(candidates, market_state, positions=None) -> str:
     card += '<p style="color:#888;font-size:12px">📌 早盘候选不是买入指令；14:50重新计算后才确认。</p>'
     return card
 
-def build_afternoon_card(candidates, market_state, positions) -> str:
+def build_afternoon_card(candidates, market_state, positions, decision=None) -> str:
     """构建尾盘买入建议HTML卡片"""
     paper_eligible = [item for item in candidates if item.get('v4_paper_eligible')]
     source = next(
@@ -180,6 +180,14 @@ def build_afternoon_card(candidates, market_state, positions) -> str:
         str(market_state.get('v4_selection', {}).get('source', '等待V4候选')),
     )
     card = '<h3>🎯 V4独立 14:50尾盘确认</h3>'
+    decision = decision or {}
+    if decision:
+        outcome = html.escape(str(decision.get('outcome', 'UNKNOWN')))
+        decision_id = html.escape(str(decision.get('decision_id', '')))
+        reasons = '、'.join(str(value) for value in decision.get('reason_codes', []))
+        card += f'<p>最终决策: <strong>{outcome}</strong> | ID: {decision_id}</p>'
+        if reasons:
+            card += f'<p>机器原因码: {html.escape(reasons)}</p>'
     card += f'<p>市场: {html.escape(str(market_state.get("mode_label","?")))}</p>'
     card += _market_diagnostics(market_state, candidates)
     card += f'<p>候选引擎: V4 | 排序来源: {html.escape(source)}</p>'
@@ -211,6 +219,11 @@ def build_afternoon_card(candidates, market_state, positions) -> str:
                 f'研究分{float(s.get("score",0) or 0):.1f}'
             )
         )
+        if s.get('base_score') is not None:
+            rank_text += (
+                f' | 基础{float(s.get("base_score",0)):.1f}'
+                f' 确认{float(s.get("confirm_delta",0)):+.1f}'
+            )
         card += f'<td>{html.escape(rank_text)}</td><td>{expected_text}</td><td>{positive_text}</td><td>{loss_text}</td><td>{html.escape(decision)}</td></tr>'
     card += '</table>'
     if positions:
