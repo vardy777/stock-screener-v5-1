@@ -3,8 +3,8 @@
   "project": "a-share-overnight-v4",
   "display_name": "A股隔夜研究与模拟系统 V4",
   "updated_at": "2026-08-08T23:59:59+08:00",
-  "active_phase": "P2",
-  "active_phase_name": "候选与决策唯一事实源（真实窗口验收）",
+  "active_phase": "P3",
+  "active_phase_name": "模拟账户与执行引擎（仅离线开发）",
   "production_status": "research_locked",
   "p1_validation": {
     "engineering_status": "offline_completed",
@@ -18,6 +18,14 @@
     "live_window_status": "pending_real_windows",
     "historical_replay_status": "immutable_snapshots_and_feature_context_replay_passed",
     "historical_fact": "2026-08-03..05 candidate journals missing; 2026-08-06..07 legacy schema retained read-only"
+  },
+  "p3_validation": {
+    "engineering_status": "offline_in_progress",
+    "operating_mode": "offline_only",
+    "scheduling_enabled": false,
+    "daily_paper_production_connected": false,
+    "completion_allowed": false,
+    "preemption_rule": "pause_p3_and_repair_p1_p2_on_any_live_window_failure"
   },
   "runtime_owner": "v4",
   "dashboard": {
@@ -98,15 +106,16 @@
     }
   ],
   "next_tasks": [
-    "验证真实09:25、14:49、14:50和次日09:30窗口并保存P1/P2验收证据",
-    "真实窗口通过前保持P2为当前阶段并保持research_locked",
-    "所有验收通过前禁止进入P3"
+    "开始P3模拟账户与执行引擎的隔离离线契约开发",
+    "并行验证真实09:25、14:49、14:50和次日09:30窗口并保存P1/P2证据",
+    "真实窗口通过前禁止P3调度、生产链路接入和完成标记",
+    "P1/P2真实窗口失败时立即暂停P3并优先修复"
   ],
   "phase_status": {
     "P0": "completed",
     "P1": "offline_completed_live_pending",
-    "P2": "in_progress",
-    "P3": "pending",
+    "P2": "offline_completed_live_pending",
+    "P3": "in_progress",
     "P4": "pending",
     "P5": "pending",
     "P6": "pending",

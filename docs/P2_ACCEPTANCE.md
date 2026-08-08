@@ -1,6 +1,6 @@
 # P2严格验收状态
 
-更新：2026-08-08。P2离线工程与自动验收已经通过；P2仍为当前阶段，P3保持`pending`，生产状态保持`research_locked`。
+更新：2026-08-08。P2离线工程与自动验收已经通过；真实窗口仍待验证。经用户授权，P3可以进行离线开发，但生产状态继续保持`research_locked`。
 
 ## 离线验收（已完成）
 
@@ -40,7 +40,7 @@
 .\.venv\Scripts\python.exe scripts\validate_p2_live.py --trade-date YYYY-MM-DD
 ```
 
-真实窗口报告全部通过前，不得将P2整体标记完成、不得进入P3，也不得解除`research_locked`。
+真实窗口报告全部通过前，不得将P2整体标记完成，不得启用P3调度或模拟成交生产链路，不得标记P3完成，也不得解除`research_locked`。任何真实窗口失败必须立即暂停P3并优先修复P1/P2。
 
 ## 阶段外事项
 

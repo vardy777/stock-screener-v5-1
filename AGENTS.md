@@ -21,6 +21,10 @@ project.  Every coding session must begin by reading, in order:
   09:30 sell, CNY 100,000 initial capital, at most one-third per symbol.
 - Strict evidence, paper-account evidence and proxy backtests are separate
   cohorts and must never be merged.
+- P3 may proceed in offline-only development while P1/P2 live-window evidence
+  is pending. Do not enable P3 scheduling, connect it to the daily paper-fill
+  production chain, or mark P3 complete. Any P1/P2 live-window failure pauses
+  P3 immediately and takes repair priority.
 - Preserve user-owned untracked files and unrelated worktree changes.
 
 ## Development workflow
