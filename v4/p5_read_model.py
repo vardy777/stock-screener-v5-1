@@ -35,6 +35,7 @@ class DashboardReadModelV1:
     account: dict
     evidence: dict
     operations: dict
+    sources: tuple[dict, ...]
     issues: tuple[dict, ...]
     schema_version: str = "dashboard-read-model-v1"
 
@@ -44,13 +45,16 @@ class DashboardReadModelV1:
 class DashboardReadModelBuilder:
     def build(self, *, generated_at: datetime, production_status: str, morning=None,
               confirmation=None, market=None, fund_flow=None, ledger=None,
-              task_receipts=(), heartbeat=None, alerts=(), evidence=None):
+              task_receipts=(), heartbeat=None, alerts=(), evidence=None,
+              source_artifacts=(), source_issues=()):
         if generated_at.tzinfo is None: raise DashboardContractViolation("generated_at: timezone required")
         morning, confirmation, market = dict(morning or {}), dict(confirmation or {}), dict(market or {})
         fund_flow, ledger, evidence = dict(fund_flow or {}), dict(ledger or {}), dict(evidence or {})
-        issues = []
+        issues = [dict(x) for x in source_issues]
         if not morning: issues.append(self._issue("ERROR", "MORNING_POOL_MISSING", "09:25母池缺失"))
         if not confirmation: issues.append(self._issue("ERROR", "CONFIRMATION_MISSING", "14:50最终决策缺失"))
+        if morning and not morning.get("pool_id"): issues.append(self._issue("ERROR", "MORNING_ENTITY_ID_MISSING", "09:25母池是旧格式或缺少实体ID"))
+        if confirmation and not confirmation.get("decision_id"): issues.append(self._issue("ERROR", "DECISION_ENTITY_ID_MISSING", "14:50决策是旧格式或缺少实体ID"))
         if market.get("data_valid") is not True: issues.append(self._issue("ERROR", "MARKET_DATA_INVALID", "市场数据无效或过期"))
         if fund_flow.get("status") not in {"current", "valid"}: issues.append(self._issue("WARNING", "FUND_FLOW_STALE", "资金流数据陈旧或不可用"))
         timeline = self._timeline(morning, confirmation, ledger, task_receipts)
@@ -62,12 +66,19 @@ class DashboardReadModelBuilder:
         evidence_view = self._evidence(evidence, account)
         operations = self._operations(task_receipts, heartbeat, alerts)
         if operations["heartbeat_status"] != "ALIVE": issues.append(self._issue("CRITICAL", "HEARTBEAT_STALE", "调度心跳过期"))
+        if evidence_view["model_status"] != "published": issues.append(self._issue("WARNING", "MODEL_UNPUBLISHED", "生产预期模型尚未发布"))
+        if confirmation and confirmation.get("outcome") in {"BLOCKED", "OUTCOME_UNKNOWN"}:
+            code = "DECISION_BLOCKED" if confirmation.get("outcome") == "BLOCKED" else "OUTCOME_UNKNOWN"
+            issues.append(self._issue("WARNING", code, f"14:50决策结果：{confirmation.get('outcome')}"))
+        if any(x.get("status") in {"FAILED", "MISSED", "OUTCOME_UNKNOWN"} for x in task_receipts):
+            issues.append(self._issue("ERROR", "TASK_FAILURE", "存在失败、漏跑或结果未知任务"))
         payload = {"schema_version":"dashboard-read-model-v1", "generated_at":generated_at.isoformat(timespec="seconds"),
             "production_status":production_status, "data_status":"DEGRADED" if issues else "HEALTHY",
             "timeline":timeline,"candidates":candidates,"market":market_view,"sentiment":sentiment,
-            "fund_flow":flow,"account":account,"evidence":evidence_view,"operations":operations,"issues":issues}
+            "fund_flow":flow,"account":account,"evidence":evidence_view,"operations":operations,
+            "sources":list(source_artifacts),"issues":issues}
         return DashboardReadModelV1(read_model_id="drm1-"+_hash(payload)[:24],
-            **{k:(tuple(v) if k in {"timeline","candidates","issues"} else v) for k,v in payload.items() if k!="schema_version"})
+            **{k:(tuple(v) if k in {"timeline","candidates","sources","issues"} else v) for k,v in payload.items() if k!="schema_version"})
 
     @staticmethod
     def _issue(severity, code, message): return {"severity":severity,"reason_code":code,"message":message}
@@ -76,9 +87,9 @@ class DashboardReadModelBuilder:
         status = {(r.get("task_name"),r.get("status")) for r in receipts}
         fills = ledger.get("fills", [])
         return [
-            {"key":"morning","label":"09:25 母池","status":"DONE" if morning else "MISSING","entity_id":morning.get("pool_id","")},
+            {"key":"morning","label":"09:25 母池","status":"DONE" if morning.get("pool_id") else ("INVALID_ENTITY" if morning else "MISSING"),"entity_id":morning.get("pool_id","")},
             {"key":"feature","label":"14:49 特征冻结","status":"DONE" if ("feature_freeze","SUCCEEDED") in status else "PENDING","entity_id":confirmation.get("lineage",{}).get("feature_context_id","")},
-            {"key":"confirmation","label":"14:50 最终确认","status":"DONE" if confirmation else "MISSING","entity_id":confirmation.get("decision_id","")},
+            {"key":"confirmation","label":"14:50 最终确认","status":"DONE" if confirmation.get("decision_id") else ("INVALID_ENTITY" if confirmation else "MISSING"),"entity_id":confirmation.get("decision_id","")},
             {"key":"buy","label":"14:50 模拟买入","status":"DONE" if any(x.get("side")=="BUY" for x in fills) else "NO_FILL","entity_id":next((x.get("fill_id","") for x in fills if x.get("side")=="BUY"),"")},
             {"key":"sell","label":"次日09:30 模拟卖出","status":"DONE" if any(x.get("side")=="SELL" for x in fills) else "PENDING","entity_id":next((x.get("fill_id","") for x in fills if x.get("side")=="SELL"),"")},
         ]

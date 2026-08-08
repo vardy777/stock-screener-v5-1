@@ -32,6 +32,10 @@ project.  Every coding session must begin by reading, in order:
   existing port 8898 dashboard untouched until offline visual and contract
   acceptance passes; never let P5 fetch quotes, select stocks, push, trade, or
   mutate accounts. Production cutover requires separate authorization.
+- P6/P7/P8 may proceed only for deterministic offline contracts and isolated
+  tests. Do not fabricate strict samples, publish a model, change
+  `research_locked`, archive historical code, restore over live data, or alter
+  production entrypoints without their data gates and separate authorization.
 - Preserve user-owned untracked files and unrelated worktree changes.
 
 ## Development workflow

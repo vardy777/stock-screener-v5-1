@@ -1,10 +1,11 @@
-import ast,json,tempfile,threading,unittest,urllib.error,urllib.request
+import ast,hashlib,json,tempfile,threading,unittest,urllib.error,urllib.request
 from datetime import datetime
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from v4.execution import CHINA_TZ
-from v4.p5_dashboard import Handler,frozen_demo_model,render
+from v4.p5_dashboard import Handler,frozen_demo_model,frozen_scenario,render
 from v4.p5_read_model import DashboardContractViolation,DashboardReadModelBuilder
+from v4.p5_sources import P5ReadOnlySources
 
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -27,7 +28,7 @@ class P5OfflineDashboardTests(unittest.TestCase):
 
     def test_html_has_required_control_center_sections_and_no_mutation_controls(self):
         page=render(frozen_demo_model())
-        for text in ("今日不可变链路","09:25母池 → 14:50确认","市场状态","市场情绪（描述性）","证据分层","P4任务与SLA","视图不控制执行"):
+        for text in ("今日不可变链路","09:25母池 → 14:50确认","市场状态","市场情绪（描述性）","证据分层","板块资金流","模拟账户权益与回撤","已闭合隔夜往返","来源与哈希","P4任务与SLA","视图不控制执行"):
             self.assertIn(text,page)
         for forbidden in ("运行买入","运行卖出","重置账户","api/run_buy","api/reset"):
             self.assertNotIn(forbidden,page)
@@ -55,5 +56,57 @@ class P5OfflineDashboardTests(unittest.TestCase):
                     if module in forbidden: violations.append(f"{path.name}:{node.lineno}:{module}")
         self.assertEqual(violations,[])
         self.assertNotIn("p5_",(ROOT/"v4"/"dashboard.py").read_text(encoding="utf-8"))
+
+    def test_real_file_adapter_is_read_only_and_hashes_every_source(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td); (root/"candidate_journal").mkdir()
+            files={
+                root/"candidate_journal"/"2026-08-08.json":{"trade_date":"2026-08-08","morning":{"pool_id":"mp1","candidates":[{"code":"000001","rank":1,"score":80}]},"confirmation":{"decision_id":"cd1","outcome":"BLOCKED","candidates":[]}},
+                root/"market_context.json":{"generated_at":"2026-08-08T14:50:00+08:00","market_state":{"data_valid":True,"snapshot_id":"ms1","rise_count":2,"fall_count":1,"fresh_quote_coverage":1}},
+                root/"sector_fund_flow.json":{"time":"2026-08-08T14:50:00+08:00","sector_flows":{"银行":{"net_inflow":1.2,"change_pct":.5}}},
+            }
+            for path,value in files.items(): path.write_text(json.dumps(value,ensure_ascii=False),encoding="utf-8")
+            before={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
+            model=P5ReadOnlySources(root).build(generated_at=datetime(2026,8,8,15,tzinfo=CHINA_TZ),operations={"heartbeat":{"status":"ALIVE"}})
+            after={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
+            self.assertEqual(before,after); self.assertEqual(len(model.sources),3)
+            self.assertTrue(all(x["status"]=="VALID" and len(x["sha256"])==64 for x in model.sources))
+            self.assertEqual(model.candidates[0]["code"],"000001")
+
+    def test_corrupt_and_missing_sources_fail_visibly_without_fabricated_values(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td); (root/"candidate_journal").mkdir()
+            (root/"market_context.json").write_text("{bad",encoding="utf-8")
+            model=P5ReadOnlySources(root).build(generated_at=datetime(2026,8,8,15,tzinfo=CHINA_TZ))
+            self.assertEqual(model.data_status,"DEGRADED")
+            self.assertEqual(model.market["turnover_yi"],0)
+            self.assertEqual(model.fund_flow["status"],"unavailable")
+            statuses={x["status"] for x in model.sources}; self.assertTrue({"MISSING","INVALID"}.issubset(statuses))
+            self.assertIn("SOURCE_INVALID",{x["reason_code"] for x in model.issues})
+
+    def test_legacy_business_files_without_entity_ids_are_not_marked_done(self):
+        model=DashboardReadModelBuilder().build(generated_at=datetime(2026,8,8,15,tzinfo=CHINA_TZ),production_status="research_locked",
+            morning={"candidates":[]},confirmation={"candidates":[]},market={"data_valid":True},fund_flow={"status":"valid"},heartbeat={"status":"ALIVE"})
+        states={x["key"]:x["status"] for x in model.timeline}
+        self.assertEqual(states["morning"],"INVALID_ENTITY"); self.assertEqual(states["confirmation"],"INVALID_ENTITY")
+        codes={x["reason_code"] for x in model.issues}; self.assertTrue({"MORNING_ENTITY_ID_MISSING","DECISION_ENTITY_ID_MISSING"}.issubset(codes))
+
+    def test_blocked_unknown_failed_task_and_empty_account_scenarios_are_explicit(self):
+        builder=DashboardReadModelBuilder(); now=datetime(2026,8,8,15,tzinfo=CHINA_TZ)
+        base={"generated_at":now,"production_status":"research_locked","morning":{"pool_id":"p","candidates":[]},
+              "market":{"data_valid":True},"fund_flow":{"status":"valid"},"heartbeat":{"status":"ALIVE"}}
+        blocked=builder.build(**base,confirmation={"decision_id":"d","outcome":"BLOCKED"})
+        unknown=builder.build(**base,confirmation={"decision_id":"d","outcome":"OUTCOME_UNKNOWN"},task_receipts=[{"status":"OUTCOME_UNKNOWN"}])
+        self.assertIn("DECISION_BLOCKED",{x["reason_code"] for x in blocked.issues})
+        self.assertTrue({"OUTCOME_UNKNOWN","TASK_FAILURE"}.issubset({x["reason_code"] for x in unknown.issues}))
+        self.assertIsNone(unknown.account["win_rate"]); self.assertIn("尚无已闭合往返",render(unknown))
+
+    def test_all_frozen_visual_scenarios_render_without_mutation_controls(self):
+        expected={"missing":"MORNING_POOL_MISSING","outcome_unknown":"OUTCOME_UNKNOWN","task_failed":"TASK_FAILURE","no_trades":"MODEL_UNPUBLISHED"}
+        for name,code in expected.items():
+            with self.subTest(name=name):
+                model=frozen_scenario(name); page=render(model)
+                self.assertIn(code,{x["reason_code"] for x in model.issues})
+                self.assertIn("P5只读控制台",page); self.assertNotIn("<button",page); self.assertNotIn("<form",page)
 
 if __name__=="__main__": unittest.main()

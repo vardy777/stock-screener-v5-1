@@ -3,8 +3,8 @@
   "project": "a-share-overnight-v4",
   "display_name": "A股隔夜研究与模拟系统 V4",
   "updated_at": "2026-08-08T23:59:59+08:00",
-  "active_phase": "P5",
-  "active_phase_name": "只读控制台重建（仅隔离离线开发）",
+  "active_phase": "P6",
+  "active_phase_name": "严格研究数据积累与真实窗口验收",
   "production_status": "research_locked",
   "p1_validation": {
     "engineering_status": "offline_completed",
@@ -41,13 +41,32 @@
     "preemption_rule": "pause_p4_and_repair_p1_p2_on_any_live_window_failure"
   },
   "p5_validation": {
-    "engineering_status": "offline_read_model_checkpoint_passed_phase_incomplete",
-    "checkpoint": "readonly_model_http_and_responsive_visual_passed",
-    "offline_tests": 5,
+    "engineering_status": "all_offline_work_accepted_cutover_pending",
+    "checkpoint": "readonly_sources_scenarios_statistics_and_responsive_visual_passed",
+    "offline_tests": 10,
     "operating_mode": "offline_preview_only",
     "existing_8898_connected": false,
     "mutation_endpoints_enabled": false,
     "production_cutover_allowed": false
+  },
+  "p6_validation": {
+    "engineering_status": "offline_contracts_accepted_strict_data_pending",
+    "strict_dataset_audit": "fail_closed",
+    "walk_forward_stress_audit": "fail_closed_same_dataset_frozen_policy",
+    "strict_samples_available": 0,
+    "production_evaluation_allowed": false
+  },
+  "p7_validation": {
+    "engineering_status": "offline_release_audit_accepted_gate_pending",
+    "published_model_available": false,
+    "report_lineage_required": true,
+    "production_publication_allowed": false
+  },
+  "p8_validation": {
+    "engineering_status": "offline_backup_restore_contract_accepted",
+    "production_data_backup_performed": false,
+    "production_restore_performed": false,
+    "historical_archive_performed": false
   },
   "runtime_owner": "v4",
   "dashboard": {
@@ -86,7 +105,7 @@
     "confirmation_push_success": true
   },
   "quality": {
-    "tests_passed": 211,
+    "tests_passed": 221,
     "tests_failed": 0,
     "v4_imports_v3": false
   },
@@ -124,14 +143,14 @@
       "severity": "P1",
       "title": "看板单文件职责过多且状态由多个JSON现场拼装",
       "phase": "P5",
-      "status": "open"
+      "status": "closed_offline_replacement_ready_cutover_pending"
     }
   ],
   "next_tasks": [
-    "继续P5隔离只读开发：视觉场景、真实文件只读适配器、收益/回撤与资金流模块",
-    "并行验证真实09:25、14:49、14:50和次日09:30窗口并保存P1/P2证据",
-    "现有8898保持不变；P5离线验收和单独授权前禁止原子切换",
-    "P1/P2真实窗口失败时立即暂停P3/P4/P5并优先修复"
+    "周一验证真实09:25、14:49、14:50和次日09:30窗口并保存P1/P2证据",
+    "持续积累无偏严格样本；达到门槛后才运行P6全市场Walk-Forward和压力测试",
+    "现有8898保持不变；真实实体观测和单独授权前禁止P5原子切换",
+    "P1/P2真实窗口失败时立即暂停P3/P4/P5/P6/P7/P8并优先修复"
   ],
   "phase_status": {
     "P0": "completed",
@@ -139,9 +158,9 @@
     "P2": "offline_completed_live_pending",
     "P3": "in_progress",
     "P4": "in_progress",
-    "P5": "in_progress",
-    "P6": "pending",
-    "P7": "pending",
-    "P8": "pending"
+    "P5": "offline_completed_cutover_pending",
+    "P6": "in_progress",
+    "P7": "offline_contract_completed_gate_pending",
+    "P8": "offline_contract_completed_production_actions_pending"
   }
 }
