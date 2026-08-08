@@ -1,17 +1,22 @@
 import ast
 import json
 import multiprocessing
+import os
 import tempfile
 import unittest
 from datetime import date, datetime
 from pathlib import Path
 
 from v4.execution import CHINA_TZ
-from v4.p4_contracts import TaskContractViolation, TaskReceiptV1
+from v4.decision_contracts import ConfirmationDecisionV1, MorningPoolV1
+from v4.p4_contracts import TaskContractViolation, TaskReceiptV1, TaskSpecV1
+from v4.p4_deployment import audit_existing_windows_scripts, offline_notification_manifest
 from v4.p4_journal import OfflineTaskJournal
 from v4.p4_orchestrator import (
     FakeNotificationAdapter, OfflineNotificationExecutor, OfflineTaskOrchestrator,
 )
+from v4.p4_projection import FrozenNotificationProjector
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,6 +40,14 @@ def concurrent_tick(directory):
         return engine.tick(datetime(2026, 8, 3, 9, 25, tzinfo=CHINA_TZ))["status"]
     except TaskContractViolation:
         return "CONTENDED"
+
+
+def crash_after_task_start(directory):
+    engine = OfflineTaskOrchestrator(Path(directory), calendar=VerifiedCalendar(),
+        executor=OfflineNotificationExecutor(FakeNotificationAdapter(), message_factory))
+    spec = engine.specs[0]
+    engine._append(spec, datetime(2026, 8, 3, 9, 25, tzinfo=CHINA_TZ), 1, "STARTED", "SCHEDULED_STARTED")
+    os._exit(71)
 
 
 class P4OfflineOrchestrationTests(unittest.TestCase):
@@ -160,6 +173,75 @@ class P4OfflineOrchestrationTests(unittest.TestCase):
         for path in (ROOT / "v4" / "paper_scheduler.py", ROOT / "v4" / "push.py",
                      ROOT / "v4" / "scripts" / "morning_push.py", ROOT / "v4" / "scripts" / "afternoon_push.py"):
             self.assertNotIn("p4_", path.read_text(encoding="utf-8"))
+
+    def test_static_windows_manifest_audit_is_read_only_and_dashboard_independent(self):
+        manifest = offline_notification_manifest(ROOT)
+        audit = audit_existing_windows_scripts(ROOT)
+        self.assertFalse(manifest["apply_allowed"])
+        self.assertEqual([row["at"] for row in manifest["tasks"]], ["09:25:00", "14:50:20"])
+        self.assertTrue(audit["passed"], audit)
+        self.assertTrue(audit["read_only"]); self.assertFalse(audit["registration_performed"])
+
+    def test_multi_session_scan_never_replays_stale_push_but_allows_explicit_audit_compensation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            engine, adapter = self.engine(directory)
+            report = engine.scan_sessions([date(2026, 7, 31), date(2026, 8, 1)], observed_at=self.now(9, 0))
+            self.assertEqual(len(report["receipts"]), 4)
+            self.assertTrue(all(row["status"] == "SLA_MISSED" for row in report["receipts"]))
+            self.assertEqual(adapter.messages, [])
+        audit_spec = TaskSpecV1.build(task_name="paper_sell", scheduled_time="09:30:00",
+            window_end="09:35:00", sla_deadline="09:40:00", historical_compensation_allowed=True)
+        with tempfile.TemporaryDirectory() as directory:
+            engine = OfflineTaskOrchestrator(Path(directory), calendar=VerifiedCalendar(),
+                executor=lambda *args: {"status": "SUCCEEDED", "reason_code": "AUDIT_REBUILT"}, specs=(audit_spec,))
+            rows = engine.scan_sessions([date(2026, 7, 31)], observed_at=self.now(9, 0))["receipts"]
+            self.assertEqual([row["status"] for row in rows], ["STARTED", "SUCCEEDED"])
+
+    def test_journal_write_failure_preserves_state_and_process_crash_is_recovered(self):
+        with tempfile.TemporaryDirectory() as directory:
+            engine, _ = self.engine(directory); engine.tick(self.now(9, 25))
+            before = engine.journal.path.read_bytes()
+            receipt = TaskReceiptV1.build(task_name="confirmation_push", trade_date="2026-08-03",
+                attempt=1, status="STARTED", reason_code="SCHEDULED_STARTED",
+                recorded_at=self.now(14, 50), scheduled_for=self.now(14, 50))
+            with patch("v4.p4_journal.atomic_json_write", side_effect=PermissionError("readonly")):
+                with self.assertRaises(PermissionError): engine.journal.append(receipt)
+            self.assertEqual(engine.journal.path.read_bytes(), before)
+        with tempfile.TemporaryDirectory() as directory:
+            process = multiprocessing.get_context("spawn").Process(target=crash_after_task_start, args=(directory,))
+            process.start(); process.join(15); self.assertFalse(process.is_alive())
+            engine, _ = self.engine(directory)
+            self.assertEqual(engine.recovery_report()["status"], "RECOVERY_REQUIRED")
+            repaired = engine.recover_interrupted(observed_at=self.now(9, 26))
+            self.assertEqual(repaired["repaired"][0]["reason_code"], "PROCESS_INTERRUPTED")
+            self.assertEqual(repaired["recovery"]["status"], "CLEAN")
+            self.assertEqual(engine.tick(self.now(9, 27))["receipts"][-1]["attempt"], 2)
+
+    def test_heartbeat_staleness_and_alert_escalation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            engine, _ = self.engine(directory, ["failure"])
+            engine.tick(self.now(9, 25)); engine.tick(self.now(14, 56))
+            report = engine.alert_report(self.now(15, 0), last_heartbeat_at=self.now(14, 50), heartbeat_limit_seconds=120)
+        self.assertEqual(report["highest_severity"], "CRITICAL")
+        self.assertIn("HEARTBEAT_STALE", [row["reason_code"] for row in report["alerts"]])
+        self.assertIn("TASK_SLA_MISSED", [row["reason_code"] for row in report["alerts"]])
+
+    def test_frozen_entity_notification_projection_preserves_full_lineage(self):
+        candidate = {"code": "000001", "name": "test", "rank": 1, "score": 77.5,
+            "v4_candidate_origin": "V4", "v4_paper_eligible": False,
+            "v4_paper_block_reasons": ["规则分低于80"], "score_version": "rank-v1",
+            "v4_paper_policy_version": "policy-v1"}
+        market = {"data_valid": True, "snapshot_id": "ms1-" + "a" * 64,
+                  "market_state_id": "mstate1-" + "b" * 64}
+        morning = MorningPoolV1.build("2026-08-03", self.now(9, 25), [candidate], market)
+        decision = ConfirmationDecisionV1.build(morning, self.now(14, 50), [candidate], market)
+        first = FrozenNotificationProjector.morning(morning)
+        second = FrozenNotificationProjector.confirmation(decision, morning)
+        self.assertEqual(first["entity_id"], morning.pool_id)
+        self.assertEqual(second["entity_id"], decision.decision_id)
+        self.assertEqual(second["morning_pool_id"], morning.pool_id)
+        self.assertEqual(second["input_snapshot_id"], market["snapshot_id"])
+        self.assertEqual(second, FrozenNotificationProjector.confirmation(decision, morning))
 
 
 if __name__ == "__main__": unittest.main()

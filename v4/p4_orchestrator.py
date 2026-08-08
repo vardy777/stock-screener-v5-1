@@ -28,14 +28,16 @@ class OfflineTaskOrchestrator:
         self.journal = OfflineTaskJournal(Path(directory))
 
     @staticmethod
-    def _scheduled(now, spec):
-        return datetime.combine(now.date(), time.fromisoformat(spec.scheduled_time), now.tzinfo)
+    def _scheduled(now, spec, trade_date=None):
+        day = now.date() if trade_date is None else datetime.fromisoformat(str(trade_date)).date()
+        return datetime.combine(day, time.fromisoformat(spec.scheduled_time), now.tzinfo)
 
-    def _append(self, spec, now, attempt, status, reason, payload=""):
+    def _append(self, spec, now, attempt, status, reason, payload="", trade_date=None):
+        day = now.date().isoformat() if trade_date is None else str(trade_date)
         receipt = TaskReceiptV1.build(
-            task_name=spec.task_name, trade_date=now.date(), attempt=attempt,
+            task_name=spec.task_name, trade_date=day, attempt=attempt,
             status=status, reason_code=reason, recorded_at=now,
-            scheduled_for=self._scheduled(now, spec), payload_sha256=payload,
+            scheduled_for=self._scheduled(now, spec, day), payload_sha256=payload,
         )
         self.journal.append(receipt)
         return receipt.to_dict()
@@ -93,6 +95,61 @@ class OfflineTaskOrchestrator:
         return {"schema_version": "task-sla-report-v1", "trade_date": now.date().isoformat(),
                 "tasks": result, "alerts": [row["task_name"] for row in result if row["status"] == "MISSED"],
                 "passed": all(row["status"] == "SUCCEEDED" for row in result)}
+
+    def scan_sessions(self, session_dates, *, observed_at: datetime):
+        """Audit past sessions; stale pushes are never replayed."""
+        emitted = []
+        for raw_day in session_dates:
+            day = datetime.fromisoformat(str(raw_day)).date()
+            if day >= observed_at.date() or self.calendar.is_open(day) is not True:
+                continue
+            for spec in self.specs:
+                history = self.journal.run_receipts(spec.task_name, day.isoformat())
+                if any(row["status"] in {"SUCCEEDED", "SLA_MISSED"} for row in history):
+                    continue
+                if spec.historical_compensation_allowed:
+                    attempt = 1 + sum(row["status"] in {"FAILED", "TIMED_OUT"} for row in history)
+                    emitted.append(self._append(spec, observed_at, attempt, "STARTED", "HISTORICAL_COMPENSATION_STARTED", trade_date=day.isoformat()))
+                    try:
+                        result = self.executor(spec.task_name, day.isoformat(), attempt)
+                        status = str(result.get("status", "FAILED")).upper()
+                        reason = str(result.get("reason_code", status)); payload = str(result.get("payload_sha256", ""))
+                    except Exception:
+                        status, reason, payload = "FAILED", "EXECUTOR_EXCEPTION", ""
+                    emitted.append(self._append(spec, observed_at, attempt, status, reason, payload, day.isoformat()))
+                else:
+                    emitted.append(self._append(spec, observed_at, 0, "SLA_MISSED", "HISTORICAL_SLA_MISSED_NO_STALE_REPLAY", trade_date=day.isoformat()))
+        return {"schema_version": "multi-session-recovery-v1", "receipts": emitted}
+
+    def recovery_report(self):
+        rows = self.journal.receipts(); inflight = []
+        for row in rows:
+            if row["status"] != "STARTED": continue
+            if not any(item["run_id"] == row["run_id"] and item["attempt"] == row["attempt"] and item["status"] in {"SUCCEEDED", "FAILED", "TIMED_OUT"} for item in rows):
+                inflight.append(row)
+        return {"schema_version": "task-recovery-report-v1", "status": "RECOVERY_REQUIRED" if inflight else "CLEAN", "interrupted_attempts": inflight}
+
+    def recover_interrupted(self, *, observed_at: datetime):
+        repaired = []
+        for row in self.recovery_report()["interrupted_attempts"]:
+            spec = next(item for item in self.specs if item.task_name == row["task_name"])
+            repaired.append(self._append(spec, observed_at, row["attempt"], "FAILED", "PROCESS_INTERRUPTED", trade_date=row["trade_date"]))
+        return {"repaired": repaired, "recovery": self.recovery_report()}
+
+    def alert_report(self, now: datetime, *, last_heartbeat_at: datetime, heartbeat_limit_seconds=120):
+        if last_heartbeat_at.tzinfo is None or last_heartbeat_at.utcoffset() is None:
+            raise TaskContractViolation("alert: heartbeat timezone required")
+        age = (now - last_heartbeat_at).total_seconds()
+        rows = self.journal.receipts()
+        alerts = []
+        if age > heartbeat_limit_seconds:
+            alerts.append({"severity": "CRITICAL", "reason_code": "HEARTBEAT_STALE", "age_seconds": age})
+        for row in rows:
+            if row["status"] == "SLA_MISSED": alerts.append({"severity": "ERROR", "reason_code": "TASK_SLA_MISSED", "run_id": row["run_id"]})
+            elif row["status"] in {"FAILED", "TIMED_OUT"}: alerts.append({"severity": "WARNING", "reason_code": row["reason_code"], "run_id": row["run_id"]})
+        rank = {"WARNING": 1, "ERROR": 2, "CRITICAL": 3}
+        highest = max((item["severity"] for item in alerts), key=lambda value: rank[value], default="NONE")
+        return {"schema_version": "task-alert-report-v1", "highest_severity": highest, "alerts": alerts}
 
     def heartbeat(self, now: datetime):
         if now.tzinfo is None or now.utcoffset() is None:

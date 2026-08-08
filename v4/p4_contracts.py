@@ -39,11 +39,12 @@ class TaskSpecV1:
     sla_deadline: str
     max_attempts: int = 3
     compensation_allowed: bool = True
+    historical_compensation_allowed: bool = False
     schema_version: str = TASK_SPEC_VERSION
 
     @classmethod
     def build(cls, *, task_name, scheduled_time, window_end, sla_deadline,
-              max_attempts=3, compensation_allowed=True):
+              max_attempts=3, compensation_allowed=True, historical_compensation_allowed=False):
         if task_name not in {"morning_push", "confirmation_push", "paper_sell", "paper_buy"}:
             raise TaskContractViolation("task spec: unknown task")
         try:
@@ -58,7 +59,7 @@ class TaskSpecV1:
         if attempts < 1 or attempts > 5:
             raise TaskContractViolation("task spec: attempts out of range")
         return cls(task_name, start.isoformat(), end.isoformat(), deadline.isoformat(),
-                   attempts, bool(compensation_allowed))
+                   attempts, bool(compensation_allowed), bool(historical_compensation_allowed))
 
     def to_dict(self):
         return asdict(self)
@@ -93,8 +94,6 @@ class TaskReceiptV1:
         recorded = _aware(recorded_at, "recorded_at")
         if datetime.fromisoformat(scheduled).date().isoformat() != day:
             raise TaskContractViolation("receipt: scheduled date mismatch")
-        if datetime.fromisoformat(recorded).date().isoformat() != day:
-            raise TaskContractViolation("receipt: recorded date mismatch")
         run_id = _identity("trun", {"task_name": task_name, "trade_date": day})
         payload = {"schema_version": TASK_RECEIPT_VERSION, "run_id": run_id,
                    "task_name": task_name, "trade_date": day, "attempt": attempt,
