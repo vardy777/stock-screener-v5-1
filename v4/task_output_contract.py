@@ -58,18 +58,20 @@ class TaskOutputV1:
     entity_id: str
     entity_sha256: str
     input_ids: tuple[str, ...]
+    attempt: int = 1
     schema_version: str = TASK_OUTPUT_VERSION
 
     @classmethod
     def build(cls, *, task_name, trade_date, status, reason_code, recorded_at,
-              entity_kind="", entity_id="", entity_payload=None, input_ids=()):
+              entity_kind="", entity_id="", entity_payload=None, input_ids=(), attempt=1):
         if task_name not in TASK_NAMES:
             raise TaskContractViolation("task output: unknown task")
         if status not in {"SUCCEEDED", "BLOCKED", "FAILED", "OUTCOME_UNKNOWN"}:
             raise TaskContractViolation("task output: invalid status")
         day = date.fromisoformat(str(trade_date)).isoformat()
         timestamp = _aware(recorded_at, "recorded_at")
-        inputs = tuple(str(item) for item in input_ids)
+        inputs = tuple(str(item) for item in input_ids); attempt=int(attempt)
+        if attempt<1: raise TaskContractViolation("task output: invalid attempt")
         if status == "SUCCEEDED":
             expected = OUTPUT_KINDS[task_name]
             if entity_kind != expected or not str(entity_id):
@@ -81,10 +83,10 @@ class TaskOutputV1:
                 "trade_date": day, "status": status, "reason_code": str(reason_code),
                 "recorded_at": timestamp, "entity_kind": str(entity_kind),
                 "entity_id": str(entity_id), "entity_sha256": digest,
-                "input_ids": list(inputs)}
+                "input_ids": list(inputs),"attempt":attempt}
         output_id = "tout-" + _hash(body)[:24]
         return cls(output_id, task_name, day, status, str(reason_code), timestamp,
-                   str(entity_kind), str(entity_id), digest, inputs)
+                   str(entity_kind), str(entity_id), digest, inputs,attempt)
 
     def to_dict(self):
         value = asdict(self)

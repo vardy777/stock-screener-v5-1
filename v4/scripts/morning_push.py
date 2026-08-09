@@ -4,12 +4,13 @@
 import logging
 import os
 import sys
+from pathlib import Path
 from datetime import datetime, time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from v4.push import build_morning_card, send_wechat
-from v4.simulation import SimulationEngine
+from v4.p3_account import OfflinePaperLedger
 from v4.calendar import TradingCalendar
 from v4.execution import CHINA_TZ
 from v4.candidate_journal import CandidateJournal
@@ -31,6 +32,11 @@ def _in_window(current: datetime) -> bool:
     return time(9, 20) <= current.timetz().replace(tzinfo=None) <= time(9, 29, 59)
 
 
+def _p3_positions() -> list[dict]:
+    """Read the sole production paper-account projection."""
+    return list(OfflinePaperLedger(Path(__file__).resolve().parents[1] / "data" / "p3").snapshot()["positions"])
+
+
 def main() -> int:
     current = _now()
     current_date = current.date()
@@ -42,15 +48,13 @@ def main() -> int:
     if not _in_window(current):
         logger.error("不在09:20-09:29早盘推送有效窗口，拒绝迟到推送: %s", current.isoformat())
         return 3
-    engine = SimulationEngine()
-    engine.load_state()
     morning = CandidateJournal().morning(today)
     if not morning:
         logger.error("早盘MorningPool实体缺失，拒绝使用内存候选推送")
         return 2
     candidates = list(morning.get("candidates", []))
     market_state = dict(morning.get("market_state", {}))
-    positions = engine.positions
+    positions = _p3_positions()
     if any(candidate.get("is_mock") for candidate in candidates):
         logger.error("检测到模拟候选，拒绝推送")
         return 2
@@ -62,6 +66,7 @@ def main() -> int:
         f"🌅 V4独立早盘观察池 {today}",
         card,
         message_key=f"v4-morning:{today}",
+        parent_entity_id=morning.get("pool_id"),
     )
     logger.info(
         "早盘候选 %d 只，待卖持仓 %d 只 pool_id=%s",

@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from v4.config import DATA_DIR, POSITION_SIZE, PUSHPLUS_TOKEN
+from v4.notification_contracts import NotificationReceiptV1
 
 logger = logging.getLogger(__name__)
 PUSH_RECEIPT_PATH = Path(DATA_DIR) / "push_receipts.json"
@@ -28,9 +29,45 @@ def _already_sent(message_key: str) -> bool:
     return bool(message_key and message_key in _load_receipts())
 
 
-def _record_sent(message_key: str, title: str, content: str) -> None:
+def _notification_path(message_key):
+    safe=hashlib.sha256(str(message_key).encode()).hexdigest()[:24]
+    return PUSH_RECEIPT_PATH.parent/"notifications"/f"{safe}.json"
+
+def _notification_attempt_path(message_key, attempt):
+    latest=_notification_path(message_key)
+    return latest.parent/latest.stem/f"attempt-{int(attempt):04d}.json"
+
+def load_notification_receipt(message_key):
+    try: return NotificationReceiptV1.from_mapping(json.loads(_notification_path(message_key).read_text(encoding="utf-8")))
+    except (OSError,ValueError,TypeError): return None
+
+def _record_attempt(message_key: str, content: str, *, parent_entity_id, outcome,
+                    response_code,transport_request_id,attempt):
+    if not message_key or not str(parent_entity_id).startswith(("mp-","cd-")):
+        return None
+    attempt_root=_notification_path(message_key).parent/_notification_path(message_key).stem
+    serial=len(list(attempt_root.glob("attempt-*.json")))+1 if attempt_root.is_dir() else 1
+    receipt=NotificationReceiptV1.build(message_key=message_key,parent_entity_id=parent_entity_id,
+        payload_sha256=hashlib.sha256(content.encode("utf-8")).hexdigest(),outcome=outcome,
+        response_code=response_code,transport_request_id=transport_request_id,attempt=serial,
+        recorded_at=datetime.now(timezone.utc))
+    target=_notification_attempt_path(message_key,serial); target.parent.mkdir(parents=True,exist_ok=True)
+    if target.exists():
+        existing=NotificationReceiptV1.from_mapping(json.loads(target.read_text(encoding="utf-8")))
+        if existing.notification_id!=receipt.notification_id: raise ValueError("notification attempt immutable collision")
+        receipt=existing
+    else:
+        temp=target.with_suffix(".tmp"); temp.write_text(json.dumps(receipt.to_dict(),ensure_ascii=False,indent=2),encoding="utf-8"); temp.replace(target)
+    atomic=_notification_path(message_key); temp=atomic.with_suffix(".tmp")
+    temp.write_text(json.dumps(receipt.to_dict(),ensure_ascii=False,indent=2),encoding="utf-8"); temp.replace(atomic)
+    return receipt
+
+def _record_sent(message_key: str, title: str, content: str, *, parent_entity_id,
+                 response_code,transport_request_id,attempt):
     if not message_key:
-        return
+        raise ValueError("notification message key required")
+    receipt=_record_attempt(message_key,content,parent_entity_id=parent_entity_id,outcome="ACCEPTED",
+        response_code=response_code,transport_request_id=transport_request_id,attempt=attempt)
     receipts = _load_receipts()
     cutoff = datetime.now(timezone.utc) - timedelta(days=45)
     clean = {}
@@ -47,6 +84,7 @@ def _record_sent(message_key: str, title: str, content: str) -> None:
         "sent_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "title": title,
         "content_sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+        "parent_entity_id":parent_entity_id,
     }
     PUSH_RECEIPT_PATH.parent.mkdir(parents=True, exist_ok=True)
     temporary = PUSH_RECEIPT_PATH.with_suffix(".tmp")
@@ -55,6 +93,7 @@ def _record_sent(message_key: str, title: str, content: str) -> None:
         encoding="utf-8",
     )
     temporary.replace(PUSH_RECEIPT_PATH)
+    return receipt
 
 
 def send_wechat(
@@ -65,6 +104,7 @@ def send_wechat(
     message_key=None,
     attempts=3,
     retry_delay_seconds=1.0,
+    parent_entity_id=None,
 ):
     """通过 PushPlus 发送微信推送，并提供重试和每日幂等保护。"""
     if os.getenv("PUSHPLUS_DRY_RUN", "").strip().lower() in {
@@ -72,7 +112,12 @@ def send_wechat(
     }:
         logger.info("PushPlus dry-run: title=%s content_length=%d", title, len(content))
         return True
-    if message_key and _already_sent(str(message_key)):
+    receipt=load_notification_receipt(str(message_key)) if message_key else None
+    if message_key and (_already_sent(str(message_key)) or (receipt is not None and receipt.outcome=="ACCEPTED")):
+        digest=hashlib.sha256(content.encode("utf-8")).hexdigest()
+        if parent_entity_id and (receipt is None or receipt.outcome!="ACCEPTED" or
+                                 receipt.parent_entity_id!=str(parent_entity_id) or receipt.payload_sha256!=digest):
+            logger.error("PushPlus legacy/invalid duplicate receipt: key=%s",message_key); return False
         logger.info("PushPlus duplicate suppressed: key=%s", message_key)
         return True
     if not PUSHPLUS_TOKEN:
@@ -106,14 +151,20 @@ def send_wechat(
                 payload = {}
             success = int(payload.get('code', 0) or 0) == 200
             if success:
-                _record_sent(str(message_key or ""), title, content)
+                _record_sent(str(message_key or ""), title, content,parent_entity_id=str(parent_entity_id or ""),
+                    response_code=200,transport_request_id=str(payload.get("data","") or payload.get("requestId","")),attempt=attempt)
                 logger.info('PushPlus accepted message: code=200 attempt=%d', attempt)
                 return True
+            _record_attempt(str(message_key or ""),content,parent_entity_id=str(parent_entity_id or ""),
+                outcome="REJECTED",response_code=int(payload.get("code",0) or 0),
+                transport_request_id=str(payload.get("data","") or payload.get("requestId","")),attempt=attempt)
             logger.error(
                 'PushPlus rejected message: code=%s msg=%s attempt=%d/%d',
                 payload.get('code'), payload.get('msg', 'unknown'), attempt, attempts,
             )
         except Exception as exc:
+            _record_attempt(str(message_key or ""),content,parent_entity_id=str(parent_entity_id or ""),
+                outcome="OUTCOME_UNKNOWN",response_code=0,transport_request_id="",attempt=attempt)
             logger.error(
                 'PushPlus send failed: %s attempt=%d/%d', exc, attempt, attempts
             )

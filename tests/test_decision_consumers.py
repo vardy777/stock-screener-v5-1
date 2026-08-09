@@ -31,7 +31,7 @@ class DecisionConsumerTests(unittest.TestCase):
             "candidates": [self.candidate()], "market_state": {"mode_label": "neutral"}
         }
         with (
-            patch.object(morning_push, "SimulationEngine", return_value=engine),
+            patch.object(morning_push, "_p3_positions", return_value=[]),
             patch.object(morning_push, "CandidateJournal", return_value=journal),
             patch.object(morning_push, "TradingCalendar") as calendar,
             patch.object(morning_push, "_in_window", return_value=True),
@@ -53,7 +53,7 @@ class DecisionConsumerTests(unittest.TestCase):
             "market_state": {"mode_label": "neutral"},
         }
         with (
-            patch.object(afternoon_push, "SimulationEngine", return_value=engine),
+            patch.object(afternoon_push, "_p3_positions", return_value=[]),
             patch.object(afternoon_push, "CandidateJournal", return_value=journal),
             patch.object(afternoon_push, "TradingCalendar") as calendar,
             patch.object(afternoon_push, "_in_window", return_value=True),

@@ -75,10 +75,12 @@ def render(model):
 
 class Handler(BaseHTTPRequestHandler):
     model=frozen_demo_model()
+    data_dir=None
     def do_GET(self):
         parsed=urlparse(self.path); path=parsed.path
         query=dict(x.split("=",1) if "=" in x else (x,"") for x in parsed.query.split("&") if x)
-        model=frozen_scenario(query.get("scenario","")) if query.get("scenario") else self.model
+        model=(frozen_scenario(query.get("scenario","")) if query.get("scenario") else
+               P5ReadOnlySources(Path(self.data_dir)).build() if self.data_dir else self.model)
         if path=="/api/read-model": body=json.dumps(model.to_dict(),ensure_ascii=False).encode(); kind="application/json"
         elif path=="/": body=render(model).encode(); kind="text/html; charset=utf-8"
         else: self.send_error(404); return
@@ -87,7 +89,7 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self,*args): pass
 
 def main(port=PORT, data_dir=None):
-    if data_dir: Handler.model=P5ReadOnlySources(Path(data_dir)).build()
+    Handler.data_dir=Path(data_dir) if data_dir else None
     ThreadingHTTPServer((HOST,int(port)),Handler).serve_forever()
 if __name__=="__main__":
     parser=argparse.ArgumentParser(description="isolated read-only P5 preview")

@@ -138,7 +138,7 @@ class P2EndToEndTests(unittest.TestCase):
                 patch.object(afternoon_push, "_now", return_value=fixed),
                 patch.object(afternoon_push, "_in_window", return_value=True),
                 patch.object(afternoon_push, "TradingCalendar") as calendar,
-                patch.object(afternoon_push, "SimulationEngine", return_value=engine),
+                patch.object(afternoon_push, "_p3_positions", return_value=[]),
                 patch.object(afternoon_push, "CandidateJournal", return_value=journal),
                 patch.object(afternoon_push, "send_wechat", return_value=False),
             ):

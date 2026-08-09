@@ -4,12 +4,13 @@
 import logging
 import os
 import sys
+from pathlib import Path
 from datetime import datetime, time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from v4.push import build_afternoon_card, send_wechat
-from v4.simulation import SimulationEngine
+from v4.p3_account import OfflinePaperLedger
 from v4.calendar import TradingCalendar
 from v4.execution import CHINA_TZ
 from v4.candidate_journal import CandidateJournal
@@ -31,6 +32,11 @@ def _in_window(current: datetime) -> bool:
     return time(14, 50) <= current.timetz().replace(tzinfo=None) <= time(14, 51, 59)
 
 
+def _p3_positions() -> list[dict]:
+    """Read the sole production paper-account projection."""
+    return list(OfflinePaperLedger(Path(__file__).resolve().parents[1] / "data" / "p3").snapshot()["positions"])
+
+
 def main() -> int:
     current = _now()
     current_date = current.date()
@@ -44,15 +50,13 @@ def main() -> int:
         return 3
     logger.info("=== V4 14:50尾盘确认 %s ===", today)
 
-    engine = SimulationEngine()
-    engine.load_state()
     decision = CandidateJournal().confirmation(today)
     if not decision:
         logger.error("尾盘最终决策实体缺失，拒绝使用内存候选推送")
         return 2
     candidates = list(decision.get("candidates", []))
     market_state = dict(decision.get("market_state", {}))
-    positions = engine.positions
+    positions = _p3_positions()
 
     if any(candidate.get("is_mock") for candidate in candidates):
         logger.error("检测到模拟候选，拒绝推送")
@@ -68,6 +72,7 @@ def main() -> int:
         f"🎯 V4独立 14:50尾盘确认 {today}",
         card,
         message_key=f"v4-afternoon:{today}",
+        parent_entity_id=decision.get("decision_id"),
     )
     if sent is False:
         logger.error("推送失败")
