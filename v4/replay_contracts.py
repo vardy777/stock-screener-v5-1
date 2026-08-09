@@ -54,6 +54,7 @@ class FeatureContextV1:
     confirmation_features: Mapping[str, Mapping[str, Any]]
     previous_context_id: str
     context_id: str
+    input_snapshot_id: str = ""
     schema_version: str = FEATURE_CONTEXT_VERSION
 
     def __post_init__(self):
@@ -63,7 +64,7 @@ class FeatureContextV1:
     @classmethod
     def build(
         cls, *, trade_date, expected_previous_session, feature_as_of,
-        previous_context, confirmation_features,
+        previous_context, confirmation_features, input_snapshot_id="",
     ) -> "FeatureContextV1":
         day = date.fromisoformat(str(trade_date)).isoformat()
         previous = date.fromisoformat(str(expected_previous_session)).isoformat()
@@ -102,6 +103,10 @@ class FeatureContextV1:
             "previous_context": rows,
             "confirmation_features": features,
         }
+        if input_snapshot_id:
+            if not str(input_snapshot_id).startswith("ms1-"):
+                raise ValueError("input_snapshot_id: MarketSnapshotV1 id required")
+            payload["input_snapshot_id"] = str(input_snapshot_id)
         previous_payload = {
             "schema_version": FEATURE_CONTEXT_VERSION,
             "trade_date": day,
@@ -119,10 +124,11 @@ class FeatureContextV1:
             feature_as_of=timestamp.isoformat(), previous_context=rows,
             confirmation_features=features,
             previous_context_id=previous_context_id, context_id=context_id,
+            input_snapshot_id=str(input_snapshot_id),
         )
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        value = {
             "schema_version": self.schema_version,
             "trade_date": self.trade_date,
             "expected_previous_session": self.expected_previous_session,
@@ -132,6 +138,9 @@ class FeatureContextV1:
             "previous_context_id": self.previous_context_id,
             "context_id": self.context_id,
         }
+        if self.input_snapshot_id:
+            value["input_snapshot_id"] = self.input_snapshot_id
+        return value
 
     def save(self, path: Path | str) -> Path:
         target = Path(path)
@@ -161,6 +170,7 @@ class FeatureContextV1:
             feature_as_of=value["feature_as_of"],
             previous_context=value["previous_context"],
             confirmation_features=value["confirmation_features"],
+            input_snapshot_id=value.get("input_snapshot_id", ""),
         )
         if value.get("context_id") != rebuilt.context_id:
             raise ValueError("feature context content hash mismatch")

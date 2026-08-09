@@ -66,7 +66,8 @@ class DashboardReadModelBuilder:
         evidence_view = self._evidence(evidence, account)
         evidence_view.update(self._acceptance(evidence))
         operations = self._operations(task_receipts, heartbeat, alerts, ownership, cutover)
-        if operations["heartbeat_status"] != "ALIVE": issues.append(self._issue("CRITICAL", "HEARTBEAT_STALE", "调度心跳过期"))
+        if operations["heartbeat_status"] not in {"ALIVE","IDLE_NON_TRADING_DAY","AWAITING_FIRST_WINDOW"}:
+            issues.append(self._issue("CRITICAL", "HEARTBEAT_STALE", "调度心跳过期"))
         if evidence_view["model_status"] != "published": issues.append(self._issue("WARNING", "MODEL_UNPUBLISHED", "生产预期模型尚未发布"))
         if confirmation and confirmation.get("outcome") in {"BLOCKED", "OUTCOME_UNKNOWN"}:
             code = "DECISION_BLOCKED" if confirmation.get("outcome") == "BLOCKED" else "OUTCOME_UNKNOWN"

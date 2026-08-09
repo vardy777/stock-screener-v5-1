@@ -9,16 +9,14 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from v4.simulation import SimulationEngine
+from v4.decision_production import P2DecisionProducer
 
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("stage", choices=("morning", "confirmation"))
     args = parser.parse_args(argv)
-    engine = SimulationEngine()
-    engine.load_state()
-    engine.screen_today(stage=args.stage)
+    P2DecisionProducer().produce(args.stage)
     return 0
 
 

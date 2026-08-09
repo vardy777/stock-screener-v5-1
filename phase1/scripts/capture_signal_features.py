@@ -15,12 +15,12 @@ sys.path.insert(0, str(BASE))
 
 from overnight.dataset import FEATURE_COLUMNS
 from overnight.live_features import compute_live_features, save_signal_features
-from overnight.quote_capture import fetch_quotes_with_retries
-from v4.data import DataFetcher
 from v4.calendar import TradingCalendar
 from v4.execution import TradingClock
 from v4.feature_store import LiveFeatureStore
+from v4.market_gateway import MarketDataGateway
 from v4.replay_contracts import FeatureContextV1
+from v4.snapshot_frame import snapshot_frame
 
 
 def main() -> int:
@@ -47,13 +47,19 @@ def main() -> int:
         print("拒绝采集: 上下文未达到95%覆盖或不是上一交易日")
         return 2
     context = pd.read_csv(context_path, dtype={"code": str})
-    quotes, fetch_report = fetch_quotes_with_retries(
-        DataFetcher(),
-        context["code"].tolist(),
-        "signal",
-        minimum_coverage=0.95,
-        maximum_attempts=3,
+    snapshot = MarketDataGateway().fetch_snapshot(
+        context["code"].tolist(), session="signal", now=started_at,
+        minimum_coverage=0.95, require_order_book=False,
     )
+    quotes = snapshot_frame(snapshot)
+    fetch_report = {
+        "gateway": "MarketDataGateway", "snapshot_id": snapshot.snapshot_id,
+        "expected_codes": snapshot.quality.expected_codes,
+        "quote_rows": len(snapshot.quotes),
+        "quote_coverage": snapshot.quality.coverage,
+        "minimum_coverage": snapshot.policy.minimum_coverage,
+        "attempt_count": 1,
+    }
     captured_at = TradingClock.now()
     completed_status = TradingClock.action_status("signal", now=captured_at)
     if not completed_status.allowed:
@@ -80,6 +86,7 @@ def main() -> int:
             "\n".join(sorted(context["code"].astype(str).str.zfill(6))).encode("utf-8")
         ).hexdigest(),
         "fetch": fetch_report,
+        "input_snapshot_id": snapshot.snapshot_id,
     }
     save_signal_features(features, output, manifest)
     rows = {
@@ -93,6 +100,7 @@ def main() -> int:
         feature_as_of=captured_at,
         previous_context=context.to_dict("records"),
         confirmation_features=rows,
+        input_snapshot_id=snapshot.snapshot_id,
     )
     replay_context.save(
         ROOT / "v4" / "data" / "replay_context"

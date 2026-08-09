@@ -17,6 +17,7 @@ from typing import Any
 from .execution import CHINA_TZ
 from .p5_read_model import DashboardReadModelBuilder
 from .p3_account import OfflinePaperLedger
+from .calendar import TradingCalendar
 
 
 @dataclass(frozen=True)
@@ -127,7 +128,16 @@ class P5ReadOnlySources:
             paths=sorted((self.data_dir/"p4"/"outputs").glob("*/*.json")) if (self.data_dir/"p4"/"outputs").is_dir() else []
             p4_receipts={"receipts":[self._read(path,"p4_task_output")[0] for path in paths[-90:]]}
         operations.setdefault("task_receipts", p4_receipts.get("receipts", p4_receipts.get("results", [])))
-        operations.setdefault("heartbeat", optional["p4_heartbeat"][0])
+        if "heartbeat" not in operations:
+            heartbeat=optional["p4_heartbeat"][0]
+            if not heartbeat:
+                is_open=TradingCalendar().is_open(generated_at.date())
+                status=("IDLE_NON_TRADING_DAY" if is_open is False else
+                        "AWAITING_FIRST_WINDOW" if generated_at.timetz().replace(tzinfo=None) < datetime.strptime("09:25","%H:%M").time()
+                        else "MISSING")
+                heartbeat={"status":status,"recorded_at":generated_at.isoformat(timespec="seconds"),
+                           "schema_version":"p4-derived-heartbeat-v1","derived":True}
+            operations["heartbeat"]=heartbeat
         operations.setdefault("cutover", optional["cutover_readiness"][0])
         authorization=optional["production_authorization"][0]
         if authorization.get("apply_allowed") is True:

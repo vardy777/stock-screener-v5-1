@@ -11,6 +11,7 @@ from scripts.project_status import build_report
 from v4.offline_rehearsal import successful_empty_cycle
 from v4.cutover_rehearsal import full_frozen_rehearsal
 from v4.operations_preflight import operational_preflight
+from v4.production_architecture_audit import audit_production_architecture
 
 def configure_console():
     for stream in (sys.stdout,sys.stderr):
@@ -31,6 +32,7 @@ def secret_scan():
 
 def build(*,run_tests=False):
     project=build_report(); operations=operational_preflight(ROOT); rehearsal=successful_empty_cycle()
+    architecture=audit_production_architecture(ROOT)
     cutover_rehearsal=full_frozen_rehearsal()
     tests={"run":False,"passed":None,"exit_code":None}
     if run_tests:
@@ -39,10 +41,11 @@ def build(*,run_tests=False):
         tests={"run":True,"passed":result.returncode==0,"exit_code":result.returncode}
     secrets=secret_scan(); checks={"project_consistency":project["ok"],"operations":operations["passed"],
         "frozen_rehearsal":rehearsal["passed"],"cutover_fault_matrix":cutover_rehearsal["passed"],
-        "secret_scan":not secrets,"tests":tests["passed"] is not False}
+        "secret_scan":not secrets,"production_architecture":architecture["passed"],
+        "tests":tests["passed"] is True}
     return {"schema_version":"offline-acceptance-report-v1","generated_at":datetime.now(ZoneInfo("Asia/Shanghai")).isoformat(timespec="seconds"),
         "passed":all(checks.values()),"checks":checks,"project":project,"operations":operations,"rehearsal":rehearsal,
-        "cutover_rehearsal":cutover_rehearsal,
+        "cutover_rehearsal":cutover_rehearsal,"production_architecture":architecture,
         "tests":tests,"secret_findings":secrets,"production_mutated":False}
 
 def main():

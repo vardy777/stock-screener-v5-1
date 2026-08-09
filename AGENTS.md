@@ -55,9 +55,10 @@ project.  Every coding session must begin by reading, in order:
 
 ## Runtime entrypoints
 
-- Dashboard: `python -m v4.dashboard` at `http://127.0.0.1:8898/`
+- Dashboard: `python -m v4.p5_dashboard --port 8898 --data-dir v4/data` at `http://127.0.0.1:8898/`
+- Decisions: `python v4/scripts/decision_job.py morning|confirmation`
 - Morning: `python v4/scripts/morning_push.py`
 - Confirmation: `python v4/scripts/afternoon_push.py`
-- Paper execution: `python v4/scripts/paper_trade.py buy|sell`
+- Paper execution: authorized P4 adapter calls `v4.p3_production`; `paper_trade.py` is compatibility-only
 
 The Windows task names are deployment details, not ownership boundaries.

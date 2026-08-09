@@ -108,7 +108,7 @@ class RehearsalAndOperationsTests(unittest.TestCase):
 
     def test_unified_offline_acceptance_has_no_false_secret_alarm(self):
         self.assertEqual(secret_scan(),[])
-        report=build(run_tests=False); self.assertTrue(report["passed"]); self.assertFalse(report["production_mutated"]); self.assertFalse(report["tests"]["run"])
+        report=build(run_tests=False); self.assertFalse(report["passed"]); self.assertFalse(report["production_mutated"]); self.assertFalse(report["tests"]["run"])
 
     def test_log_retention_audit_only_reports_candidates(self):
         with tempfile.TemporaryDirectory() as td:

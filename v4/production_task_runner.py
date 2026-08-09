@@ -16,11 +16,11 @@ ROOT=Path(__file__).resolve().parents[1]
 COMMANDS={
  "morning_decision":[sys.executable,"-X","utf8",str(ROOT/"v4/scripts/decision_job.py"),"morning"],
  "morning_push":[sys.executable,"-X","utf8",str(ROOT/"v4/scripts/morning_push.py")],
- "feature_freeze":[sys.executable,"-X","utf8",str(ROOT/"phase1/scripts/capture_signal_features.py")],
+ "feature_freeze":[sys.executable,"-X","utf8",str(ROOT/"v4/scripts/feature_freeze_job.py")],
  "confirmation_decision":[sys.executable,"-X","utf8",str(ROOT/"v4/scripts/decision_job.py"),"confirmation"],
  "confirmation_push":[sys.executable,"-X","utf8",str(ROOT/"v4/scripts/afternoon_push.py")],
- "health_check":["powershell.exe","-NoProfile","-NonInteractive","-ExecutionPolicy","Bypass","-File",str(ROOT/"phase1/scripts/run_scheduled_health.ps1"),"-Mode","close"],
- "maintenance":["powershell.exe","-NoProfile","-NonInteractive","-ExecutionPolicy","Bypass","-File",str(ROOT/"phase1/scripts/run_daily_maintenance.ps1")],
+ "health_check":[sys.executable,"-X","utf8",str(ROOT/"v4/scripts/health_job.py")],
+ "maintenance":[sys.executable,"-X","utf8",str(ROOT/"v4/scripts/maintenance_job.py")],
 }
 DEPENDENCIES={"morning_push":("morning_decision",),"confirmation_decision":("feature_freeze","morning_decision"),
  "confirmation_push":("confirmation_decision",),"paper_buy":("confirmation_decision",),
@@ -44,7 +44,11 @@ def _entity(task,day,process=None,authorization_file=None,now=None):
         receipt=load_notification_receipt(key)
         if receipt is None or receipt.parent_entity_id!=parent or receipt.outcome!="ACCEPTED": raise RuntimeError("CURRENT_NOTIFICATION_RECEIPT_MISSING")
         value=receipt.to_dict(); return receipt.notification_id,value,(parent,)
-    value={"task_name":task,"trade_date":day,"exit_code":process.returncode,"stdout_sha256":hashlib.sha256(process.stdout.encode()).hexdigest(),"stderr_sha256":hashlib.sha256(process.stderr.encode()).hexdigest()}
+    report_path=(ROOT/"phase1/data/execution_snapshots/health"/f"{day}_signal_buy.json" if task=="health_check"
+                 else ROOT/"phase1/data/overnight/daily_maintenance_report.json")
+    value=json.loads(report_path.read_text(encoding="utf-8"))
+    if value.get("passed") is not True: raise RuntimeError(f"{task.upper()}_REPORT_FAILED")
+    value={**value,"source_report_sha256":hashlib.sha256(report_path.read_bytes()).hexdigest()}
     return ("health1-" if task=="health_check" else "maintenance1-")+_digest(value)[:24],value,()
 
 def _paths(task,day):

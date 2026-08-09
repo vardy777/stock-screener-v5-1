@@ -2,13 +2,13 @@
   "schema_version": "project-state-v1",
   "project": "a-share-overnight-v4",
   "display_name": "A股隔夜研究与模拟系统 V4",
-  "updated_at": "2026-08-09T11:45:00+08:00",
+  "updated_at": "2026-08-09T12:45:00+08:00",
   "active_phase": "P6",
   "active_phase_name": "严格研究数据积累与真实窗口验收",
   "production_status": "research_locked",
   "p1_validation": {
     "engineering_status": "offline_completed",
-    "offline_acceptance_status": "passed_145_tests_strict",
+    "offline_acceptance_status": "passed_unique_gateway_including_production_leaves",
     "live_window_status": "pending_real_windows",
     "required_windows": ["09:25 morning", "14:49 signal", "14:50 strict and paper-only", "next-session 09:30 sell"]
   },
@@ -31,7 +31,7 @@
   },
   "p4_validation": {
     "engineering_status": "production_cutover_applied_live_validation_pending",
-    "checkpoint": "nine_p4_tasks_registered_old_tasks_disabled",
+    "checkpoint": "nine_p4_tasks_registered_old_tasks_disabled_retry_heartbeat_and_v4_leaves_hardened",
     "offline_tests": 28,
     "operating_mode": "local_production_scheduler",
     "windows_tasks_registered_by_p4": true,
@@ -42,7 +42,7 @@
   },
   "p5_validation": {
     "engineering_status": "production_cutover_applied_live_observation_pending",
-    "checkpoint": "p5_serving_8898_read_only",
+    "checkpoint": "p5_serving_8898_read_only_dynamic_refresh_and_calendar_aware_heartbeat",
     "offline_tests": 12,
     "operating_mode": "production_read_only",
     "existing_8898_connected": true,
@@ -122,7 +122,7 @@
     "confirmation_push_success": true
   },
   "quality": {
-    "tests_passed": 248,
+    "tests_passed": 256,
     "tests_failed": 0,
     "v4_imports_v3": false
   },
