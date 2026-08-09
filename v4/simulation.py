@@ -334,6 +334,27 @@ class SimulationEngine:
             current = TradingClock.now()
             if stage == 'auto':
                 stage = 'confirmation' if current.hour == 14 and current.minute >= 50 else 'morning'
+            from v4.candidate_journal import CandidateJournal
+            journal = CandidateJournal()
+            trade_date = current.strftime('%Y-%m-%d')
+            morning_rows = []
+            allowed_codes = None
+            if stage == 'confirmation':
+                morning_rows = journal.morning_candidates(trade_date)
+                allowed_codes = {item.get('code') for item in morning_rows if item.get('code')}
+                if not journal.has_morning(trade_date):
+                    logger.error('Missing current-session 09:25 mother pool; confirmation is empty')
+                    market_state = self._empty_market_state()
+                    from v4.decision_service import DecisionChainService
+                    DecisionChainService(journal, None).publish_missing_morning(trade_date, market_state)
+                    return []
+                if not allowed_codes:
+                    market_state = self._empty_market_state()
+                    journal.save_confirmation(trade_date, [], market_state)
+                    return []
+                # Confirmation is a locked-mother-pool refresh. Fetching the full
+                # market again here wastes most of the two-minute execution window.
+                codes = sorted(allowed_codes)
             snapshot = gateway.fetch_snapshot(
                 codes,
                 session='buy' if stage == 'confirmation' else 'morning',
@@ -349,48 +370,8 @@ class SimulationEngine:
             market_state = self._get_market_state(snapshot)
             from v4.runtime import V4Runtime
 
-            from v4.candidate_journal import CandidateJournal
-            journal = CandidateJournal()
-            trade_date = current.strftime('%Y-%m-%d')
-            allowed_codes = None
             if stage == 'confirmation':
-                morning_rows = journal.morning_candidates(trade_date)
-                allowed_codes = {item.get('code') for item in morning_rows if item.get('code')}
-                if not journal.has_morning(trade_date):
-                    logger.error('Missing current-session 09:25 mother pool; confirmation is empty')
-                    self._last_screen_time = current.strftime('%H:%M:%S')
-                    market_state['v4_selection'] = {
-                        'status': 'blocked',
-                        'stage': 'confirmation_1450',
-                        'source': 'v4_morning_pool_link',
-                        'reason': 'missing current-session 09:25 mother pool',
-                    }
-                    self._last_market_state = dict(market_state)
-                    from v4.decision_service import DecisionChainService
-                    DecisionChainService(journal, None).publish_missing_morning(
-                        trade_date, market_state
-                    )
-                    return []
-                if not allowed_codes:
-                    logger.info('Current-session 09:25 mother pool is valid but empty')
-                    journal.save_confirmation(trade_date, [], market_state)
-                    market_state['v4_selection'] = {
-                        'status': 'empty',
-                        'stage': 'confirmation_1450',
-                        'source': 'v4_morning_pool_link',
-                        'reason': '09:25 mother pool was empty',
-                    }
-                    self._last_market_state = dict(market_state)
-                    self._last_screen_time = current.strftime('%H:%M:%S')
-                    return []
-                # The full-market request is intentionally batched and can take
-                # tens of seconds. Refresh the tiny locked mother pool once more
-                # so paper execution is judged on genuinely current 14:50 quotes
-                # rather than on whichever full-market batch contained a code.
-                snapshot = gateway.fetch_snapshot(
-                    sorted(allowed_codes), session='buy', require_order_book=True
-                )
-                market_state = self._get_market_state(snapshot)
+                logger.info('Confirmation refresh uses locked mother pool only: %d codes',len(allowed_codes))
             v4_runtime = V4Runtime()
             from v4.decision_service import DecisionChainService
             decision_service = DecisionChainService(journal, v4_runtime)

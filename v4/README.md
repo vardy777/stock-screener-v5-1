@@ -1,5 +1,12 @@
 # A股隔夜交易系统 V4
 
+## 当前生产入口（2026-08-09）
+
+- P3：`v4/p3_production.py`，只接受最终 P2 决策和 `MarketSnapshotV1`，写入 `v4/data/p3`。
+- P4：九个 Windows 任务统一调用 `v4/scripts/p4_task_adapter.py`，最终输出写入 `v4/data/p4/outputs`。
+- P5：`python -m v4.p5_dashboard --port 8898 --data-dir v4/data`，仅允许 GET，POST 返回 405。
+- 旧定时任务已禁用并保留为回滚资源；`research_locked` 和模型发布门禁保持不变。
+
 ## P2 decision publication boundary
 
 Decision production and notification projection are separate. The preserved

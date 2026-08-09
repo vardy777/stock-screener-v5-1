@@ -2,7 +2,7 @@
   "schema_version": "project-state-v1",
   "project": "a-share-overnight-v4",
   "display_name": "A股隔夜研究与模拟系统 V4",
-  "updated_at": "2026-08-09T12:30:00+08:00",
+  "updated_at": "2026-08-09T11:45:00+08:00",
   "active_phase": "P6",
   "active_phase_name": "严格研究数据积累与真实窗口验收",
   "production_status": "research_locked",
@@ -20,34 +20,34 @@
     "historical_fact": "2026-08-03..05 candidate journals missing; 2026-08-06..07 legacy schema retained read-only"
   },
   "p3_validation": {
-    "engineering_status": "offline_core_accepted_phase_incomplete",
-    "checkpoint": "offline_1000_roundtrip_crash_matrix_init_and_single_writer_gate_passed",
+    "engineering_status": "production_cutover_applied_live_validation_pending",
+    "checkpoint": "p3_single_writer_initialized_and_scheduled",
     "offline_tests": 33,
-    "operating_mode": "offline_only",
-    "scheduling_enabled": false,
-    "daily_paper_production_connected": false,
+    "operating_mode": "local_research_paper_production",
+    "scheduling_enabled": true,
+    "daily_paper_production_connected": true,
     "completion_allowed": false,
     "preemption_rule": "pause_p3_and_repair_p1_p2_on_any_live_window_failure"
   },
   "p4_validation": {
-    "engineering_status": "offline_engineering_accepted_phase_incomplete",
-    "checkpoint": "last_mile_output_contract_disabled_adapters_and_complete_task_definitions_passed",
+    "engineering_status": "production_cutover_applied_live_validation_pending",
+    "checkpoint": "nine_p4_tasks_registered_old_tasks_disabled",
     "offline_tests": 28,
-    "operating_mode": "offline_only",
-    "windows_tasks_registered_by_p4": false,
+    "operating_mode": "local_production_scheduler",
+    "windows_tasks_registered_by_p4": true,
     "real_pushplus_called": false,
-    "production_entrypoints_connected": false,
+    "production_entrypoints_connected": true,
     "completion_allowed": false,
     "preemption_rule": "pause_p4_and_repair_p1_p2_on_any_live_window_failure"
   },
   "p5_validation": {
-    "engineering_status": "all_offline_work_accepted_cutover_pending",
-    "checkpoint": "real_artifact_adapters_component_panels_and_responsive_visual_passed",
+    "engineering_status": "production_cutover_applied_live_observation_pending",
+    "checkpoint": "p5_serving_8898_read_only",
     "offline_tests": 12,
-    "operating_mode": "offline_preview_only",
-    "existing_8898_connected": false,
+    "operating_mode": "production_read_only",
+    "existing_8898_connected": true,
     "mutation_endpoints_enabled": false,
-    "production_cutover_allowed": false
+    "production_cutover_allowed": true
   },
   "p6_validation": {
     "engineering_status": "offline_contracts_accepted_strict_data_pending",
@@ -69,23 +69,26 @@
     "historical_archive_performed": false
   },
   "cutover_preparation": {
-    "engineering_status": "offline_preparation_accepted_live_evidence_pending",
+    "engineering_status": "cutover_applied_live_evidence_pending",
     "live_window_acceptance_available": true,
     "task_inventory_read_only": true,
     "writer_inventory_required": true,
     "rollback_plan_available": true,
     "unified_offline_acceptance_available": true,
-    "unified_offline_acceptance_status": "passed_247_tests_no_production_mutation",
+    "unified_offline_acceptance_status": "passed_248_tests_then_cutover_applied",
     "legacy_2026_08_07_window_projection": "failed_as_expected_not_valid_live_evidence",
     "apply_allowed": false,
-    "tasks_modified": false,
+    "tasks_modified": true,
     "account_migrated": false,
-    "dashboard_switched": false
+    "dashboard_switched": true,
+    "cutover_applied": true,
+    "authorization_id": "auth-4730c4b64a054a9e9866eca3293e3adc",
+    "backup_path": "backups/cutover-20260809-1115"
   },
   "runtime_owner": "v4",
   "dashboard": {
     "url": "http://127.0.0.1:8898/",
-    "entrypoint": "python -m v4.dashboard"
+    "entrypoint": "python -m v4.p5_dashboard --port 8898 --data-dir v4/data"
   },
   "schedule": {
     "baseline_date": "2026-08-08",
@@ -119,7 +122,7 @@
     "confirmation_push_success": true
   },
   "quality": {
-    "tests_passed": 247,
+    "tests_passed": 248,
     "tests_failed": 0,
     "v4_imports_v3": false
   },
@@ -143,14 +146,14 @@
       "severity": "P1",
       "title": "模拟买卖调度依赖8898看板进程常驻",
       "phase": "P4",
-      "status": "open"
+      "status": "closed_by_p4_cutover_2026-08-09"
     },
     {
       "id": "P4-002",
       "severity": "P1",
       "title": "独立paper买卖Windows任务未注册，重注册被当前进程权限拒绝",
       "phase": "P3/P4",
-      "status": "open_access_denied_2026-08-08"
+      "status": "closed_with_elevated_cutover_2026-08-09"
     },
     {
       "id": "P5-001",
@@ -163,7 +166,7 @@
   "next_tasks": [
     "周一使用四窗口自动验收器验证真实09:25、14:49、14:50和次日09:30并保存P1/P2证据",
     "持续积累无偏严格样本；达到门槛后才运行P6全市场Walk-Forward和压力测试",
-    "现有8898保持不变；真实实体观测和单独授权前禁止P5原子切换",
+    "P3/P4/P5已切换；周一观察真实实体、任务回执和8898投影，失败时按备份回滚",
     "P1/P2真实窗口失败时立即暂停P3/P4/P5/P6/P7/P8并优先修复"
   ],
   "phase_status": {
@@ -172,7 +175,7 @@
     "P2": "offline_completed_live_pending",
     "P3": "in_progress",
     "P4": "in_progress",
-    "P5": "offline_completed_cutover_pending",
+    "P5": "in_progress",
     "P6": "in_progress",
     "P7": "offline_contract_completed_gate_pending",
     "P8": "offline_contract_completed_production_actions_pending"

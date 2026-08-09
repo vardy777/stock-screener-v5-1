@@ -27,6 +27,7 @@ def operational_preflight(project_root: Path, *, minimum_free_gib=2.0) -> dict:
     free=shutil.disk_usage(root).free/(1024**3); add("disk_free",free>=minimum_free_gib,f"{free:.2f} GiB")
     for name in ("candidate_journal","paper_receipts"):
         path=root/"v4"/"data"/name; add("directory_"+name,path.is_dir(),str(path))
-    add("p5_not_connected", "p5_" not in (root/"v4"/"dashboard.py").read_text(encoding="utf-8"),"8898 legacy entry unchanged")
+    add("p5_entry_available",(root/"v4"/"p5_dashboard.py").is_file() and
+        (root/"phase1"/"scripts"/"run_p5_dashboard.ps1").is_file(),"P5 read-only 8898 entry available")
     return {"schema_version":"operations-preflight-v1","passed":all(x["passed"] for x in checks),
             "checks":checks,"log_retention":audit_log_retention(root),"read_only":True,"production_mutated":False}

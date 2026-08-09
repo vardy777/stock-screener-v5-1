@@ -4,6 +4,7 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+backups/
 
 # Secrets and machine-local agent state
 v3/.env

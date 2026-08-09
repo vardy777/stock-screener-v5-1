@@ -16,6 +16,7 @@ from typing import Any
 
 from .execution import CHINA_TZ
 from .p5_read_model import DashboardReadModelBuilder
+from .p3_account import OfflinePaperLedger
 
 
 @dataclass(frozen=True)
@@ -98,6 +99,7 @@ class P5ReadOnlySources:
             ("live_window_acceptance", self.data_dir / "acceptance" / "live_window_acceptance.json"),
             ("cutover_readiness", self.data_dir / "acceptance" / "cutover_readiness.json"),
             ("strict_model_admission", self.data_dir / "research" / "strict_model_admission.json"),
+            ("production_authorization", self.data_dir / "cutover" / "production_authorization.json"),
         )
         return {name: self._read(path, name) for name, path in specs}
 
@@ -117,12 +119,25 @@ class P5ReadOnlySources:
         p3_results = optional["p3_execution_results"][0]
         p4_receipts = optional["p4_task_receipts"][0]
         if ledger is None and p3_ledger:
-            ledger = {"initial_cash": p3_ledger.get("initial_cash", 100000),
-                      "fills": [x.get("fill", {}) for x in p3_ledger.get("events", [])],
-                      "round_trips": p3_ledger.get("round_trips", [])}
+            account=OfflinePaperLedger(self.data_dir/"p3",initial_cash=p3_ledger.get("initial_cash",100000))
+            snapshot=account.snapshot()
+            ledger = {**snapshot,"equity":snapshot["cash"]+sum(float(x.get("notional",0)) for x in snapshot["positions"]),
+                      "fills":account.fills(),"round_trips":account.round_trips()}
+        if not p4_receipts:
+            paths=sorted((self.data_dir/"p4"/"outputs").glob("*/*.json")) if (self.data_dir/"p4"/"outputs").is_dir() else []
+            p4_receipts={"receipts":[self._read(path,"p4_task_output")[0] for path in paths[-90:]]}
         operations.setdefault("task_receipts", p4_receipts.get("receipts", p4_receipts.get("results", [])))
         operations.setdefault("heartbeat", optional["p4_heartbeat"][0])
         operations.setdefault("cutover", optional["cutover_readiness"][0])
+        authorization=optional["production_authorization"][0]
+        if authorization.get("apply_allowed") is True:
+            owners=authorization.get("owners",{})
+            operations.setdefault("ownership",{"decision":owners.get("candidate_decision","P2"),
+                "account_execution":owners.get("paper_account","P3"),
+                "scheduler_notifications":owners.get("task_receipts","P4"),
+                "dashboard":owners.get("dashboard","P5")})
+            operations["cutover"]={"ready":True,"apply_allowed":False,"applied":True,
+                "plan_id":authorization.get("authorization_id","")}
         evidence.setdefault("live_windows", optional["live_window_acceptance"][0])
         evidence.setdefault("strict_admission", optional["strict_model_admission"][0])
         evidence.setdefault("execution_result_count", len(p3_results.get("results", [])))

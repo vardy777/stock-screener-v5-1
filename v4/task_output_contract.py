@@ -18,11 +18,11 @@ TASK_OUTPUT_VERSION = "task-output-v1"
 OUTPUT_KINDS = {
     "morning_decision": "MorningPoolV1",
     "morning_push": "NotificationReceiptV1",
-    "paper_sell": "PaperExecutionResultV1",
+    "paper_sell": "PaperExecutionBatchV1",
     "feature_freeze": "FeatureContextV1",
     "confirmation_decision": "ConfirmationDecisionV1",
     "confirmation_push": "NotificationReceiptV1",
-    "paper_buy": "PaperExecutionResultV1",
+    "paper_buy": "PaperExecutionBatchV1",
     "health_check": "HealthReportV1",
     "maintenance": "MaintenanceReportV1",
 }
