@@ -10,7 +10,6 @@ from phase1.overnight.backtesting import (
 )
 from phase1.overnight.dataset import FEATURE_COLUMNS
 from phase1.overnight.model import LightGBMSignalModel, RidgeSignalModel
-from v3.dashboard import build_html
 
 
 class OvernightPolicyTests(unittest.TestCase):
@@ -72,36 +71,6 @@ class OvernightPolicyTests(unittest.TestCase):
         self.assertIn("win_rate", report.columns)
         self.assertIn("target_1pct_rate", report.columns)
         self.assertTrue((report["trades"] > 0).all())
-
-    def test_dashboard_contains_research_gate_and_post_only_actions(self):
-        state = {
-            "account": {
-                "total_return_pct": 0.0,
-                "today_pnl_pct": 0.0,
-                "current_capital": 100000.0,
-                "total_equity": 100000.0,
-                "initial_capital": 100000.0,
-                "position_market_value": 0.0,
-                "position_count": 0,
-                "total_trades": 0,
-                "win_rate": 0.0,
-                "max_drawdown_pct": 0.0,
-            },
-            "market_state": {"mode_label": "neutral"},
-            "time": "2026-08-01 20:00:00",
-            "positions": [],
-            "candidates": [],
-            "sector_ranks": {},
-            "sentiment": {},
-            "daily_records": [],
-            "trade_history": [],
-            "research": {"available": False},
-            "fund_flow": {},
-        }
-        page = build_html(state)
-        self.assertIn("method: 'POST'", page)
-        self.assertNotIn("loadWatchlist", page)
-        self.assertIn("status-pill", page)
 
     def test_metrics_treat_any_non_strict_contract_as_proxy(self):
         trades = pd.DataFrame(

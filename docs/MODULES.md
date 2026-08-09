@@ -19,7 +19,7 @@
 | 看板 | `v4/p5_read_model.py`, `v4/p5_sources.py`, `v4/p5_beginner_dashboard.py`, `v4/p5_dashboard.py` | 唯一只读读模型、严格新鲜度、候选解释、市场/账户/证据/运维投影 | P5 已接管 8898；提供新手、研究、运维三视图；POST 固定 405 | 等待真实四窗口实体观测 |
 | 研究评估 | `phase1/overnight/`, `v4/p6_research_audit.py` | 数据集、WF、压力测试、严格审计 | 离线门禁完整；真实严格样本不足 | 积累样本后运行全市场WF/压力验收 |
 | 模型注册 | `v4/model_registry.py`, `v4/p7_release_audit.py` | 发布清单、推理、报告血缘终审 | 离线发布包审计通过；模型未发布 | 仅在P6全部门禁通过后发布 |
-| 备份恢复 | `v4/p8_backup.py` | 内容寻址备份、损坏检测、隔离恢复 | 离线灾备契约通过；未操作生产数据或历史资产 | 获授权后进行真实数据演练与历史归档 |
+| 备份恢复 | `v4/p8_backup.py` | 内容寻址备份、损坏检测、隔离恢复 | V3退役包已通过内容哈希与隔离恢复校验；未覆盖生产数据 | V2及根目录历史资产后续归档 |
 | 切换准备 | `v4/live_window_acceptance.py`, `v4/cutover_readiness.py`, `v4/offline_rehearsal.py`, `v4/operations_preflight.py` | 四窗口证据、任务差异、单写者、切换/回滚、统一验收 | 全部只读或显式隔离输出，`apply_allowed=false` | 等待真实窗口填充证据 |
 
 ## 统一业务实体（P2离线契约已验收，真实窗口待验）

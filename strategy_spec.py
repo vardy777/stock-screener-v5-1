@@ -1,7 +1,7 @@
 """Shared strategy specification and realistic A-share transaction costs.
 
-This module deliberately has no third-party dependencies so the live V3
-simulator and the research pipeline use exactly the same cash-flow rules.
+This module deliberately has no third-party dependencies so the V4 paper
+engine and the research pipeline use exactly the same cash-flow rules.
 Rates are expressed as decimal fractions: 0.00025 means 0.025%.
 """
 

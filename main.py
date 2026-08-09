@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-选股系统 - 主入口 (V1 + V2 + V3 + V4)
+选股系统 - 历史工具入口（V1/V2）与 V4 运维辅助
 
 用法:
     python main.py                      # 显示操作清单
@@ -16,15 +16,6 @@
     python main.py v2-dashboard         # V2 启动看板
     python main.py v2-cron-list         # V2 查看所有cron任务
     python main.py v2-ic                # V2 计算因子IC
-    python main.py v3-scan              # V3 超短因子扫描+诊断
-    python main.py v3-morning           # V3 早盘选股 (手动运行)
-    python main.py v3-afternoon         # V3 尾盘确认
-    python main.py v3-buy <代码> <价格>  # V3 记录买入
-    python main.py v3-sell <代码> <价格> # V3 记录卖出+卖出建议
-    python main.py v3-settle            # V3 结算
-    python main.py v3-dashboard         # V3 启动看板
-    python main.py v3-cron-list         # V3 查看所有cron任务
-
 数据源: 新浪财经 API（实时行情）| V4: 14:50→次日09:30 隔夜决策与执行门禁
 """
 
@@ -278,102 +269,7 @@ def cmd_v2_ic():
 
 
 # ============================================================
-# V3 commands
-# ============================================================
-
-def cmd_v3_scan():
-    """V3 超短因子扫描 + 诊断"""
-    banner()
-    print("  🔬 V3: 超短因子扫描...\n")
-    from v3.factors import UltraShortFactorComputer, FACTOR_WEIGHTS
-    print(f"  因子 ({len(FACTOR_WEIGHTS)} 个):")
-    for name, w in sorted(FACTOR_WEIGHTS.items(), key=lambda x: -x[1]):
-        bar = "█" * int(w * 40)
-        print(f"    {name:25s} weight={w:.2f}  {bar}")
-    print(f"\n  💡 运行 v3-morning 进行早盘选股, v3-afternoon 进行尾盘确认")
-
-
-def cmd_v3_morning():
-    """V3 早盘选股 (手动运行)"""
-    banner()
-    print("  🌅 V3: 早盘选股...\n")
-    from v4.scripts.morning_push import main as morning_main
-    morning_main()
-
-
-def cmd_v3_afternoon():
-    """V3 尾盘确认"""
-    banner()
-    print("  🎯 V3: 尾盘确认...\n")
-    from v4.scripts.afternoon_push import main as afternoon_main
-    afternoon_main()
-
-
-def cmd_v3_buy(args):
-    """V3 记录买入"""
-    if len(args) < 2:
-        print("  ❌ 用法: python main.py v3-buy <代码> <价格> [理由]")
-        return
-    code = args[0]
-    price = float(args[1])
-    reason = " ".join(args[2:]) if len(args) > 2 else "v3"
-    from trade_journal import record_buy
-    from data_fetcher import batch_fetch_quotes
-    name = code
-    df = batch_fetch_quotes([code])
-    if df is not None and len(df) > 0:
-        name = str(df.iloc[0].get("name", code))
-    trade_id = record_buy(code, name, price, reason)
-    if trade_id:
-        print(f"  ✅ V3 买入已记录 (ID: {trade_id})")
-
-
-def cmd_v3_sell(args):
-    """V3 记录卖出"""
-    if len(args) < 2:
-        print("  ❌ 用法: python main.py v3-sell <代码> <价格> [理由]")
-        return
-    code = args[0]
-    price = float(args[1])
-    reason = " ".join(args[2:]) if len(args) > 2 else "v3"
-    from trade_journal import record_sell, init_journal
-    df = init_journal()
-    df["code"] = df["code"].astype(str).str.strip()
-    mask = (df["code"] == str(code).strip()) & ((df["sell_price"] == 0) | df["sell_price"].isna())
-    if mask.sum() > 0:
-        buy_price = float(df[mask].iloc[-1]["buy_price"])
-        profit = round((price - buy_price) / buy_price * 100, 2)
-        print(f"  📊 盈亏: {profit:+.2f}%")
-    record_sell(code, price, reason)
-    print("  ✅ V3 卖出已记录")
-
-
-def cmd_v3_settle():
-    """V3 结算"""
-    banner()
-    print("  💰 V3: 结算昨日交易...\n")
-    from v3.scripts.daily_settlement import main as settle_main
-    settle_main()
-
-
-def cmd_v3_dashboard():
-    """V3 启动看板"""
-    banner()
-    print("  📊 V3: 启动实时看板...\n")
-    print(f"  访问: http://localhost:8898")
-    from v4.dashboard import run_dashboard
-    run_dashboard(port=8898)
-
-
-def cmd_v3_cron_list():
-    """查看本机Windows定时任务。"""
-    banner()
-    print("  ⏰ V3/V4: 查看Windows定时任务...\n")
-    _print_windows_tasks()
-
-
-# ============================================================
-# V3 模拟交易命令
+# V4 兼容模拟工具命令（生产执行由 P3/P4 管理）
 # ============================================================
 
 def cmd_sim_status():
@@ -587,16 +483,7 @@ def main():
         "v2-dashboard": cmd_v2_dashboard,
         "v2-cron-list": cmd_v2_cron_list,
         "v2-ic": cmd_v2_ic,
-        # V3
-        "v3-scan": cmd_v3_scan,
-        "v3-morning": cmd_v3_morning,
-        "v3-afternoon": cmd_v3_afternoon,
-        "v3-buy": lambda: cmd_v3_buy(sys.argv[2:]),
-        "v3-sell": lambda: cmd_v3_sell(sys.argv[2:]),
-        "v3-settle": cmd_v3_settle,
-        "v3-dashboard": cmd_v3_dashboard,
-        "v3-cron-list": cmd_v3_cron_list,
-        # V3 模拟交易
+        # V4 兼容模拟工具
         "sim-status": cmd_sim_status,
         "sim-plan": cmd_sim_plan,
         "sim-buy": cmd_sim_buy,
@@ -611,7 +498,6 @@ def main():
         print("  可用命令:")
         print("  V1: morning / afternoon / review / buy / sell / backtest / checklist")
         print("  V2: v2-scan / v2-snapshot / v2-settle / v2-dashboard / v2-cron-list / v2-ic")
-        print("  V3: v3-scan / v3-morning / v3-afternoon / v3-buy / v3-sell / v3-settle / v3-dashboard / v3-cron-list")
         print("  SIM: sim-status / sim-plan / sim-buy / sim-sell / sim-reset")
 
 

@@ -65,8 +65,9 @@ def build_report() -> dict:
     state = load_state()
     missing = [name for name in REQUIRED_FILES if not (ROOT / name).exists()]
     violations = v3_import_violations()
+    v3_tree_retired = not (ROOT / "v3").exists()
     return {
-        "ok": not missing and not violations,
+        "ok": not missing and not violations and v3_tree_retired,
         "project": state.get("display_name"),
         "active_phase": state.get("active_phase"),
         "active_phase_name": state.get("active_phase_name"),
@@ -76,6 +77,7 @@ def build_report() -> dict:
         "known_issues": state.get("known_issues", []),
         "missing_context_files": missing,
         "v3_import_violations": violations,
+        "v3_runtime_tree_retired": v3_tree_retired,
         "latest_runtime_observation": runtime_observation(),
     }
 
@@ -109,7 +111,8 @@ def main() -> int:
         print(
             f"consistency: {'PASS' if report['ok'] else 'FAIL'} "
             f"missing={len(report['missing_context_files'])} "
-            f"v3_imports={len(report['v3_import_violations'])}"
+            f"v3_imports={len(report['v3_import_violations'])} "
+            f"v3_tree_retired={report['v3_runtime_tree_retired']}"
         )
     return 0 if report["ok"] else 1
 

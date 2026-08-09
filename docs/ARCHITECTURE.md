@@ -3,7 +3,7 @@
 ## 边界
 
 V4 是一个本地单机系统。外部依赖只有行情网络接口、PushPlus 和 Windows
-Task Scheduler；AI Agent 不属于运行时。`v3/`、`v2/` 和根目录旧脚本是历史
+Task Scheduler；AI Agent 不属于运行时。`v3/` 已完成退役并移出工作树；`v2/` 和根目录旧脚本是历史
 资产，不得被 `v4/` 导入。
 
 ## 目标分层（P1/P2重构边界）

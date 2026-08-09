@@ -63,10 +63,13 @@
     "production_publication_allowed": false
   },
   "p8_validation": {
-    "engineering_status": "offline_backup_restore_contract_accepted",
+    "engineering_status": "v3_retirement_applied_v2_pending",
     "production_data_backup_performed": false,
     "production_restore_performed": false,
-    "historical_archive_performed": false
+    "historical_archive_performed": true,
+    "v3_runtime_tree_retired": true,
+    "v3_backup_id": "backup1-62f929791e6c7f5ed652e437",
+    "v3_restore_verification": "passed_81_files"
   },
   "cutover_preparation": {
     "engineering_status": "cutover_applied_live_evidence_pending",
@@ -122,7 +125,7 @@
     "confirmation_push_success": true
   },
   "quality": {
-    "tests_passed": 258,
+    "tests_passed": 226,
     "tests_failed": 0,
     "v4_imports_v3": false
   },

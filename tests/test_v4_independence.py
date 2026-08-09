@@ -6,6 +6,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class V4IndependenceTests(unittest.TestCase):
+    def test_v3_runtime_tree_is_retired(self):
+        self.assertFalse((ROOT / "v3").exists())
+
     def test_v4_runtime_has_no_v3_imports(self):
         violations = []
         for path in (ROOT / "v4").rglob("*.py"):
@@ -34,7 +37,7 @@ class V4IndependenceTests(unittest.TestCase):
 
     def test_dashboard_launcher_starts_v4_module_directly(self):
         text = (ROOT / "start_dashboard.py").read_text(encoding="utf-8")
-        self.assertIn('"-m", "v4.dashboard"', text)
+        self.assertIn('"-m", "v4.p5_dashboard"', text)
         self.assertNotIn('"v3-dashboard"', text)
 
 

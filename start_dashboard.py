@@ -32,7 +32,7 @@ def choose_python() -> str:
 
 
 try:
-    urllib.request.urlopen("http://127.0.0.1:8898/api/health", timeout=1)
+    urllib.request.urlopen("http://127.0.0.1:8898/api/read-model", timeout=1)
     print("看板已经运行 → http://localhost:8898")
     raise SystemExit(0)
 except OSError:
@@ -46,7 +46,7 @@ with open(os.path.join(SCRIPT_DIR, "v4", "dashboard.log"), "w") as log:
 
 creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 proc = subprocess.Popen(
-    [PYTHON, "-X", "utf8", "-m", "v4.dashboard"],
+    [PYTHON, "-X", "utf8", "-m", "v4.p5_dashboard", "--port", "8898", "--data-dir", "v4/data"],
     cwd=SCRIPT_DIR,
     stdin=subprocess.DEVNULL,
     stdout=subprocess.DEVNULL,
@@ -61,10 +61,10 @@ time.sleep(3)
 
 # 验证（独立于子进程）
 try:
-    resp = urllib.request.urlopen("http://127.0.0.1:8898/api/health", timeout=5)
+    resp = urllib.request.urlopen("http://127.0.0.1:8898/api/read-model", timeout=5)
     d = json.loads(resp.read())
     print("看板运行正常 -> http://localhost:8898")
-    print(f"   服务时间: {d.get('time','?')}")
+    print(f"   读模型时间: {d.get('generated_at','?')}")
 except Exception as e:
     print(f"启动失败: {e}")
     raise SystemExit(1)

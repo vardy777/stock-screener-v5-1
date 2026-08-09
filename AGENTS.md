@@ -14,7 +14,8 @@ project.  Every coding session must begin by reading, in order:
   09:30 evidence, walk-forward, stress and model-publication gates all pass.
 - Never use future data, lower a strict evidence threshold to manufacture a
   result, claim profitability, or equate a rule score with win probability.
-- Runtime code in `v4/` must not import `v3.*`; V3 is historical only.
+- Runtime code must not import `v3.*`; the V3 working tree is retired and may
+  exist only in the local verified retirement backup.
 - The two required notifications are 09:25 observation and 14:50 confirmation.
 - Confirmation candidates must be a subset of the same-day 09:25 mother pool.
 - Paper trading is local only: 14:50 confirmation buy, next open session after

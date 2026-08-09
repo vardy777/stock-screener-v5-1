@@ -17,7 +17,6 @@ from v4.execution import CHINA_TZ
 from v4.feature_store import LiveFeatureStore
 from v4.model_registry import PublishedModelRegistry
 from v4.runtime import V4Runtime
-from v3.simulation import SimulationEngine
 
 
 class PublishedArtifactTests(unittest.TestCase):
@@ -263,37 +262,6 @@ class FullUniverseRuntimeTests(unittest.TestCase):
             )
         self.assertFalse(result[0]["v4_tradable"])
         self.assertIn("全市场状态数据无效或覆盖不足", result[0]["v4_block_reasons"])
-
-    def test_market_coverage_deduplicates_codes_and_requires_fresh_metrics(self):
-        quotes = pd.DataFrame(
-            [
-                {
-                    "code": "000001",
-                    "price": 10.0,
-                    "change_pct": 1.0,
-                    "prev_close": 9.9,
-                    "open": 10.0,
-                    "quote_time": "2026-08-03T14:50:10+08:00",
-                },
-                {
-                    "code": "000001",
-                    "price": 10.1,
-                    "change_pct": 1.2,
-                    "prev_close": 9.9,
-                    "open": 10.0,
-                    "quote_time": "2026-08-03T14:50:11+08:00",
-                },
-            ]
-        )
-        engine = SimulationEngine()
-        with tempfile.TemporaryDirectory() as temp_dir:
-            with (
-                patch("v4.execution.TradingClock.quote_is_fresh", return_value=True),
-                patch("v4.market.MARKET_CACHE_PATH", Path(temp_dir) / "market.json"),
-            ):
-                state = engine._get_market_state(quotes, expected_codes=2)
-        self.assertEqual(state["quote_coverage"], 0.5)
-        self.assertFalse(state["data_valid"])
 
 
 if __name__ == "__main__":

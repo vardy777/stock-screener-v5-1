@@ -10,7 +10,7 @@ from phase1.overnight.capture_health import evaluate_capture_session
 from phase1.overnight.dataset import FEATURE_COLUMNS
 from phase1.overnight.live_features import save_signal_features
 from v4.execution import CHINA_TZ
-from v3.snapshot_compat import capture_frame
+from v4.snapshot_compat import capture_frame
 
 
 class CaptureHealthTests(unittest.TestCase):
@@ -34,7 +34,7 @@ class CaptureHealthTests(unittest.TestCase):
             ]
         )
         with tempfile.TemporaryDirectory() as temp_dir:
-            with patch("v3.snapshot_compat.SNAPSHOT_ROOT", Path(temp_dir)):
+            with patch("v4.snapshot_compat.SNAPSHOT_ROOT", Path(temp_dir)):
                 capture_frame(
                     frame,
                     "buy",
@@ -58,7 +58,7 @@ class CaptureHealthTests(unittest.TestCase):
             "ask1_volume": 50_000, "quote_time": now.isoformat(),
         }])
         with tempfile.TemporaryDirectory() as temp_dir:
-            with patch("v3.snapshot_compat.SNAPSHOT_ROOT", Path(temp_dir)):
+            with patch("v4.snapshot_compat.SNAPSHOT_ROOT", Path(temp_dir)):
                 output = capture_frame(
                     frame, "buy", now=now, expected_codes=["000001"],
                     require_order_book=True,

@@ -74,7 +74,11 @@ class ProjectGovernanceTests(unittest.TestCase):
         self.assertFalse(state["p7_validation"]["production_publication_allowed"])
         self.assertFalse(state["p8_validation"]["production_data_backup_performed"])
         self.assertFalse(state["p8_validation"]["production_restore_performed"])
-        self.assertFalse(state["p8_validation"]["historical_archive_performed"])
+        self.assertTrue(state["p8_validation"]["historical_archive_performed"])
+        self.assertTrue(state["p8_validation"]["v3_runtime_tree_retired"])
+        self.assertEqual(
+            state["p8_validation"]["v3_restore_verification"], "passed_81_files"
+        )
         cutover=state["cutover_preparation"]
         self.assertTrue(cutover["live_window_acceptance_available"])
         self.assertTrue(cutover["writer_inventory_required"])
