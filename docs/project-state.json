@@ -68,6 +68,20 @@
     "production_restore_performed": false,
     "historical_archive_performed": false
   },
+  "cutover_preparation": {
+    "engineering_status": "offline_preparation_accepted_live_evidence_pending",
+    "live_window_acceptance_available": true,
+    "task_inventory_read_only": true,
+    "writer_inventory_required": true,
+    "rollback_plan_available": true,
+    "unified_offline_acceptance_available": true,
+    "unified_offline_acceptance_status": "passed_234_tests_no_production_mutation",
+    "legacy_2026_08_07_window_projection": "failed_as_expected_not_valid_live_evidence",
+    "apply_allowed": false,
+    "tasks_modified": false,
+    "account_migrated": false,
+    "dashboard_switched": false
+  },
   "runtime_owner": "v4",
   "dashboard": {
     "url": "http://127.0.0.1:8898/",
@@ -105,7 +119,7 @@
     "confirmation_push_success": true
   },
   "quality": {
-    "tests_passed": 221,
+    "tests_passed": 234,
     "tests_failed": 0,
     "v4_imports_v3": false
   },
@@ -147,7 +161,7 @@
     }
   ],
   "next_tasks": [
-    "周一验证真实09:25、14:49、14:50和次日09:30窗口并保存P1/P2证据",
+    "周一使用四窗口自动验收器验证真实09:25、14:49、14:50和次日09:30并保存P1/P2证据",
     "持续积累无偏严格样本；达到门槛后才运行P6全市场Walk-Forward和压力测试",
     "现有8898保持不变；真实实体观测和单独授权前禁止P5原子切换",
     "P1/P2真实窗口失败时立即暂停P3/P4/P5/P6/P7/P8并优先修复"

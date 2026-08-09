@@ -105,6 +105,7 @@ class P5ReadOnlySources:
             morning=journal.get("morning"), confirmation=journal.get("confirmation"),
             market=self._market(context, journal), fund_flow=self._fund_flow(flow), ledger=ledger or {},
             task_receipts=operations.get("task_receipts", ()), heartbeat=operations.get("heartbeat"),
-            alerts=operations.get("alerts", ()), evidence=evidence or {}, source_artifacts=[a.__dict__ for a in artifacts],
+            alerts=operations.get("alerts", ()), evidence=evidence or {}, ownership=operations.get("ownership"),
+            cutover=operations.get("cutover"), source_artifacts=[a.__dict__ for a in artifacts],
             source_issues=source_issues)
         return model

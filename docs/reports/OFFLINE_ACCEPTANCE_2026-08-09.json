@@ -1,0 +1,251 @@
+{
+  "schema_version": "offline-acceptance-report-v1",
+  "generated_at": "2026-08-09T10:42:06+08:00",
+  "passed": true,
+  "checks": {
+    "project_consistency": true,
+    "operations": true,
+    "frozen_rehearsal": true,
+    "secret_scan": true,
+    "tests": true
+  },
+  "project": {
+    "ok": true,
+    "project": "A股隔夜研究与模拟系统 V4",
+    "active_phase": "P6",
+    "active_phase_name": "严格研究数据积累与真实窗口验收",
+    "production_status": "research_locked",
+    "dashboard": {
+      "url": "http://127.0.0.1:8898/",
+      "entrypoint": "python -m v4.dashboard"
+    },
+    "next_tasks": [
+      "周一使用四窗口自动验收器验证真实09:25、14:49、14:50和次日09:30并保存P1/P2证据",
+      "持续积累无偏严格样本；达到门槛后才运行P6全市场Walk-Forward和压力测试",
+      "现有8898保持不变；真实实体观测和单独授权前禁止P5原子切换",
+      "P1/P2真实窗口失败时立即暂停P3/P4/P5/P6/P7/P8并优先修复"
+    ],
+    "known_issues": [
+      {
+        "id": "P2-001",
+        "severity": "P0",
+        "title": "候选日志保存了门禁重评前的阻断理由",
+        "phase": "P2",
+        "status": "closed"
+      },
+      {
+        "id": "P2-002",
+        "severity": "P0",
+        "title": "全市场分数与小母池重排分数口径不同，固定80分阈值不稳定",
+        "phase": "P2",
+        "status": "closed"
+      },
+      {
+        "id": "P4-001",
+        "severity": "P1",
+        "title": "模拟买卖调度依赖8898看板进程常驻",
+        "phase": "P4",
+        "status": "open"
+      },
+      {
+        "id": "P4-002",
+        "severity": "P1",
+        "title": "独立paper买卖Windows任务未注册，重注册被当前进程权限拒绝",
+        "phase": "P3/P4",
+        "status": "open_access_denied_2026-08-08"
+      },
+      {
+        "id": "P5-001",
+        "severity": "P1",
+        "title": "看板单文件职责过多且状态由多个JSON现场拼装",
+        "phase": "P5",
+        "status": "closed_offline_replacement_ready_cutover_pending"
+      }
+    ],
+    "missing_context_files": [],
+    "v3_import_violations": [],
+    "latest_runtime_observation": {
+      "available": true,
+      "trade_date": "2026-08-07",
+      "morning_candidates": 5,
+      "confirmation_candidates": 3,
+      "paper_bought": 0,
+      "paper_message": "无符合条件的买入 (仓位已满或风险模式)"
+    }
+  },
+  "operations": {
+    "schema_version": "operations-preflight-v1",
+    "passed": true,
+    "checks": [
+      {
+        "name": "project_root",
+        "passed": true,
+        "detail": "C:\\Users\\lisha\\stock-screener"
+      },
+      {
+        "name": "venv_python",
+        "passed": true,
+        "detail": "C:\\Users\\lisha\\stock-screener\\.venv\\Scripts\\python.exe"
+      },
+      {
+        "name": "env_local_present",
+        "passed": true,
+        "detail": "local secret file present"
+      },
+      {
+        "name": "disk_free",
+        "passed": true,
+        "detail": "1191.16 GiB"
+      },
+      {
+        "name": "directory_candidate_journal",
+        "passed": true,
+        "detail": "C:\\Users\\lisha\\stock-screener\\v4\\data\\candidate_journal"
+      },
+      {
+        "name": "directory_paper_receipts",
+        "passed": true,
+        "detail": "C:\\Users\\lisha\\stock-screener\\v4\\data\\paper_receipts"
+      },
+      {
+        "name": "p5_not_connected",
+        "passed": true,
+        "detail": "8898 legacy entry unchanged"
+      }
+    ],
+    "log_retention": {
+      "schema_version": "log-retention-audit-v1",
+      "policy": {
+        "max_bytes": 52428800,
+        "retention_days": 30
+      },
+      "logs": [
+        {
+          "path": "C:\\Users\\lisha\\stock-screener\\phase1\\data\\logs\\dashboard_startup.log",
+          "size": 1739,
+          "age_days": 2.06,
+          "rotation_candidate": false,
+          "retention_candidate": false
+        },
+        {
+          "path": "C:\\Users\\lisha\\stock-screener\\phase1\\data\\logs\\scheduled_buy.log",
+          "size": 1492,
+          "age_days": 1.83,
+          "rotation_candidate": false,
+          "retention_candidate": false
+        },
+        {
+          "path": "C:\\Users\\lisha\\stock-screener\\phase1\\data\\logs\\scheduled_daily_maintenance.log",
+          "size": 585337,
+          "age_days": 1.8,
+          "rotation_candidate": false,
+          "retention_candidate": false
+        },
+        {
+          "path": "C:\\Users\\lisha\\stock-screener\\phase1\\data\\logs\\scheduled_health_close.log",
+          "size": 15892,
+          "age_days": 1.82,
+          "rotation_candidate": false,
+          "retention_candidate": false
+        },
+        {
+          "path": "C:\\Users\\lisha\\stock-screener\\phase1\\data\\logs\\scheduled_health_sell.log",
+          "size": 5848,
+          "age_days": 2.04,
+          "rotation_candidate": false,
+          "retention_candidate": false
+        },
+        {
+          "path": "C:\\Users\\lisha\\stock-screener\\phase1\\data\\logs\\scheduled_push_afternoon.log",
+          "size": 4292,
+          "age_days": 1.83,
+          "rotation_candidate": false,
+          "retention_candidate": false
+        },
+        {
+          "path": "C:\\Users\\lisha\\stock-screener\\phase1\\data\\logs\\scheduled_push_morning.log",
+          "size": 3826,
+          "age_days": 2.05,
+          "rotation_candidate": false,
+          "retention_candidate": false
+        },
+        {
+          "path": "C:\\Users\\lisha\\stock-screener\\phase1\\data\\logs\\scheduled_sell.log",
+          "size": 1230,
+          "age_days": 2.05,
+          "rotation_candidate": false,
+          "retention_candidate": false
+        },
+        {
+          "path": "C:\\Users\\lisha\\stock-screener\\phase1\\data\\logs\\scheduled_signal.log",
+          "size": 1374,
+          "age_days": 1.83,
+          "rotation_candidate": false,
+          "retention_candidate": false
+        }
+      ],
+      "mutation_performed": false
+    },
+    "read_only": true,
+    "production_mutated": false
+  },
+  "rehearsal": {
+    "schema_version": "offline-lifecycle-rehearsal-v1",
+    "events": [
+      {
+        "event": "MORNING_RECORDED",
+        "status": "SUCCEEDED"
+      },
+      {
+        "event": "MORNING_NOTIFIED",
+        "status": "SUCCEEDED"
+      },
+      {
+        "event": "FEATURE_FROZEN",
+        "status": "SUCCEEDED"
+      },
+      {
+        "event": "CONFIRMATION_RECORDED",
+        "status": "SUCCEEDED"
+      },
+      {
+        "event": "CONFIRMATION_NOTIFIED",
+        "status": "SUCCEEDED"
+      },
+      {
+        "event": "BUY_TERMINAL",
+        "status": "EMPTY"
+      },
+      {
+        "event": "SELL_TERMINAL",
+        "status": "EMPTY"
+      },
+      {
+        "event": "DASHBOARD_PROJECTED",
+        "status": "SUCCEEDED"
+      }
+    ],
+    "seen": [
+      "MORNING_RECORDED",
+      "MORNING_NOTIFIED",
+      "FEATURE_FROZEN",
+      "CONFIRMATION_RECORDED",
+      "CONFIRMATION_NOTIFIED",
+      "BUY_TERMINAL",
+      "SELL_TERMINAL",
+      "DASHBOARD_PROJECTED"
+    ],
+    "reasons": [],
+    "writes_production": false,
+    "network_called": false,
+    "passed": true,
+    "rehearsal_id": "rehearsal1-c0bae287991db79f7b17d1fe"
+  },
+  "tests": {
+    "run": true,
+    "passed": true,
+    "exit_code": 0
+  },
+  "secret_findings": [],
+  "production_mutated": false
+}

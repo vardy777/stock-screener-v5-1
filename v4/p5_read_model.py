@@ -46,7 +46,7 @@ class DashboardReadModelBuilder:
     def build(self, *, generated_at: datetime, production_status: str, morning=None,
               confirmation=None, market=None, fund_flow=None, ledger=None,
               task_receipts=(), heartbeat=None, alerts=(), evidence=None,
-              source_artifacts=(), source_issues=()):
+              source_artifacts=(), source_issues=(), ownership=None, cutover=None):
         if generated_at.tzinfo is None: raise DashboardContractViolation("generated_at: timezone required")
         morning, confirmation, market = dict(morning or {}), dict(confirmation or {}), dict(market or {})
         fund_flow, ledger, evidence = dict(fund_flow or {}), dict(ledger or {}), dict(evidence or {})
@@ -64,7 +64,7 @@ class DashboardReadModelBuilder:
         flow = self._flow(fund_flow)
         account = self._account(ledger)
         evidence_view = self._evidence(evidence, account)
-        operations = self._operations(task_receipts, heartbeat, alerts)
+        operations = self._operations(task_receipts, heartbeat, alerts, ownership, cutover)
         if operations["heartbeat_status"] != "ALIVE": issues.append(self._issue("CRITICAL", "HEARTBEAT_STALE", "调度心跳过期"))
         if evidence_view["model_status"] != "published": issues.append(self._issue("WARNING", "MODEL_UNPUBLISHED", "生产预期模型尚未发布"))
         if confirmation and confirmation.get("outcome") in {"BLOCKED", "OUTCOME_UNKNOWN"}:
@@ -144,6 +144,8 @@ class DashboardReadModelBuilder:
             "proxy":{"trades":int(e.get("proxy_trades",0)),"role":"15:00代理研究，禁止替代严格样本"},
             "model_status":e.get("model_status","unpublished"),"cohorts_separated":True}
 
-    def _operations(self,receipts,heartbeat,alerts):
+    def _operations(self,receipts,heartbeat,alerts,ownership=None,cutover=None):
         return {"tasks":list(receipts),"heartbeat_status":(heartbeat or {}).get("status","MISSING"),
-            "heartbeat_at":(heartbeat or {}).get("recorded_at",(heartbeat or {}).get("observed_at","")),"alerts":list(alerts)}
+            "heartbeat_at":(heartbeat or {}).get("recorded_at",(heartbeat or {}).get("observed_at","")),"alerts":list(alerts),
+            "ownership":dict(ownership or {"decision":"P2","account_execution":"legacy_production","scheduler_notifications":"legacy_phase1_scripts","dashboard":"legacy_8898"}),
+            "cutover":dict(cutover or {"ready":False,"apply_allowed":False,"plan_id":""})}

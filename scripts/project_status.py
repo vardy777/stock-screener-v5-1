@@ -21,6 +21,7 @@ REQUIRED_FILES = (
     "docs/MODULES.md",
     "docs/RUNBOOK.md",
     "docs/CHANGELOG.md",
+    "docs/CUTOVER_PREPARATION.md",
     "docs/decisions/README.md",
 )
 

@@ -28,10 +28,11 @@ class P5OfflineDashboardTests(unittest.TestCase):
 
     def test_html_has_required_control_center_sections_and_no_mutation_controls(self):
         page=render(frozen_demo_model())
-        for text in ("今日不可变链路","09:25母池 → 14:50确认","市场状态","市场情绪（描述性）","证据分层","板块资金流","模拟账户权益与回撤","已闭合隔夜往返","来源与哈希","P4任务与SLA","视图不控制执行"):
+        for text in ("今日不可变链路","09:25母池 → 14:50确认","市场状态","市场情绪（描述性）","证据分层","板块资金流","模拟账户权益与回撤","已闭合隔夜往返","来源与哈希","业务所有者与切换状态","P4任务与SLA","视图不控制执行"):
             self.assertIn(text,page)
         for forbidden in ("运行买入","运行卖出","重置账户","api/run_buy","api/reset"):
             self.assertNotIn(forbidden,page)
+        self.assertIn("账户/执行：<b>legacy_production</b>",page); self.assertIn("apply_allowed=false",page)
 
     def test_http_surface_is_read_only_and_mode_chase_compatible(self):
         server=ThreadingHTTPServer(("127.0.0.1",0),Handler); thread=threading.Thread(target=server.serve_forever,daemon=True); thread.start()

@@ -16,21 +16,21 @@ def offline_notification_manifest(project_root: Path):
 def full_offline_task_manifest(project_root: Path):
     root = Path(project_root).resolve()
     tasks = [
-        ("morning_decision", "09:25:00", (), "decision_job.py morning"),
-        ("morning_push", "09:25:20", ("morning_decision",), "morning_push.py"),
-        ("paper_sell", "09:30:20", (), "paper_trade.py sell"),
-        ("feature_freeze", "14:49:00", (), "capture signal"),
-        ("confirmation_decision", "14:50:20", ("feature_freeze", "morning_decision"), "decision_job.py confirmation"),
-        ("confirmation_push", "14:50:30", ("confirmation_decision",), "afternoon_push.py"),
-        ("paper_buy", "14:50:40", ("confirmation_decision",), "paper_trade.py buy"),
-        ("health_check", "14:53:00", ("confirmation_decision",), "health audit"),
-        ("maintenance", "15:10:00", ("health_check",), "maintenance"),
+        ("morning_decision", "AStock-V4-Morning-Decision-0925", "09:25:00", (), "decision_job.py morning"),
+        ("morning_push", "AStock-V4-Morning-Push-092520", "09:25:20", ("morning_decision",), "morning_push.py"),
+        ("paper_sell", "AStock-V4-Paper-Sell-093020", "09:30:20", (), "paper_trade.py sell"),
+        ("feature_freeze", "AStock-V4-Feature-1449", "14:49:00", (), "capture signal"),
+        ("confirmation_decision", "AStock-V4-Confirmation-Decision-145020", "14:50:20", ("feature_freeze", "morning_decision"), "decision_job.py confirmation"),
+        ("confirmation_push", "AStock-V4-Confirmation-Push-145030", "14:50:30", ("confirmation_decision",), "afternoon_push.py"),
+        ("paper_buy", "AStock-V4-Paper-Buy-145040", "14:50:40", ("confirmation_decision",), "paper_trade.py buy"),
+        ("health_check", "AStock-V4-Health-1453", "14:53:00", ("confirmation_decision",), "health audit"),
+        ("maintenance", "AStock-V4-Maintenance-1510", "15:10:00", ("health_check",), "maintenance"),
     ]
     return {"schema_version": "full-offline-task-manifest-v1", "apply_allowed": False,
             "project_root": str(root), "tasks": [
-                {"task_name": name, "at": at, "dependencies": list(deps), "command": command,
+                {"task_name": name, "windows_task_name": windows_name, "at": at, "dependencies": list(deps), "command": command,
                  "working_directory": str(root), "run_level": "Limited", "enabled": False,
-                 "gate": "offline_manifest_only"} for name, at, deps, command in tasks]}
+                 "gate": "offline_manifest_only"} for name, windows_name, at, deps, command in tasks]}
 
 
 def audit_existing_windows_scripts(project_root: Path):

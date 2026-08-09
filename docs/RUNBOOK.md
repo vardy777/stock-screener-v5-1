@@ -74,3 +74,16 @@ phase1/data/execution_snapshots/
 - `research_locked`不得人工绕过；
 - `v4/.env`不得输出或提交；
 - 重置账户、删除数据、重新注册系统任务前必须明确确认目标和影响。
+
+## 切换准备与统一验收（只读）
+
+```powershell
+python scripts/offline_acceptance.py --run-tests --output docs/reports/offline-acceptance-latest.json
+powershell -NoProfile -File scripts/export_v4_runtime_inventory.ps1 > runtime-inventory.json
+python scripts/live_window_acceptance.py --trade-date 2026-08-10 --next-session-date 2026-08-11 --derive-project
+python scripts/cutover_preflight.py --live-report live-report.json --legacy-account account.json --task-inventory runtime-inventory.json --writer-inventory runtime-inventory.json --backup-report backup-report.json
+```
+
+以上命令不注册、停用或修改Windows任务，不迁移账户，不改接8898。真实窗口派生只会
+首次保存PASSED窗口；失败或未发生窗口保持缺失。`cutover_preflight.py`在当前阶段必定
+因生产授权门禁返回非零，属于正确结果。

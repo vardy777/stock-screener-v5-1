@@ -37,6 +37,9 @@ project.  Every coding session must begin by reading, in order:
   `research_locked`, archive historical code, restore over live data, or alter
   production entrypoints without their data gates and separate authorization.
 - Preserve user-owned untracked files and unrelated worktree changes.
+- Cutover preparation tools are report-only. Never reinterpret a nonzero
+  cutover-preflight exit as permission to register tasks, migrate an account,
+  switch port 8898, send PushPlus, or enable a production writer.
 
 ## Development workflow
 
