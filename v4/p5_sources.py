@@ -108,6 +108,10 @@ class P5ReadOnlySources:
               ledger: dict | None = None, operations: dict | None = None, evidence: dict | None = None):
         generated_at = generated_at or datetime.now(CHINA_TZ)
         journal, journal_meta = self.latest_journal()
+        journal_day=str(journal.get("trade_date", ""))
+        for key in ("morning","confirmation"):
+            if isinstance(journal.get(key),dict) and journal_day:
+                journal[key]={**journal[key],"trade_date":journal[key].get("trade_date",journal_day)}
         context, context_meta = self._read(self.data_dir / "market_context.json", "market_context")
         flow, flow_meta = self._read(self.data_dir / "sector_fund_flow.json", "sector_fund_flow")
         operations = dict(operations or {}); evidence = dict(evidence or {})

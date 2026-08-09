@@ -37,6 +37,8 @@ class DashboardReadModelV1:
     operations: dict
     sources: tuple[dict, ...]
     issues: tuple[dict, ...]
+    summary: dict
+    freshness: dict
     schema_version: str = "dashboard-read-model-v1"
 
     def to_dict(self): return asdict(self)
@@ -61,11 +63,19 @@ class DashboardReadModelBuilder:
         candidates = self._candidates(morning, confirmation)
         market_view = self._market(market)
         sentiment = self._sentiment(market)
-        flow = self._flow(fund_flow)
+        freshness = self._freshness(generated_at, morning, confirmation, market, fund_flow)
+        if not freshness["market_current"]:
+            sentiment={**sentiment,"advance_ratio":None,"breadth_label":"无法判断","valid":False}
+        if market and not freshness["market_current"]:
+            issues.append(self._issue("ERROR","MARKET_DATA_STALE","市场行情不是当日数据"))
+        if fund_flow.get("sector_flows") and not freshness["fund_flow_current"]:
+            issues.append(self._issue("WARNING","FUND_FLOW_STALE","板块资金流不是当日数据"))
+        flow = self._flow(fund_flow, freshness["fund_flow_current"])
         account = self._account(ledger)
         evidence_view = self._evidence(evidence, account)
         evidence_view.update(self._acceptance(evidence))
         operations = self._operations(task_receipts, heartbeat, alerts, ownership, cutover)
+        summary = self._summary(operations, market_view, confirmation, freshness, candidates)
         if operations["heartbeat_status"] not in {"ALIVE","IDLE_NON_TRADING_DAY","AWAITING_FIRST_WINDOW"}:
             issues.append(self._issue("CRITICAL", "HEARTBEAT_STALE", "调度心跳过期"))
         if evidence_view["model_status"] != "published": issues.append(self._issue("WARNING", "MODEL_UNPUBLISHED", "生产预期模型尚未发布"))
@@ -78,7 +88,7 @@ class DashboardReadModelBuilder:
             "production_status":production_status, "data_status":"DEGRADED" if issues else "HEALTHY",
             "timeline":timeline,"candidates":candidates,"market":market_view,"sentiment":sentiment,
             "fund_flow":flow,"account":account,"evidence":evidence_view,"operations":operations,
-            "sources":list(source_artifacts),"issues":issues}
+            "sources":list(source_artifacts),"issues":issues,"summary":summary,"freshness":freshness}
         return DashboardReadModelV1(read_model_id="drm1-"+_hash(payload)[:24],
             **{k:(tuple(v) if k in {"timeline","candidates","sources","issues"} else v) for k,v in payload.items() if k!="schema_version"})
 
@@ -119,14 +129,17 @@ class DashboardReadModelBuilder:
 
     def _sentiment(self,m):
         total=sum(int(m.get(k,0) or 0) for k in ("rise_count","fall_count","flat_count")); rise=int(m.get("rise_count",0) or 0)
-        ratio=rise/total if total else None
-        return {"advance_ratio":ratio,"breadth_label":"偏强" if ratio is not None and ratio>=.6 else ("偏弱" if ratio is not None and ratio<=.4 else "中性/不可用"),
+        valid=m.get("data_valid") is True and float(m.get("fresh_quote_coverage",0) or 0)>=.95 and total>=100
+        ratio=rise/total if valid else None
+        return {"advance_ratio":ratio,"breadth_label":"偏强" if ratio is not None and ratio>=.6 else ("偏弱" if ratio is not None and ratio<=.4 else "中性" if ratio is not None else "无法判断"),
+            "valid":valid,"sample_size":total,
             "turnover_yi":_money(m.get("market_total_amount_yi")),"coverage":round(float(m.get("fresh_quote_coverage",0) or 0),4),
             "definition":"上涨家数/上涨下跌平盘总数；仅描述市场宽度，不是盈利概率"}
 
-    def _flow(self,f):
+    def _flow(self,f,current=True):
         rows=list(f.get("sector_flows",{}).items())[:8]
-        return {"status":f.get("status","unavailable"),"as_of":f.get("as_of",f.get("updated_at","")),
+        status=(f.get("status","unavailable") if current else "stale") if rows else "unavailable"
+        return {"status":status,"as_of":f.get("as_of",f.get("updated_at","")),
             "source":f.get("source","未提供"),"unit":"亿元","sectors":[{"name":n,"net_inflow":_money(v.get("net_inflow")),"change_pct":v.get("change_pct")} for n,v in rows]}
 
     def _account(self,l):
@@ -164,3 +177,39 @@ class DashboardReadModelBuilder:
             "heartbeat_at":(heartbeat or {}).get("recorded_at",(heartbeat or {}).get("observed_at","")),"alerts":list(alerts),
             "ownership":dict(ownership or {"decision":"P2","account_execution":"legacy_production","scheduler_notifications":"legacy_phase1_scripts","dashboard":"legacy_8898"}),
             "cutover":dict(cutover or {"ready":False,"apply_allowed":False,"plan_id":""})}
+
+    @staticmethod
+    def _date_of(value):
+        try: return datetime.fromisoformat(str(value).replace("Z","+00:00")).date().isoformat()
+        except (TypeError,ValueError):
+            text=str(value or "")
+            return text[:10] if len(text)>=10 else ""
+
+    def _freshness(self,generated,morning,confirmation,market,fund_flow):
+        today=generated.date().isoformat()
+        journal_day=str(confirmation.get("trade_date") or morning.get("trade_date") or "")
+        market_day=self._date_of(market.get("as_of"))
+        flow_day=self._date_of(fund_flow.get("as_of",fund_flow.get("updated_at","")))
+        return {"today":today,"journal_trade_date":journal_day,"market_trade_date":market_day,
+            "fund_flow_trade_date":flow_day,"journal_current":journal_day==today,
+            "market_current":market_day==today and market.get("data_valid") is True,
+            "fund_flow_current":flow_day==today and fund_flow.get("status") in {"current","valid"}}
+
+    @staticmethod
+    def _summary(operations,market,confirmation,freshness,candidates):
+        heartbeat=operations.get("heartbeat_status","")
+        if heartbeat=="IDLE_NON_TRADING_DAY":
+            phase,title,action="休市","等待下一个交易日 09:25","无需操作"
+        elif not freshness.get("market_current"):
+            phase,title,action="数据等待","当前没有可信的当日行情","不要依据历史数据判断"
+        else:
+            outcome=confirmation.get("outcome","")
+            phase="尾盘确认" if confirmation else "早盘观察"
+            title={"BUY":"模拟买入条件通过","EMPTY":"今日空仓","BLOCKED":"今日不买入","OUTCOME_UNKNOWN":"结果未知，停止执行"}.get(outcome,"等待下一窗口")
+            action="仅观察，等待14:50确认" if not confirmation else ("记录模拟交易，不代表实盘建议" if outcome=="BUY" else "保持空仓")
+        reasons=[]
+        if not freshness.get("journal_current"): reasons.append("候选不是当日数据")
+        if not freshness.get("market_current"): reasons.append("市场行情无效或已过期")
+        reasons.extend(str(x) for x in confirmation.get("reason_codes",[])[:3])
+        return {"phase":phase,"title":title,"action":action,"reasons":reasons,
+            "current_candidate_count":len(candidates) if freshness.get("journal_current") else 0}

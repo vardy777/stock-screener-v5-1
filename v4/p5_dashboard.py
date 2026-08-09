@@ -9,6 +9,7 @@ from .execution import CHINA_TZ
 from .p5_read_model import DashboardReadModelBuilder
 from .p5_sources import P5ReadOnlySources
 from .p5_components import render_acceptance_panels
+from .p5_beginner_dashboard import render as render_beginner
 
 HOST="127.0.0.1"; PORT=8899
 
@@ -46,7 +47,7 @@ def frozen_scenario(name):
 
 CSS="""*{box-sizing:border-box}body{margin:0;background:#071019;color:#d9e6ef;font-family:'Microsoft YaHei',sans-serif;overflow-x:hidden}.wrap{max-width:1500px;margin:auto;padding:22px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:12px}.title{font-size:22px;font-weight:800}.sub{color:#7890a2;font-size:12px;overflow-wrap:anywhere}.pill{padding:6px 10px;border-radius:20px;background:#401a25;color:#ff8397;font-size:12px;white-space:nowrap}.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px}.card{background:#0d1924;border:1px solid #1d3040;border-radius:12px;padding:16px;min-width:0;overflow-x:auto}.span12{grid-column:span 12}.span8{grid-column:span 8}.span6{grid-column:span 6}.span4{grid-column:span 4}.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}.kpi{background:#0a151f;padding:13px;border-radius:9px;border:1px solid #172a38;min-width:0}.kpi b{display:block;font-size:21px;margin-top:6px}.muted{color:#7890a2}.ok{color:#48d6a8}.warn{color:#ffc857}.bad{color:#ff6b81}.timeline{display:flex;gap:8px}.node{flex:1;min-width:0;padding:12px;background:#09141d;border-radius:8px;border-top:3px solid #2d5369;overflow-wrap:anywhere}.node.DONE{border-color:#48d6a8}.node.MISSING,.node.NO_FILL,.node.INVALID_ENTITY{border-color:#ff6b81}h2{font-size:14px;color:#8fdaf2;margin:0 0 14px}table{width:100%;min-width:620px;border-collapse:collapse;font-size:12px}th,td{text-align:left;padding:9px;border-bottom:1px solid #172a38}th{color:#7890a2}.issue{padding:9px;border-left:3px solid #ff6b81;background:#17151b;margin:7px 0}.bar{height:8px;background:#152531;border-radius:5px;overflow:hidden}.bar i{display:block;height:100%;background:#48d6a8}.spark{height:110px;display:flex;align-items:flex-end;gap:5px;border-bottom:1px solid #29404f;padding-top:10px}.spark i{flex:1;min-width:4px;background:#48d6a8;border-radius:3px 3px 0 0}.source{font-size:11px;overflow-wrap:anywhere}.empty{color:#7890a2;padding:16px 0}@media(max-width:900px){.wrap{padding:14px}.span8,.span6,.span4{grid-column:span 12}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.timeline{flex-direction:column}.top{align-items:flex-start}.title{font-size:20px}}"""
 
-def render(model):
+def render_legacy(model):
     s=model.to_dict(); a=s['account']; m=s['market']; ev=s['evidence']; esc=html.escape
     pct=lambda v:'—' if v is None else f'{v*100:.1f}%'
     timeline=''.join(f"<div class='node {x['status']}'><b>{esc(x['label'])}</b><div class='muted'>{esc(x['status'])}</div><small>{esc(x['entity_id'] or '无实体')}</small></div>" for x in s['timeline'])
@@ -73,6 +74,9 @@ def render(model):
 <section class='card span6'><h2>P4任务与SLA</h2><table><thead><tr><th>任务</th><th>状态</th><th>尝试</th><th>时间</th></tr></thead><tbody>{tasks}</tbody></table><p class='muted'>心跳：{esc(s['operations']['heartbeat_status'])} · {esc(s['operations']['heartbeat_at'])}</p></section><section class='card span6'><h2>统计口径</h2><p>{esc(a['definition'])}</p><p class='muted'>严格证据、模拟账户和代理回测不得合并；所有数字来自冻结实体投影。</p></section>
 {render_acceptance_panels(s)}</div></main></body></html>"""
 
+def render(model,view="beginner"):
+    return render_beginner(model,view=view)
+
 class Handler(BaseHTTPRequestHandler):
     model=frozen_demo_model()
     data_dir=None
@@ -82,7 +86,7 @@ class Handler(BaseHTTPRequestHandler):
         model=(frozen_scenario(query.get("scenario","")) if query.get("scenario") else
                P5ReadOnlySources(Path(self.data_dir)).build() if self.data_dir else self.model)
         if path=="/api/read-model": body=json.dumps(model.to_dict(),ensure_ascii=False).encode(); kind="application/json"
-        elif path=="/": body=render(model).encode(); kind="text/html; charset=utf-8"
+        elif path=="/": body=render(model,query.get("view","beginner")).encode(); kind="text/html; charset=utf-8"
         else: self.send_error(404); return
         self.send_response(200); self.send_header("Content-Type",kind); self.send_header("Cache-Control","no-store"); self.end_headers(); self.wfile.write(body)
     def do_POST(self): self.send_error(405,"P5 dashboard is read-only")

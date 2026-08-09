@@ -42,8 +42,8 @@
   },
   "p5_validation": {
     "engineering_status": "production_cutover_applied_live_observation_pending",
-    "checkpoint": "p5_serving_8898_read_only_dynamic_refresh_and_calendar_aware_heartbeat",
-    "offline_tests": 12,
+    "checkpoint": "p5_three_view_beginner_research_ops_dashboard_with_strict_freshness",
+    "offline_tests": 15,
     "operating_mode": "production_read_only",
     "existing_8898_connected": true,
     "mutation_endpoints_enabled": false,
@@ -122,7 +122,7 @@
     "confirmation_push_success": true
   },
   "quality": {
-    "tests_passed": 256,
+    "tests_passed": 258,
     "tests_failed": 0,
     "v4_imports_v3": false
   },

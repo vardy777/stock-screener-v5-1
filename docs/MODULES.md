@@ -16,7 +16,7 @@
 | 决策生产 | `v4/decision_production.py`, `v4/scripts/decision_job.py` | 从版本化快照生成P2最终实体 | 已脱离账户与`SimulationEngine`兼容外壳 | 真实09:25/14:50验收 |
 | 调度器 | `v4/production_task_runner.py`, `v4/scripts/p4_task_adapter.py` | 九任务DAG、不可变尝试、重试、心跳、实体投影 | P4 已接管生产调度；旧任务Disabled | 真实任务/SLA/恢复验收 |
 | 推送 | `v4/push.py`, `v4/notification_contracts.py`, `v4/scripts/` | 冻结实体通知投影、负载/请求/响应哈希与父ID血缘 | 两个生产通知已接入P4；离线接受/拒绝/超时/重试通过 | 真实PushPlus送达回执验收 |
-| 看板 | `v4/p5_read_model.py`, `v4/p5_sources.py`, `v4/p5_dashboard.py` | 唯一只读读模型、当日链路、账户、证据、市场、任务、来源哈希和降级状态 | P5 已接管 8898，并按每个 GET 请求读取最新实体；POST 固定 405 | 等待真实四窗口实体观测 |
+| 看板 | `v4/p5_read_model.py`, `v4/p5_sources.py`, `v4/p5_beginner_dashboard.py`, `v4/p5_dashboard.py` | 唯一只读读模型、严格新鲜度、候选解释、市场/账户/证据/运维投影 | P5 已接管 8898；提供新手、研究、运维三视图；POST 固定 405 | 等待真实四窗口实体观测 |
 | 研究评估 | `phase1/overnight/`, `v4/p6_research_audit.py` | 数据集、WF、压力测试、严格审计 | 离线门禁完整；真实严格样本不足 | 积累样本后运行全市场WF/压力验收 |
 | 模型注册 | `v4/model_registry.py`, `v4/p7_release_audit.py` | 发布清单、推理、报告血缘终审 | 离线发布包审计通过；模型未发布 | 仅在P6全部门禁通过后发布 |
 | 备份恢复 | `v4/p8_backup.py` | 内容寻址备份、损坏检测、隔离恢复 | 离线灾备契约通过；未操作生产数据或历史资产 | 获授权后进行真实数据演练与历史归档 |
