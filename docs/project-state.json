@@ -2,7 +2,7 @@
   "schema_version": "project-state-v1",
   "project": "a-share-overnight-v4",
   "display_name": "A股隔夜研究与模拟系统 V4",
-  "updated_at": "2026-08-08T23:59:59+08:00",
+  "updated_at": "2026-08-09T12:30:00+08:00",
   "active_phase": "P6",
   "active_phase_name": "严格研究数据积累与真实窗口验收",
   "production_status": "research_locked",
@@ -21,8 +21,8 @@
   },
   "p3_validation": {
     "engineering_status": "offline_core_accepted_phase_incomplete",
-    "checkpoint": "offline_1000_roundtrip_crash_matrix_legacy_audit_passed",
-    "offline_tests": 29,
+    "checkpoint": "offline_1000_roundtrip_crash_matrix_init_and_single_writer_gate_passed",
+    "offline_tests": 33,
     "operating_mode": "offline_only",
     "scheduling_enabled": false,
     "daily_paper_production_connected": false,
@@ -31,8 +31,8 @@
   },
   "p4_validation": {
     "engineering_status": "offline_engineering_accepted_phase_incomplete",
-    "checkpoint": "ten_item_offline_hardening_passed",
-    "offline_tests": 20,
+    "checkpoint": "last_mile_output_contract_disabled_adapters_and_complete_task_definitions_passed",
+    "offline_tests": 28,
     "operating_mode": "offline_only",
     "windows_tasks_registered_by_p4": false,
     "real_pushplus_called": false,
@@ -42,8 +42,8 @@
   },
   "p5_validation": {
     "engineering_status": "all_offline_work_accepted_cutover_pending",
-    "checkpoint": "readonly_sources_scenarios_statistics_and_responsive_visual_passed",
-    "offline_tests": 10,
+    "checkpoint": "real_artifact_adapters_component_panels_and_responsive_visual_passed",
+    "offline_tests": 12,
     "operating_mode": "offline_preview_only",
     "existing_8898_connected": false,
     "mutation_endpoints_enabled": false,
@@ -75,7 +75,7 @@
     "writer_inventory_required": true,
     "rollback_plan_available": true,
     "unified_offline_acceptance_available": true,
-    "unified_offline_acceptance_status": "passed_234_tests_no_production_mutation",
+    "unified_offline_acceptance_status": "passed_247_tests_no_production_mutation",
     "legacy_2026_08_07_window_projection": "failed_as_expected_not_valid_live_evidence",
     "apply_allowed": false,
     "tasks_modified": false,
@@ -119,7 +119,7 @@
     "confirmation_push_success": true
   },
   "quality": {
-    "tests_passed": 234,
+    "tests_passed": 247,
     "tests_failed": 0,
     "v4_imports_v3": false
   },

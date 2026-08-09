@@ -89,14 +89,43 @@ class P5ReadOnlySources:
                 "as_of": value.get("time", value.get("date", "")),
                 "source": "v4/data/sector_fund_flow.json"}
 
+    def _optional_artifacts(self):
+        specs = (
+            ("p3_ledger", self.data_dir / "p3" / "paper_ledger.json"),
+            ("p3_execution_results", self.data_dir / "p3" / "paper_execution_results.json"),
+            ("p4_task_receipts", self.data_dir / "p4" / "task_receipts.json"),
+            ("p4_heartbeat", self.data_dir / "p4" / "heartbeat.json"),
+            ("live_window_acceptance", self.data_dir / "acceptance" / "live_window_acceptance.json"),
+            ("cutover_readiness", self.data_dir / "acceptance" / "cutover_readiness.json"),
+            ("strict_model_admission", self.data_dir / "research" / "strict_model_admission.json"),
+        )
+        return {name: self._read(path, name) for name, path in specs}
+
     def build(self, *, generated_at: datetime | None = None, production_status: str = "research_locked",
               ledger: dict | None = None, operations: dict | None = None, evidence: dict | None = None):
         generated_at = generated_at or datetime.now(CHINA_TZ)
         journal, journal_meta = self.latest_journal()
         context, context_meta = self._read(self.data_dir / "market_context.json", "market_context")
         flow, flow_meta = self._read(self.data_dir / "sector_fund_flow.json", "sector_fund_flow")
-        operations = dict(operations or {})
-        artifacts = [journal_meta, context_meta, flow_meta]
+        operations = dict(operations or {}); evidence = dict(evidence or {})
+        optional = self._optional_artifacts()
+        # Optional future-owner artifacts appear once created; their absence before
+        # cutover is expected and must not masquerade as seven production faults.
+        artifacts = [journal_meta, context_meta, flow_meta,
+                     *[meta for _, meta in optional.values() if meta.status != "MISSING"]]
+        p3_ledger = optional["p3_ledger"][0]
+        p3_results = optional["p3_execution_results"][0]
+        p4_receipts = optional["p4_task_receipts"][0]
+        if ledger is None and p3_ledger:
+            ledger = {"initial_cash": p3_ledger.get("initial_cash", 100000),
+                      "fills": [x.get("fill", {}) for x in p3_ledger.get("events", [])],
+                      "round_trips": p3_ledger.get("round_trips", [])}
+        operations.setdefault("task_receipts", p4_receipts.get("receipts", p4_receipts.get("results", [])))
+        operations.setdefault("heartbeat", optional["p4_heartbeat"][0])
+        operations.setdefault("cutover", optional["cutover_readiness"][0])
+        evidence.setdefault("live_windows", optional["live_window_acceptance"][0])
+        evidence.setdefault("strict_admission", optional["strict_model_admission"][0])
+        evidence.setdefault("execution_result_count", len(p3_results.get("results", [])))
         source_issues = [{"severity": "ERROR" if a.status != "VALID" else "INFO",
                           "reason_code": f"SOURCE_{a.status}", "message": f"{a.name}: {a.error}"}
                          for a in artifacts if a.status != "VALID"]
@@ -105,7 +134,7 @@ class P5ReadOnlySources:
             morning=journal.get("morning"), confirmation=journal.get("confirmation"),
             market=self._market(context, journal), fund_flow=self._fund_flow(flow), ledger=ledger or {},
             task_receipts=operations.get("task_receipts", ()), heartbeat=operations.get("heartbeat"),
-            alerts=operations.get("alerts", ()), evidence=evidence or {}, ownership=operations.get("ownership"),
+            alerts=operations.get("alerts", ()), evidence=evidence, ownership=operations.get("ownership"),
             cutover=operations.get("cutover"), source_artifacts=[a.__dict__ for a in artifacts],
             source_issues=source_issues)
         return model

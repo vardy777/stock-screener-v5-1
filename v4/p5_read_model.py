@@ -64,6 +64,7 @@ class DashboardReadModelBuilder:
         flow = self._flow(fund_flow)
         account = self._account(ledger)
         evidence_view = self._evidence(evidence, account)
+        evidence_view.update(self._acceptance(evidence))
         operations = self._operations(task_receipts, heartbeat, alerts, ownership, cutover)
         if operations["heartbeat_status"] != "ALIVE": issues.append(self._issue("CRITICAL", "HEARTBEAT_STALE", "调度心跳过期"))
         if evidence_view["model_status"] != "published": issues.append(self._issue("WARNING", "MODEL_UNPUBLISHED", "生产预期模型尚未发布"))
@@ -143,6 +144,19 @@ class DashboardReadModelBuilder:
             "paper":{"round_trips":a["closed_trades"],"role":"工程与模拟账户证据"},
             "proxy":{"trades":int(e.get("proxy_trades",0)),"role":"15:00代理研究，禁止替代严格样本"},
             "model_status":e.get("model_status","unpublished"),"cohorts_separated":True}
+
+    @staticmethod
+    def _acceptance(e):
+        live=dict(e.get("live_windows",{}) or {}); admission=dict(e.get("strict_admission",{}) or {})
+        names=("morning_0925","feature_1449","confirmation_1450","sell_0930")
+        checks={str(x.get("name",x.get("window",""))):x for x in live.get("checks",[])}
+        windows=[{"name":name,"status":"PASSED" if checks.get(name,{}).get("passed") is True else "PENDING",
+                  "reasons":list(checks.get(name,{}).get("reasons",[]))} for name in names]
+        return {"live_windows":windows,"live_windows_passed":live.get("passed") is True,
+                "strict_admission":{"passed":admission.get("passed") is True,
+                    "reasons":list(admission.get("reasons",[])),
+                    "sample_count":int(admission.get("sample_count",e.get("strict_pairs",0)) or 0)},
+                "execution_result_count":int(e.get("execution_result_count",0) or 0)}
 
     def _operations(self,receipts,heartbeat,alerts,ownership=None,cutover=None):
         return {"tasks":list(receipts),"heartbeat_status":(heartbeat or {}).get("status","MISSING"),

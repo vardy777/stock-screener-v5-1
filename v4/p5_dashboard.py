@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 from .execution import CHINA_TZ
 from .p5_read_model import DashboardReadModelBuilder
 from .p5_sources import P5ReadOnlySources
+from .p5_components import render_acceptance_panels
 
 HOST="127.0.0.1"; PORT=8899
 
@@ -70,7 +71,7 @@ def render(model):
 <section class='card span8'><h2>已闭合隔夜往返</h2>{"<table><thead><tr><th>代码</th><th>净盈亏</th><th>净收益率</th><th>费用</th></tr></thead><tbody>"+trips+"</tbody></table>" if trips else "<p class='empty'>尚无已闭合往返，胜率保持为空</p>"}</section><section class='card span4'><h2>来源与哈希</h2>{sources}</section>
 <section class='card span12'><h2>业务所有者与切换状态</h2><p>决策：<b>{esc(owner.get('decision','unknown'))}</b> · 账户/执行：<b>{esc(owner.get('account_execution','unknown'))}</b> · 调度/通知：<b>{esc(owner.get('scheduler_notifications','unknown'))}</b> · 看板：<b>{esc(owner.get('dashboard','unknown'))}</b></p><p class='warn'>切换准备：{'READY' if cut.get('ready') else 'BLOCKED'} · apply_allowed={str(bool(cut.get('apply_allowed'))).lower()} · {esc(cut.get('plan_id',''))}</p></section>
 <section class='card span6'><h2>P4任务与SLA</h2><table><thead><tr><th>任务</th><th>状态</th><th>尝试</th><th>时间</th></tr></thead><tbody>{tasks}</tbody></table><p class='muted'>心跳：{esc(s['operations']['heartbeat_status'])} · {esc(s['operations']['heartbeat_at'])}</p></section><section class='card span6'><h2>统计口径</h2><p>{esc(a['definition'])}</p><p class='muted'>严格证据、模拟账户和代理回测不得合并；所有数字来自冻结实体投影。</p></section>
-</div></main></body></html>"""
+{render_acceptance_panels(s)}</div></main></body></html>"""
 
 class Handler(BaseHTTPRequestHandler):
     model=frozen_demo_model()

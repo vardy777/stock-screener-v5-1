@@ -82,7 +82,7 @@ class ProjectGovernanceTests(unittest.TestCase):
         self.assertFalse(cutover["tasks_modified"])
         self.assertFalse(cutover["account_migrated"])
         self.assertFalse(cutover["dashboard_switched"])
-        self.assertEqual(cutover["unified_offline_acceptance_status"],"passed_234_tests_no_production_mutation")
+        self.assertEqual(cutover["unified_offline_acceptance_status"],"passed_247_tests_no_production_mutation")
         self.assertEqual(cutover["legacy_2026_08_07_window_projection"],"failed_as_expected_not_valid_live_evidence")
         modules = (ROOT / "docs" / "MODULES.md").read_text(encoding="utf-8")
         self.assertNotIn("P1完成", modules)

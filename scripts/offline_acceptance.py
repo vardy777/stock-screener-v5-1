@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 ROOT=Path(__file__).resolve().parents[1]; sys.path.insert(0,str(ROOT))
 from scripts.project_status import build_report
 from v4.offline_rehearsal import successful_empty_cycle
+from v4.cutover_rehearsal import full_frozen_rehearsal
 from v4.operations_preflight import operational_preflight
 
 def configure_console():
@@ -30,15 +31,18 @@ def secret_scan():
 
 def build(*,run_tests=False):
     project=build_report(); operations=operational_preflight(ROOT); rehearsal=successful_empty_cycle()
+    cutover_rehearsal=full_frozen_rehearsal()
     tests={"run":False,"passed":None,"exit_code":None}
     if run_tests:
         result=subprocess.run([str(ROOT/".venv"/"Scripts"/"python.exe"),"-m","pytest","-q"],cwd=ROOT,
             stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,shell=False,timeout=240)
         tests={"run":True,"passed":result.returncode==0,"exit_code":result.returncode}
     secrets=secret_scan(); checks={"project_consistency":project["ok"],"operations":operations["passed"],
-        "frozen_rehearsal":rehearsal["passed"],"secret_scan":not secrets,"tests":tests["passed"] is not False}
+        "frozen_rehearsal":rehearsal["passed"],"cutover_fault_matrix":cutover_rehearsal["passed"],
+        "secret_scan":not secrets,"tests":tests["passed"] is not False}
     return {"schema_version":"offline-acceptance-report-v1","generated_at":datetime.now(ZoneInfo("Asia/Shanghai")).isoformat(timespec="seconds"),
         "passed":all(checks.values()),"checks":checks,"project":project,"operations":operations,"rehearsal":rehearsal,
+        "cutover_rehearsal":cutover_rehearsal,
         "tests":tests,"secret_findings":secrets,"production_mutated":False}
 
 def main():
