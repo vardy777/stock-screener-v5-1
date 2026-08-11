@@ -48,12 +48,12 @@ class ProjectGovernanceTests(unittest.TestCase):
         self.assertEqual(state["p1_validation"]["engineering_status"], "offline_completed")
         self.assertEqual(
             state["p1_validation"]["live_window_status"],
-            "morning_passed_2026_08_11_signal_confirmation_sell_fill_pending",
+            "morning_passed_signal_failed_unsynced_host_clock_confirmation_recovered_sell_fill_pending",
         )
         self.assertEqual(state["p2_validation"]["engineering_status"], "offline_completed")
         self.assertEqual(
             state["p2_validation"]["live_window_status"],
-            "morning_entity_and_push_passed_empty_due_context_signal_confirmation_pending",
+            "morning_passed_confirmation_empty_recovered_afternoon_push_accepted_but_late",
         )
         self.assertEqual(
             state["phase_status"]["P2"], "offline_completed_live_pending"
