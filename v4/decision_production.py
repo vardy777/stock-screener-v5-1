@@ -32,7 +32,14 @@ class P2DecisionProducer:
                 return DecisionChainService(self.journal, None).publish_missing_morning(day, empty_market_state())
             allowed_codes = {str(row.get("code")) for row in morning_rows if row.get("code")}
             if not allowed_codes:
-                return self.journal.save_confirmation(day, [], empty_market_state())
+                # An empty morning pool is a valid, immutable input. Reuse
+                # its frozen market-state lineage rather than inventing a
+                # 14:50 snapshot which was never needed for an empty pool.
+                morning_entity = self.journal.morning(day)
+                market_state = dict(morning_entity.get("market_state", {}))
+                if not market_state:
+                    raise RuntimeError("MORNING_MARKET_STATE_MISSING")
+                return self.journal.save_confirmation(day, [], market_state)
             codes = sorted(allowed_codes)
         else:
             root = Path(__file__).resolve().parents[1]

@@ -32,6 +32,11 @@ def _in_window(current: datetime) -> bool:
     return time(14, 50) <= current.timetz().replace(tzinfo=None) <= time(14, 51, 59)
 
 
+def _in_recovery_window(current: datetime) -> bool:
+    """Bounded same-session recovery for a failed mandatory notification."""
+    return time(14, 52) <= current.timetz().replace(tzinfo=None) <= time(15, 5)
+
+
 def _p3_positions() -> list[dict]:
     """Read the sole production paper-account projection."""
     return list(OfflinePaperLedger(Path(__file__).resolve().parents[1] / "data" / "p3").snapshot()["positions"])
@@ -45,7 +50,8 @@ def main() -> int:
     if calendar.is_open(current_date) is not True:
         logger.info("非开放交易日，跳过尾盘推送: %s", today)
         return 0
-    if not _in_window(current):
+    recovery = not _in_window(current) and _in_recovery_window(current)
+    if not _in_window(current) and not recovery:
         logger.error("不在14:50-14:51:59买入确认窗口，拒绝迟到推送: %s", current.isoformat())
         return 3
     logger.info("=== V4 14:50尾盘确认 %s ===", today)
@@ -54,6 +60,8 @@ def main() -> int:
     if not decision:
         logger.error("尾盘最终决策实体缺失，拒绝使用内存候选推送")
         return 2
+    if recovery:
+        logger.warning("14:50 mandatory notification is running in bounded recovery mode")
     candidates = list(decision.get("candidates", []))
     market_state = dict(decision.get("market_state", {}))
     positions = _p3_positions()

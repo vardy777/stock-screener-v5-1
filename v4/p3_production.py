@@ -31,8 +31,6 @@ def _decision_snapshot(decision):
 def execute(mode,*,authorization_file,now=None,account_dir=None):
     require_authorized_owner(authorization_file,resource="paper_account",owner="P3")
     current=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ)
-    clock=TradingClock.action_status(mode,now=current)
-    if not clock.allowed: raise ExecutionBlocked(clock.reason)
     root=Path(account_dir or ROOT/"v4"/"data"/"p3")
     ledger=OfflinePaperLedger(root); engine=OfflineExecutionEngine(ledger); factory=OfflineIntentFactory()
     intents=[]; decision_id=""
@@ -40,10 +38,14 @@ def execute(mode,*,authorization_file,now=None,account_dir=None):
         decision=CandidateJournal().confirmation(current.date().isoformat()); decision_id=str(decision.get("decision_id",""))
         if not decision: raise RuntimeError("CONFIRMATION_DECISION_MISSING")
         if decision.get("outcome")=="BUY":
+            clock=TradingClock.action_status(mode,now=current)
+            if not clock.allowed: raise ExecutionBlocked(clock.reason)
             intents=[factory.buy_from_decision(decision,_decision_snapshot(decision),created_at=current,total_equity=ledger.snapshot()["cash"])]
     else:
         positions=ledger.snapshot()["positions"]
         if positions:
+            clock=TradingClock.action_status(mode,now=current)
+            if not clock.allowed: raise ExecutionBlocked(clock.reason)
             snapshot=MarketDataGateway().fetch_snapshot([x["code"] for x in positions],session="sell",minimum_coverage=1.0,now=current)
             if archive_market_snapshot(snapshot,capture_role="p3_sell_gateway") is None:
                 raise RuntimeError("STRICT_SELL_SNAPSHOT_ARCHIVE_FAILED")
