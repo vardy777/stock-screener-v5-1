@@ -2,16 +2,18 @@
 """Build the next strict context without the rate-limited Sina archive loop."""
 from __future__ import annotations
 import argparse,json,sys
+from datetime import datetime
 from datetime import date
 from pathlib import Path
 
 BASE=Path(__file__).resolve().parent.parent; ROOT=BASE.parent
 sys.path.insert(0,str(ROOT)); sys.path.insert(0,str(BASE))
-from overnight.context_gateway import build_context
+from overnight.context_gateway import build_context,fetch_sina_reference_prices
 from overnight.dataset import is_eligible_code
 from overnight.live_features import save_live_feature_context
 from v4.calendar import TradingCalendar
 from v4.market_gateway import SnapshotRepository
+from v4.execution import CHINA_TZ
 
 def _reference(trade_date: str, expected_previous: str):
     root=ROOT/"v4/data/market_snapshots_v1/strict"
@@ -35,11 +37,20 @@ def main(argv=None):
     codes=[p.stem for p in sorted((BASE/"data/daily").glob("*.csv")) if is_eligible_code(p.stem)]
     if args.max_stocks is not None: codes=codes[:max(0,args.max_stocks)]
     references,source=_reference(trade.isoformat(),previous.isoformat())
+    if len(references)/len(codes) < 0.95:
+        references,source=fetch_sina_reference_prices(codes)
     context,metadata=build_context(codes,previous.isoformat(),reference_prices=references,
                                    reference_source=source,workers=args.workers)
-    save_live_feature_context(context,metadata,args.output)
+    if metadata["strict_context_ready"]:
+        save_live_feature_context(context,metadata,args.output)
+    else:
+        failure=args.output.parent/"live_feature_context_gateway_failure.json"
+        report={**metadata,"failed_at":datetime.now(CHINA_TZ).isoformat(timespec="seconds"),
+                "published":False,"preserved_previous_context":args.output.exists()}
+        temporary=failure.with_suffix(failure.suffix+".tmp")
+        temporary.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
+        temporary.replace(failure)
     print(json.dumps(metadata,ensure_ascii=False,indent=2)); print(f"已保存: {args.output}")
     return 0 if metadata["strict_context_ready"] else 1
 
 if __name__=="__main__": raise SystemExit(main())
-

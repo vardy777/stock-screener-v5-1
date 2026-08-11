@@ -33,4 +33,11 @@ class ContextGatewayTests(unittest.TestCase):
             reference_source="missing",workers=1,fetcher=lambda code:rows())
         self.assertFalse(metadata["strict_context_ready"])
 
+    def test_partial_reference_below_95_percent_fails_closed(self):
+        codes=[f"{index:06d}" for index in range(100)]
+        references={code:10.25 for code in codes[:94]}
+        _,metadata=build_context(codes,"2026-08-10",reference_prices=references,
+            reference_source="partial",workers=4,fetcher=lambda code:rows())
+        self.assertFalse(metadata["strict_context_ready"])
+
 if __name__=="__main__": unittest.main()

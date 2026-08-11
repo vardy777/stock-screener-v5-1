@@ -20,6 +20,25 @@ from v4.execution import CHINA_TZ
 PROVIDER = "tencent_fqkline_qfq_day"
 
 
+def fetch_sina_reference_prices(codes: Iterable[str]) -> tuple[dict[str, float], str]:
+    """Fetch an independent close reference without crossing into V4 core.
+
+    This gateway output is used only to verify the Tencent daily context; it
+    is never accepted as a decision snapshot or execution quote.
+    """
+    from v4.data import DataFetcher
+
+    frame = DataFetcher().batch_fetch_quotes(list(codes))
+    if frame is None or frame.empty:
+        return {}, "sina_realtime_reference_missing"
+    prices = {
+        str(row["code"]).zfill(6): float(row["price"])
+        for row in frame.to_dict("records")
+        if float(row.get("price", 0) or 0) > 0
+    }
+    return prices, "sina_realtime_close_reference"
+
+
 def _url(code: str, rows: int = 45) -> str:
     symbol = ("sh" if str(code).startswith("6") else "sz") + str(code).zfill(6)
     return (
@@ -119,4 +138,3 @@ def build_context(codes: Iterable[str], expected_previous: str, *, reference_pri
         "strict_context_ready":bool(coverage>=0.95 and comparable/len(normalized)>=0.95 and verification>=0.95),
     }
     return frame,metadata
-
