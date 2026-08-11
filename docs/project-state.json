@@ -2,20 +2,20 @@
   "schema_version": "project-state-v1",
   "project": "a-share-overnight-v4",
   "display_name": "A股隔夜研究与模拟系统 V4",
-  "updated_at": "2026-08-09T12:45:00+08:00",
+  "updated_at": "2026-08-11T09:31:00+08:00",
   "active_phase": "P6",
   "active_phase_name": "严格研究数据积累与真实窗口验收",
   "production_status": "research_locked",
   "p1_validation": {
     "engineering_status": "offline_completed",
     "offline_acceptance_status": "passed_unique_gateway_including_production_leaves",
-    "live_window_status": "pending_real_windows",
+    "live_window_status": "morning_passed_2026_08_11_signal_confirmation_sell_fill_pending",
     "required_windows": ["09:25 morning", "14:49 signal", "14:50 strict and paper-only", "next-session 09:30 sell"]
   },
   "p2_validation": {
     "engineering_status": "offline_completed",
     "offline_acceptance_status": "passed_157_tests_strict",
-    "live_window_status": "pending_real_windows",
+    "live_window_status": "morning_entity_and_push_passed_empty_due_context_signal_confirmation_pending",
     "historical_replay_status": "immutable_snapshots_and_feature_context_replay_passed",
     "historical_fact": "2026-08-03..05 candidate journals missing; 2026-08-06..07 legacy schema retained read-only"
   },
@@ -115,17 +115,17 @@
     "broker_orders_enabled": false
   },
   "latest_observed_session": {
-    "trade_date": "2026-08-07",
-    "morning_candidates": 5,
-    "confirmation_candidates": 3,
+    "trade_date": "2026-08-11",
+    "morning_candidates": 0,
+    "confirmation_candidates": 0,
     "paper_bought": 0,
-    "paper_buy_outcome": "blocked_by_current_rule_threshold",
-    "top1_rule_score": 77.5,
+    "paper_buy_outcome": "pending_1450",
+    "top1_rule_score": null,
     "morning_push_success": true,
-    "confirmation_push_success": true
+    "confirmation_push_success": false
   },
   "quality": {
-    "tests_passed": 226,
+    "tests_passed": 229,
     "tests_failed": 0,
     "v4_imports_v3": false
   },
@@ -164,10 +164,25 @@
       "title": "看板单文件职责过多且状态由多个JSON现场拼装",
       "phase": "P5",
       "status": "closed_offline_replacement_ready_cutover_pending"
+    },
+    {
+      "id": "P1-LIVE-001",
+      "severity": "P0",
+      "title": "全市场快照投影重复计算内容哈希导致真实窗口超时",
+      "phase": "P1/P4",
+      "status": "fixed_and_morning_live_verified_2026_08_11"
+    },
+    {
+      "id": "P6-LIVE-001",
+      "severity": "P0",
+      "title": "上一交易日冻结上下文刷新受单股票K线HTTP 456限制，当前覆盖仅2.59%",
+      "phase": "P6",
+      "status": "open_blocks_strict_1449"
     }
   ],
   "next_tasks": [
-    "周一使用四窗口自动验收器验证真实09:25、14:49、14:50和次日09:30并保存P1/P2证据",
+    "2026-08-11继续验证真实14:49和14:50；09:25行情/决策/PushPlus已通过",
+    "替换或重构逐股票新浪K线归档刷新，恢复上一交易日冻结上下文95%覆盖",
     "持续积累无偏严格样本；达到门槛后才运行P6全市场Walk-Forward和压力测试",
     "P3/P4/P5已切换；周一观察真实实体、任务回执和8898投影，失败时按备份回滚",
     "P1/P2真实窗口失败时立即暂停P3/P4/P5/P6/P7/P8并优先修复"

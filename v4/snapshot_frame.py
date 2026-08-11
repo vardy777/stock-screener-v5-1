@@ -15,6 +15,10 @@ def snapshot_frame(snapshot: MarketSnapshotV1) -> pd.DataFrame:
     if not isinstance(snapshot, MarketSnapshotV1):
         raise ContractViolation("snapshot: MarketSnapshotV1 required")
     rows = []
+    # ``snapshot_id`` hashes the complete immutable quote set.  Computing it
+    # inside the full-market loop turns a linear projection into O(n²) work
+    # and can make a 4,000-symbol window finish several minutes late.
+    snapshot_id = snapshot.snapshot_id
     for quote in snapshot.quotes:
         change_pct = (quote.last_price / quote.previous_close - 1.0) * 100.0
         rows.append({
@@ -42,6 +46,6 @@ def snapshot_frame(snapshot: MarketSnapshotV1) -> pd.DataFrame:
             "limit_up": quote.limit_up,
             "limit_down": quote.limit_down,
             "provider": quote.provider,
-            "snapshot_id": snapshot.snapshot_id,
+            "snapshot_id": snapshot_id,
         })
     return pd.DataFrame(rows)

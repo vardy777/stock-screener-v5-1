@@ -1,5 +1,6 @@
 """Pure P2 production decision producer with no account responsibilities."""
 from __future__ import annotations
+from datetime import datetime
 from pathlib import Path
 
 from market_universe import list_universe_codes
@@ -41,9 +42,15 @@ class P2DecisionProducer:
             require_order_book=stage == "confirmation", now=current)
         if not snapshot.quotes:
             raise RuntimeError("MARKET_SNAPSHOT_EMPTY")
-        market_state = dict(analyze_market(snapshot).get("market_state", {}))
+        # Quote validity belongs to the immutable capture, not to however long
+        # downstream analytics take.  This also makes replay deterministic.
+        reference_time = datetime.fromisoformat(snapshot.batch_completed_at)
+        market_state = dict(analyze_market(
+            snapshot, reference_time=reference_time
+        ).get("market_state", {}))
         candidates = self.runtime.evaluate_universe(snapshot, market_state=market_state,
-            allowed_codes=allowed_codes, morning_candidates=morning_rows if stage == "confirmation" else None)
+            allowed_codes=allowed_codes, morning_candidates=morning_rows if stage == "confirmation" else None,
+            decision_stage=stage, reference_time=reference_time)
         service = DecisionChainService(self.journal, self.runtime)
         return (service.publish_morning(day, candidates, market_state) if stage == "morning"
                 else service.publish_confirmation(day, candidates, market_state))

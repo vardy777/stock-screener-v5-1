@@ -25,6 +25,14 @@ COMMANDS={
 DEPENDENCIES={"morning_push":("morning_decision",),"confirmation_decision":("feature_freeze","morning_decision"),
  "confirmation_push":("confirmation_decision",),"paper_buy":("confirmation_decision",),
  "health_check":("confirmation_decision",),"maintenance":("health_check",)}
+# Some downstream jobs must run after an upstream terminal result even when
+# that result failed.  Confirmation must publish an auditable empty/paper-only
+# decision when the strict 14:49 capture fails, and maintenance must prepare
+# the next session even when today's health report failed.
+TERMINAL_DEPENDENCIES={
+ ("confirmation_decision","feature_freeze"),
+ ("maintenance","health_check"),
+}
 
 def _digest(value): return hashlib.sha256(json.dumps(value,ensure_ascii=False,sort_keys=True,separators=(",",":")).encode()).hexdigest()
 
@@ -91,9 +99,13 @@ def run(task,*,authorization_file,now=None,preflight=False):
     deadline=time.monotonic()+85
     for dependency in DEPENDENCIES.get(task,()):
         dependency_output=_latest(dependency,day)
-        while dependency_output.get("status")!="SUCCEEDED" and time.monotonic()<deadline:
+        acceptable=(
+            {"SUCCEEDED","FAILED","BLOCKED"}
+            if (task,dependency) in TERMINAL_DEPENDENCIES else {"SUCCEEDED"}
+        )
+        while dependency_output.get("status") not in acceptable and time.monotonic()<deadline:
             time.sleep(1); dependency_output=_latest(dependency,day)
-        if dependency_output.get("status")!="SUCCEEDED":
+        if dependency_output.get("status") not in acceptable:
             blocked=TaskOutputV1.build(task_name=task,trade_date=day,status="BLOCKED",
                 reason_code=f"DEPENDENCY_NOT_SUCCEEDED:{dependency}",recorded_at=current,attempt=attempt)
             result=_persist(blocked); _heartbeat(task,day,attempt,"BLOCKED",output_id=blocked.output_id,reason_code=blocked.reason_code,now=current); return result

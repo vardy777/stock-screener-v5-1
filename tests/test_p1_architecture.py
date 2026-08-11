@@ -8,6 +8,11 @@ ALLOWED_PROVIDER_BOUNDARIES = {"data.py", "market_gateway.py"}
 
 
 class P1ArchitectureTests(unittest.TestCase):
+    def test_full_market_projection_hashes_snapshot_only_once(self):
+        source = (ROOT / "v4" / "snapshot_frame.py").read_text(encoding="utf-8")
+        self.assertEqual(source.count("snapshot.snapshot_id"), 1)
+        self.assertIn('"snapshot_id": snapshot_id', source)
+
     def test_v4_exposes_no_legacy_frame_capture_or_market_state_fetcher(self):
         self.assertFalse((ROOT / "v4" / "snapshots.py").exists())
         data_tree = ast.parse((ROOT / "v4" / "data.py").read_text(encoding="utf-8"))

@@ -20,6 +20,36 @@ class _Response:
 
 
 class ProductionIntegrationGapTests(unittest.TestCase):
+    def test_terminal_feature_failure_still_allows_empty_confirmation(self):
+        now=datetime(2026,8,10,14,50,20,tzinfo=CHINA_TZ)
+        outputs={
+            "feature_freeze":{"status":"FAILED"},
+            "morning_decision":{"status":"SUCCEEDED"},
+        }
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            patch.object(runner,"ROOT",Path(temporary)),
+            patch.object(runner,"require_authorized_owner"),
+            patch.object(runner,"_latest",side_effect=lambda task,day: outputs.get(task,{})),
+            patch.object(runner,"_entity",return_value=("cd-test",{"decision_id":"cd-test"},("mp-test",))),
+            patch.object(runner.subprocess,"run",return_value=SimpleNamespace(returncode=0,stdout="",stderr="")),
+        ):
+            result=runner.run("confirmation_decision",authorization_file="unused",now=now)
+        self.assertEqual(result["status"],"SUCCEEDED")
+
+    def test_maintenance_runs_after_terminal_health_failure(self):
+        now=datetime(2026,8,10,15,10,tzinfo=CHINA_TZ)
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            patch.object(runner,"ROOT",Path(temporary)),
+            patch.object(runner,"require_authorized_owner"),
+            patch.object(runner,"_latest",return_value={"status":"FAILED"}),
+            patch.object(runner,"_entity",return_value=("maintenance-test",{"passed":True},())),
+            patch.object(runner.subprocess,"run",return_value=SimpleNamespace(returncode=0,stdout="",stderr="")),
+        ):
+            result=runner.run("maintenance",authorization_file="unused",now=now)
+        self.assertEqual(result["status"],"SUCCEEDED")
+
     def test_failed_task_can_retry_same_day_and_heartbeat_tracks_latest(self):
         now=datetime(2026,8,10,9,25,tzinfo=CHINA_TZ)
         with (

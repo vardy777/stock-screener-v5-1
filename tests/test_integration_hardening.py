@@ -11,7 +11,9 @@ from v4.decision_production import P2DecisionProducer
 
 class IntegrationHardeningTests(unittest.TestCase):
     def test_p2_producer_has_no_account_or_compatibility_facade(self):
-        gateway=MagicMock(); gateway.fetch_snapshot.return_value=SimpleNamespace(quotes=[object()])
+        gateway=MagicMock(); gateway.fetch_snapshot.return_value=SimpleNamespace(
+            quotes=[object()], batch_completed_at="2026-08-10T09:25:05+08:00"
+        )
         journal=MagicMock(); runtime=MagicMock(); runtime.evaluate_universe.return_value=[]
         service=MagicMock(); service.publish_morning.return_value={"pool_id":"mp-test"}
         now=datetime(2026,8,10,9,25,tzinfo=CHINA_TZ)
