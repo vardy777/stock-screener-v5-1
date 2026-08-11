@@ -2,7 +2,7 @@
   "schema_version": "project-state-v1",
   "project": "a-share-overnight-v4",
   "display_name": "A股隔夜研究与模拟系统 V4",
-  "updated_at": "2026-08-11T15:22:00+08:00",
+  "updated_at": "2026-08-11T16:37:00+08:00",
   "active_phase": "P6",
   "active_phase_name": "严格研究数据积累与真实窗口验收",
   "production_status": "research_locked",
@@ -191,12 +191,12 @@
       "severity": "P0",
       "title": "2026-08-12上下文恢复请求触发腾讯临时限流，当前生产上下文需重建",
       "phase": "P6",
-      "status": "open_provider_cooldown_retry_required"
+      "status": "closed_context_ready_2026_08_11_1630_maintenance_succeeded"
     }
   ],
   "next_tasks": [
     "以管理员权限同步 Windows 时间服务，并在下一真实14:49窗口重验严格覆盖",
-    "供应商冷却后重建2026-08-12上下文，只有strict_context_ready=true才允许发布",
+    "2026-08-12上下文已严格恢复；明早09:25验证候选与推送",
     "持续积累无偏严格样本；达到门槛后才运行P6全市场Walk-Forward和压力测试",
     "P3/P4/P5已切换；周一观察真实实体、任务回执和8898投影，失败时按备份回滚",
     "P1/P2真实窗口失败时立即暂停P3/P4/P5/P6/P7/P8并优先修复"

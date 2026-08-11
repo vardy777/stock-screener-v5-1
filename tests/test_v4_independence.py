@@ -52,6 +52,7 @@ class V4IndependenceTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn('"build_live_feature_context_gateway.py"', text)
         self.assertNotIn('_run("refresh_intraday_archive.py"', text)
+        self.assertIn("reusable_context", text)
 
     def test_windows_time_repair_is_explicit_and_elevated(self):
         text = (ROOT / "scripts" / "repair_windows_time.ps1").read_text(

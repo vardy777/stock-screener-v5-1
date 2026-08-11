@@ -60,7 +60,22 @@ def main() -> int:
     # and must not block the next session's critical context.  The gateway
     # builder uses a second provider and cross-checks against today's strict
     # V4 signal snapshot before it can publish a ready context.
-    context_code = _run("build_live_feature_context_gateway.py", "--trade-date", target)
+    existing_context_path = BASE / "data" / "overnight" / "live_feature_context.csv.gz"
+    existing_context = _load(
+        existing_context_path.with_suffix(existing_context_path.suffix + ".meta.json")
+    )
+    reusable_context = bool(
+        existing_context_path.exists()
+        and existing_context.get("expected_previous_session") == as_of.isoformat()
+        and existing_context.get("strict_context_ready") is True
+        and float(existing_context.get("coverage", 0) or 0) >= 0.95
+        and float(existing_context.get("reference_match_rate", 0) or 0) >= 0.95
+        and existing_context.get("volume_unit_verified") is True
+    )
+    context_code = (
+        0 if reusable_context
+        else _run("build_live_feature_context_gateway.py", "--trade-date", target)
+    )
     preflight_code = _run("weekend_preflight.py", "--trade-date", target)
     labels_code = _run("build_execution_labels.py")
 
@@ -96,6 +111,7 @@ def main() -> int:
         },
         "archive": archive,
         "historical_archive_refresh_deferred": True,
+        "existing_strict_context_reused": reusable_context,
         "feature_context": context,
         "preflight": {
             "strict_capture_ready": bool(
