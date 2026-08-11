@@ -7,6 +7,7 @@ from typing import Any
 
 from .candidate_journal import CandidateJournal
 from .decision_service import execution_directive
+from .push import load_notification_receipt
 
 
 def validate_p2_session(
@@ -45,7 +46,21 @@ def validate_p2_session(
     checks["execution_same_id"] = directive.get("decision_id") == decision.get("decision_id")
     checks["execution_same_outcome"] = directive.get("outcome") == decision.get("outcome")
 
-    if log_dir is not None:
+    morning_receipt = load_notification_receipt(f"v4-morning:{trade_date}")
+    afternoon_receipt = load_notification_receipt(f"v4-afternoon:{trade_date}")
+    if morning_receipt is not None or afternoon_receipt is not None:
+        checks["morning_push_same_id"] = bool(
+            morning_receipt is not None
+            and morning_receipt.outcome == "ACCEPTED"
+            and morning_receipt.parent_entity_id == morning.get("pool_id")
+        )
+        checks["afternoon_push_same_id"] = bool(
+            afternoon_receipt is not None
+            and afternoon_receipt.outcome == "ACCEPTED"
+            and afternoon_receipt.parent_entity_id == decision.get("decision_id")
+        )
+    elif log_dir is not None:
+        # Read-only compatibility for archived pre-cutover acceptance fixtures.
         base = Path(log_dir)
         try:
             morning_log = (base / "scheduled_push_morning.log").read_text(
