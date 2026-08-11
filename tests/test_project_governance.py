@@ -67,7 +67,10 @@ class ProjectGovernanceTests(unittest.TestCase):
         p4 = state["p4_validation"]
         self.assertEqual(p4["operating_mode"], "local_production_scheduler")
         self.assertTrue(p4["windows_tasks_registered_by_p4"])
-        self.assertFalse(p4["real_pushplus_called"])
+        # The 2026-08-11 09:25 production notification has a real
+        # PushPlus 200/ACCEPTED receipt.  This flag is observed evidence,
+        # not an authorization to release the research gate.
+        self.assertTrue(p4["real_pushplus_called"])
         self.assertTrue(p4["production_entrypoints_connected"])
         self.assertFalse(p4["completion_allowed"])
         p5 = state["p5_validation"]
