@@ -11,6 +11,7 @@ from .execution import TradingClock
 from .market import analyze_market, empty_market_state
 from .market_gateway import MarketDataGateway
 from .runtime import V4Runtime
+from .snapshot_compat import archive_market_snapshot
 
 
 class P2DecisionProducer:
@@ -42,6 +43,10 @@ class P2DecisionProducer:
             require_order_book=stage == "confirmation", now=current)
         if not snapshot.quotes:
             raise RuntimeError("MARKET_SNAPSHOT_EMPTY")
+        if stage == "confirmation" and archive_market_snapshot(
+            snapshot, capture_role="p2_confirmation_gateway"
+        ) is None:
+            raise RuntimeError("STRICT_BUY_SNAPSHOT_ARCHIVE_FAILED")
         # Quote validity belongs to the immutable capture, not to however long
         # downstream analytics take.  This also makes replay deterministic.
         reference_time = datetime.fromisoformat(snapshot.batch_completed_at)

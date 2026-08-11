@@ -35,10 +35,23 @@ class V4IndependenceTests(unittest.TestCase):
                 violations.append(name)
         self.assertEqual(violations, [])
 
+    def test_operational_phase1_scripts_reference_existing_v4_modules(self):
+        for name in ("capture_execution_snapshot.py", "verify_capture_health.py"):
+            text=(ROOT/"phase1"/"scripts"/name).read_text(encoding="utf-8")
+            self.assertNotIn("v4.snapshots",text)
+            self.assertIn("v4.snapshot_compat",text)
+
     def test_dashboard_launcher_starts_v4_module_directly(self):
         text = (ROOT / "start_dashboard.py").read_text(encoding="utf-8")
         self.assertIn('"-m", "v4.p5_dashboard"', text)
         self.assertNotIn('"v3-dashboard"', text)
+
+    def test_next_session_maintenance_uses_strict_context_gateway(self):
+        text = (
+            ROOT / "phase1" / "scripts" / "prepare_next_session.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"build_live_feature_context_gateway.py"', text)
+        self.assertNotIn('_run("refresh_intraday_archive.py"', text)
 
 
 if __name__ == "__main__":

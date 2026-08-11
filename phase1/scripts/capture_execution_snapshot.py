@@ -20,7 +20,7 @@ from market_universe import list_universe_codes
 from phase1.overnight.quote_capture import fetch_quotes_with_retries
 from v4.execution import TradingClock
 from v4.calendar import TradingCalendar
-from v4.snapshots import capture_frame
+from v4.snapshot_compat import capture_frame
 
 
 def main() -> int:

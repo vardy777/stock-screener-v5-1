@@ -9,6 +9,7 @@ from .market_gateway import MarketDataGateway,SnapshotRepository
 from .p3_account import OfflinePaperLedger
 from .p3_execution import OfflineExecutionEngine,OfflineIntentFactory
 from .production_gate import require_authorized_owner
+from .snapshot_compat import archive_market_snapshot
 
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -44,6 +45,8 @@ def execute(mode,*,authorization_file,now=None,account_dir=None):
         positions=ledger.snapshot()["positions"]
         if positions:
             snapshot=MarketDataGateway().fetch_snapshot([x["code"] for x in positions],session="sell",minimum_coverage=1.0,now=current)
+            if archive_market_snapshot(snapshot,capture_role="p3_sell_gateway") is None:
+                raise RuntimeError("STRICT_SELL_SNAPSHOT_ARCHIVE_FAILED")
             intents=[factory.sell_from_position(x,snapshot,created_at=current) for x in positions]
     result=engine.execute(intents,filled_at=current) if intents else {"success":True,"filled":0,"failed":0,"results":[]}
     body={"schema_version":"paper-execution-batch-v1","trade_date":current.date().isoformat(),"side":mode.upper(),

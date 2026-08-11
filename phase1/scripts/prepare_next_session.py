@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Refresh archives and prepare strict context for the next open session."""
+"""Prepare strict context and research diagnostics for the next session."""
 
 import argparse
 import json
@@ -56,8 +56,11 @@ def main() -> int:
 
     target = next_session.isoformat()
     print(f"准备下一交易日: {target}", flush=True)
-    refresh_code = _run("refresh_intraday_archive.py", "--trade-date", target)
-    context_code = _run("build_live_feature_context.py", "--trade-date", target)
+    # The legacy per-symbol Sina archive refresh is rate-limited (HTTP 456)
+    # and must not block the next session's critical context.  The gateway
+    # builder uses a second provider and cross-checks against today's strict
+    # V4 signal snapshot before it can publish a ready context.
+    context_code = _run("build_live_feature_context_gateway.py", "--trade-date", target)
     preflight_code = _run("weekend_preflight.py", "--trade-date", target)
     labels_code = _run("build_execution_labels.py")
 
@@ -69,9 +72,7 @@ def main() -> int:
     labels_path = overnight / "execution_labels.csv.gz"
     labels = _load(labels_path.with_suffix(labels_path.suffix + ".meta.json"))
     passed = bool(
-        archive.get("expected_previous_session") == as_of.isoformat()
-        and archive.get("strict_archive_ready", False)
-        and context.get("expected_previous_session") == as_of.isoformat()
+        context.get("expected_previous_session") == as_of.isoformat()
         and context.get("strict_context_ready", False)
         and context.get("volume_unit") == "shares"
         and context.get("volume_unit_verified", False)
@@ -82,18 +83,19 @@ def main() -> int:
         and labels_code == 0
     )
     report = {
-        "contract_version": "next-session-maintenance-v1",
+        "contract_version": "next-session-maintenance-v2",
         "generated_at": datetime.now(CHINA_TZ).isoformat(timespec="seconds"),
         "as_of_open_session": as_of.isoformat(),
         "next_open_session": target,
         "passed": passed,
         "command_exit_codes": {
-            "refresh_archive": refresh_code,
+            "refresh_archive": "deferred_noncritical",
             "build_context": context_code,
             "preflight": preflight_code,
             "build_labels": labels_code,
         },
         "archive": archive,
+        "historical_archive_refresh_deferred": True,
         "feature_context": context,
         "preflight": {
             "strict_capture_ready": bool(

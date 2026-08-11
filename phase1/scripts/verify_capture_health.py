@@ -16,8 +16,9 @@ from overnight.capture_health import evaluate_capture_session
 from v4.push import send_wechat
 from v4.calendar import TradingCalendar
 from v4.execution import CHINA_TZ
-from v4.snapshots import build_daily_quality_report
+from v4.snapshot_compat import build_daily_quality_report
 from v4.p2_acceptance import validate_p2_session
+from v4.candidate_journal import CandidateJournal
 
 
 def main() -> int:
@@ -39,10 +40,15 @@ def main() -> int:
         print(f"非开放交易日，跳过采集健康检查: {args.trade_date}")
         return 0
     root = BASE / "data" / "execution_snapshots"
-    checks = [
-        evaluate_capture_session(root, session, args.trade_date)
-        for session in sessions
-    ]
+    chain=CandidateJournal().load(args.trade_date)
+    morning_count=len(chain.get("morning",{}).get("candidates",[]))
+    checks=[]
+    for session in sessions:
+        if session=="buy" and morning_count==0:
+            checks.append({"session":"buy","trade_date":args.trade_date,"passed":True,
+                           "status":"NOT_APPLICABLE_EMPTY_MORNING_POOL","files_found":0,"best":{},"candidates":[]})
+        else:
+            checks.append(evaluate_capture_session(root,session,args.trade_date))
     p2_acceptance = None
     if {"signal", "buy"}.issubset(sessions):
         p2_acceptance = validate_p2_session(

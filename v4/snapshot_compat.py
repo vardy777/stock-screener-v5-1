@@ -17,6 +17,7 @@ from v4.market_contracts import (
     MarketSnapshotV1,
     QuoteV1,
 )
+from v4.snapshot_frame import snapshot_frame
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -296,3 +297,23 @@ def capture_frame(
         manifest["fetch"] = capture_metadata
     _atomic_json(output.with_suffix(output.suffix + ".meta.json"), manifest)
     return output
+
+
+def archive_market_snapshot(snapshot: MarketSnapshotV1, *, capture_role: str) -> Optional[Path]:
+    """Project an accepted gateway snapshot into the strict execution archive."""
+    if not isinstance(snapshot, MarketSnapshotV1):
+        raise ContractViolation("snapshot: MarketSnapshotV1 required")
+    current=datetime.fromisoformat(snapshot.batch_completed_at)
+    frame=snapshot_frame(snapshot)
+    frame.attrs["batch_started_at"]=snapshot.batch_started_at
+    frame.attrs["batch_completed_at"]=snapshot.batch_completed_at
+    return capture_frame(
+        frame,snapshot.session,now=current,
+        expected_codes=[quote.code for quote in snapshot.quotes],
+        minimum_coverage=snapshot.policy.minimum_coverage,
+        capture_metadata={"gateway_snapshot_id":snapshot.snapshot_id,
+                          "started_at":snapshot.batch_started_at,
+                          "completed_at":snapshot.batch_completed_at},
+        require_order_book=snapshot.policy.require_order_book,
+        capture_role=capture_role,evidence_cohort=snapshot.quality.cohort,
+    )
