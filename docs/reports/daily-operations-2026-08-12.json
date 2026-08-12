@@ -9,7 +9,7 @@
     "morning_entity": true,
     "confirmation_entity": false,
     "pushplus_200_accepted": false,
-    "windows_time": false
+    "windows_time": true
   },
   "missing_tasks": [],
   "invalid_tasks": [],
@@ -51,12 +51,15 @@
     }
   ],
   "time_sync": {
-    "passed": false,
-    "service_running": false,
-    "synchronized": false,
-    "service_output": "\nSERVICE_NAME: W32Time \n        TYPE               : 30  WIN32  \n        STATE              : 1  STOPPED \n        WIN32_EXIT_CODE    : 0  (0x0)\n        SERVICE_EXIT_CODE  : 0  (0x0)\n        CHECKPOINT         : 0x0\n        WAIT_HINT          : 0x0\n",
-    "status_output": "发生下列错误: 服务尚未启动。 (0x80070426)\n",
-    "reason": "WINDOWS_TIME_NOT_SYNCHRONIZED"
+    "passed": true,
+    "service_running": true,
+    "synchronized": true,
+    "offset_verified": true,
+    "maximum_absolute_offset_seconds": 0.009707,
+    "service_output": "\nSERVICE_NAME: W32Time \n        TYPE               : 30  WIN32  \n        STATE              : 4  RUNNING \n                                (STOPPABLE, NOT_PAUSABLE, ACCEPTS_SHUTDOWN)\n        WIN32_EXIT_CODE    : 0  (0x0)\n        SERVICE_EXIT_CODE  : 0  (0x0)\n        CHECKPOINT         : 0x0\n        WAIT_HINT          : 0x0\n",
+    "status_output": "Leap 指示符: 0(无警告)\n层次: 4 (次引用 - 与(S)NTP 同步)\n精度: -23 (每刻度 119.209ns)\n根延迟: 0.0296970s\n根分散: 7.7740209s\n引用 ID: 0xCB6B0658 (源 IP:  203.107.6.88)\n上次成功同步时间: 2026/8/12 23:04:31\n源: ntp.aliyun.com,0x9 \n轮询间隔: 10 (1024s)\n\n",
+    "stripchart_output": "正在跟踪 ntp.aliyun.com [203.107.6.88:123]。\n正在收集 3 示例。\n当前时间是 2026/8/12 23:09:19。\n23:09:19, +00.0065294s\n23:09:21, +00.0097070s\n23:09:23, +00.0092802s\n",
+    "reason": "OK"
   },
   "output_chain": {
     "schema_version": "task-output-audit-v1",

@@ -5,7 +5,7 @@ never manufacture a missing entity or reinterpret a failed task as success.
 """
 from __future__ import annotations
 from datetime import date
-import json,subprocess
+import json,re,subprocess
 from pathlib import Path
 from .candidate_journal import CandidateJournal
 from .task_output_contract import TaskOutputV1,audit_output_chain
@@ -17,13 +17,22 @@ def windows_time_status() -> dict:
     try:
         service=subprocess.run(["sc.exe","query","W32Time"],capture_output=True,text=True,timeout=10)
         status=subprocess.run(["w32tm.exe","/query","/status"],capture_output=True,text=True,timeout=10)
+        strip=subprocess.run(["w32tm.exe","/stripchart","/computer:ntp.aliyun.com","/dataonly","/samples:3"],capture_output=True,text=True,timeout=20)
     except (OSError,subprocess.SubprocessError) as exc:
         return {"passed":False,"reason":"TIME_QUERY_FAILED","detail":str(exc)}
     running=service.returncode==0 and "RUNNING" in service.stdout
     synchronized=status.returncode==0 and "Local CMOS Clock" not in status.stdout
-    return {"passed":running and synchronized,"service_running":running,"synchronized":synchronized,
+    offsets=[]
+    for value in re.findall(r"([+-])\s*(\d+(?:\.\d+)?)s",strip.stdout):
+        offsets.append((-1 if value[0]=="-" else 1)*float(value[1]))
+    maximum_offset=max((abs(x) for x in offsets),default=None)
+    offset_ok=strip.returncode==0 and len(offsets)>=2 and maximum_offset is not None and maximum_offset<=0.5
+    passed=running and synchronized and offset_ok
+    return {"passed":passed,"service_running":running,"synchronized":synchronized,
+            "offset_verified":offset_ok,"maximum_absolute_offset_seconds":maximum_offset,
             "service_output":service.stdout[-2000:],"status_output":status.stdout[-4000:],
-            "reason":"OK" if running and synchronized else "WINDOWS_TIME_NOT_SYNCHRONIZED"}
+            "stripchart_output":strip.stdout[-4000:],
+            "reason":"OK" if passed else ("WINDOWS_TIME_OFFSET_TOO_LARGE" if running and synchronized else "WINDOWS_TIME_NOT_SYNCHRONIZED")}
 
 def build(project_root: Path, trade_date: str) -> dict:
     day=date.fromisoformat(trade_date).isoformat(); root=Path(project_root)

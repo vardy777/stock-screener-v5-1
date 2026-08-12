@@ -198,7 +198,7 @@
       "severity": "P0",
       "title": "Windows 时间服务未同步导致供应商时间领先本机约2秒，严格因果行被隔离",
       "phase": "P1/P4",
-      "status": "open_requires_elevated_windows_time_sync_and_next_live_window_retest"
+      "status": "fixed_ntp_offset_verified_2026_08_12_live_window_retest_pending"
     },
     {
       "id": "P6-LIVE-002",

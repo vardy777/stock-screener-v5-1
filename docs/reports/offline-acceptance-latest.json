@@ -1,6 +1,6 @@
 {
   "schema_version": "offline-acceptance-report-v1",
-  "generated_at": "2026-08-12T22:58:24+08:00",
+  "generated_at": "2026-08-12T23:09:18+08:00",
   "passed": true,
   "checks": {
     "project_consistency": true,
@@ -97,7 +97,7 @@
         "severity": "P0",
         "title": "Windows 时间服务未同步导致供应商时间领先本机约2秒，严格因果行被隔离",
         "phase": "P1/P4",
-        "status": "open_requires_elevated_windows_time_sync_and_next_live_window_retest"
+        "status": "fixed_ntp_offset_verified_2026_08_12_live_window_retest_pending"
       },
       {
         "id": "P6-LIVE-002",
@@ -141,7 +141,7 @@
       {
         "name": "disk_free",
         "passed": true,
-        "detail": "1215.58 GiB"
+        "detail": "1215.57 GiB"
       },
       {
         "name": "directory_candidate_journal",
@@ -183,21 +183,21 @@
         {
           "path": "C:\\Users\\lisha\\stock-screener\\phase1\\data\\logs\\dashboard_startup.log",
           "size": 1739,
-          "age_days": 5.57,
+          "age_days": 5.58,
           "rotation_candidate": false,
           "retention_candidate": false
         },
         {
           "path": "C:\\Users\\lisha\\stock-screener\\phase1\\data\\logs\\scheduled_buy.log",
           "size": 1492,
-          "age_days": 5.34,
+          "age_days": 5.35,
           "rotation_candidate": false,
           "retention_candidate": false
         },
         {
           "path": "C:\\Users\\lisha\\stock-screener\\phase1\\data\\logs\\scheduled_daily_maintenance.log",
           "size": 585337,
-          "age_days": 5.31,
+          "age_days": 5.32,
           "rotation_candidate": false,
           "retention_candidate": false
         },
@@ -218,28 +218,28 @@
         {
           "path": "C:\\Users\\lisha\\stock-screener\\phase1\\data\\logs\\scheduled_push_afternoon.log",
           "size": 4292,
-          "age_days": 5.34,
+          "age_days": 5.35,
           "rotation_candidate": false,
           "retention_candidate": false
         },
         {
           "path": "C:\\Users\\lisha\\stock-screener\\phase1\\data\\logs\\scheduled_push_morning.log",
           "size": 3826,
-          "age_days": 5.56,
+          "age_days": 5.57,
           "rotation_candidate": false,
           "retention_candidate": false
         },
         {
           "path": "C:\\Users\\lisha\\stock-screener\\phase1\\data\\logs\\scheduled_sell.log",
           "size": 1230,
-          "age_days": 5.56,
+          "age_days": 5.57,
           "rotation_candidate": false,
           "retention_candidate": false
         },
         {
           "path": "C:\\Users\\lisha\\stock-screener\\phase1\\data\\logs\\scheduled_signal.log",
           "size": 1374,
-          "age_days": 5.34,
+          "age_days": 5.35,
           "rotation_candidate": false,
           "retention_candidate": false
         }
