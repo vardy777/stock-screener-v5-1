@@ -38,16 +38,16 @@
   "push_checks": [
     {
       "message_key": "v4-morning:2026-08-12",
-      "passed": false,
-      "notification_id": "",
-      "response_code": 0,
-      "outcome": "",
+      "passed": true,
+      "notification_id": "notification1-3b05b0845d5f2804b19d796b",
+      "response_code": 200,
+      "outcome": "ACCEPTED",
       "parent_entity_id": "mp-df42fe73b7cbf7644f247194"
     },
     {
       "message_key": "v4-afternoon:2026-08-12",
       "passed": false,
-      "error": "'v4-afternoon:2026-08-12'"
+      "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\lisha\\\\stock-screener\\\\v4\\\\data\\\\notifications\\\\8ba5d4a15505f01bc3ba23ed.json'"
     }
   ],
   "time_sync": {
@@ -55,10 +55,10 @@
     "service_running": true,
     "synchronized": true,
     "offset_verified": true,
-    "maximum_absolute_offset_seconds": 0.009707,
+    "maximum_absolute_offset_seconds": 0.0365494,
     "service_output": "\nSERVICE_NAME: W32Time \n        TYPE               : 30  WIN32  \n        STATE              : 4  RUNNING \n                                (STOPPABLE, NOT_PAUSABLE, ACCEPTS_SHUTDOWN)\n        WIN32_EXIT_CODE    : 0  (0x0)\n        SERVICE_EXIT_CODE  : 0  (0x0)\n        CHECKPOINT         : 0x0\n        WAIT_HINT          : 0x0\n",
     "status_output": "Leap 指示符: 0(无警告)\n层次: 4 (次引用 - 与(S)NTP 同步)\n精度: -23 (每刻度 119.209ns)\n根延迟: 0.0296970s\n根分散: 7.7740209s\n引用 ID: 0xCB6B0658 (源 IP:  203.107.6.88)\n上次成功同步时间: 2026/8/12 23:04:31\n源: ntp.aliyun.com,0x9 \n轮询间隔: 10 (1024s)\n\n",
-    "stripchart_output": "正在跟踪 ntp.aliyun.com [203.107.6.88:123]。\n正在收集 3 示例。\n当前时间是 2026/8/12 23:09:19。\n23:09:19, +00.0065294s\n23:09:21, +00.0097070s\n23:09:23, +00.0092802s\n",
+    "stripchart_output": "正在跟踪 ntp.aliyun.com [203.107.6.88:123]。\n正在收集 3 示例。\n当前时间是 2026/8/12 23:22:32。\n23:22:32, +00.0342166s\n23:22:34, +00.0348841s\n23:22:36, +00.0365494s\n",
     "reason": "OK"
   },
   "output_chain": {

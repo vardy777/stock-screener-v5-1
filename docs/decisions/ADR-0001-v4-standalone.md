@@ -11,4 +11,4 @@
 ## 后果
 
 历史V2可以保留用于审计；V3已生成可校验本地归档并移出工作树。通过自动测试扫描V3导入，
-看板直接以 `python -m v4.dashboard` 启动。
+看板由 P5 只读入口 `python -m v4.p5_dashboard --port 8898 --data-dir v4/data` 启动；P3/P4/P5 已于 2026-08-09 完成授权切换。

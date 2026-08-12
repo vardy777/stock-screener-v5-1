@@ -169,6 +169,7 @@ class DashboardReadModelBuilder:
     @staticmethod
     def _acceptance(e):
         live=dict(e.get("live_windows",{}) or {}); admission=dict(e.get("strict_admission",{}) or {})
+        daily=dict(e.get("daily_operations",{}) or {})
         names=("morning_0925","feature_1449","confirmation_1450","sell_0930")
         checks={str(x.get("name",x.get("window",""))):x for x in live.get("checks",[])}
         windows=[{"name":name,"status":"PASSED" if checks.get(name,{}).get("passed") is True else "PENDING",
@@ -177,6 +178,10 @@ class DashboardReadModelBuilder:
                 "strict_admission":{"passed":admission.get("passed") is True,
                     "reasons":list(admission.get("reasons",[])),
                     "sample_count":int(admission.get("sample_count",e.get("strict_pairs",0)) or 0)},
+                "daily_operations":{"trade_date":daily.get("trade_date",""),
+                    "passed":daily.get("passed") is True,
+                    "checks":dict(daily.get("checks",{}) or {}),
+                    "push_checks":list(daily.get("push_checks",[]) or [])},
                 "execution_result_count":int(e.get("execution_result_count",0) or 0)}
 
     def _operations(self,receipts,heartbeat,alerts,ownership=None,cutover=None):

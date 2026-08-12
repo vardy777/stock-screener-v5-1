@@ -1,36 +1,34 @@
-# 模块清单与契约
+# V4 模块清单
 
-> 运行现状（2026-08-09）：P3 已接管本地模拟账户，P4 九任务已注册并替代旧活动任务，P5 已接管 8898；旧实现仅作为禁用回滚资源保留。真实四窗口验证仍待完成，生产模型仍未发布。
+| 阶段 | 模块 | 契约与当前状态 | 待验收 |
+|---|---|---|---|
+| P1 | `market_contracts.py`, `market_gateway.py`, `market.py` | 唯一网关、不可变快照、时区与市场状态血缘；离线通过 | 真实四窗口 |
+| P2 | `decision_production.py`, `candidate_journal.py`, `decision_contracts.py` | 母池/确认唯一事实源；逐标的盘口阻断；离线通过 | 真实 09:25/14:50 |
+| P3 | `p3_account.py`, `p3_execution.py`, `p3_production.py` | 唯一模拟账户；费用、滑点、T+1、幂等、锁、恢复；已接生产 | 首次真实买入/次日卖出 |
+| P4 | `production_task_runner.py`, `push.py`, `notification_contracts.py` | 九任务唯一调度；不可变尝试、详细进程工件与通知实体；已接生产 | 连续真实闭环与漏跑恢复 |
+| P5 | `p5_sources.py`, `p5_read_model.py`, `p5_dashboard.py` | 8898 只读三视图；当日状态投影；已接生产 | 真实实体视觉验收 |
+| P6 | `p6_research_audit.py`, `phase1/overnight/` | 严格数据、WF、压力门禁；失败关闭 | ≥500 严格样本 |
+| P7 | `model_registry.py`, `p7_release_audit.py` | 模型/策略/报告哈希与原子发布审计 | P6 全部门禁通过 |
+| P8 | `p8_backup.py` | 内容寻址备份、校验和隔离恢复 | 当前 V4 生产数据演练、历史表面归档 |
 
-| 模块 | 当前实现 | 责任 | 当前状态 | 下一阶段 |
-|---|---|---|---|---|
-| 配置与密钥 | `v4/config.py` | 本地路径、环境配置 | 可用 | P0校验 |
-| 交易日与时间 | `v4/calendar.py`, `v4/execution.py` | 交易日、窗口、时效 | P1离线通过：naive datetime统一fail-closed | 真实四窗口验收 |
-| 行情接入 | `v4/data.py`, `v4/market_contracts.py`, `v4/market_gateway.py` | 新浪/东财行情、版本化点时契约 | P1离线通过：唯一网关与MarketSnapshotV1不可变存储 | 真实覆盖率、延迟与盘口验收 |
-| 市场状态 | `v4/market.py`, `v4/market_contracts.py` | 宽度、成交额、风险模式 | P1离线通过：MarketStateV1具备快照血缘和稳定身份 | 真实窗口市场状态核对 |
-| 上下文与特征 | `v4/feature_store.py`, `phase1/overnight/` | 点时特征、严格归档 | 研究锁定 | P1/P6 |
-| 候选选择 | `v4/selection.py` | 早盘基础分、尾盘固定确认增量 | P2离线通过：只由生产作业生成并写最终实体 | 真实母池与确认子集验收 |
-| 决策门禁 | `v4/runtime.py`, `v4/paper_policy.py` | 生产门禁与无偏paper完整性政策 | P2离线通过：消费者只投影最终决策 | 真实阻断原因与窗口验收 |
-| 候选日志 | `v4/candidate_journal.py`, `v4/decision_contracts.py` | 不可变早盘母池与最终确认决策 | P2离线通过：唯一事实源、完整血缘、冻结输入回放 | 真实同ID链路验收 |
-| 模拟账户 | `v4/p3_contracts.py`, `v4/p3_account.py`, `v4/p3_execution.py`, `v4/p3_production.py` | 订单意图、成交、往返、现金、持仓与费用 | P3 已接管生产模拟账户；单写者、事件链、T+1、恢复和对账离线通过 | 真实14:50/次日09:30验收 |
-| 决策生产 | `v4/decision_production.py`, `v4/scripts/decision_job.py` | 从版本化快照生成P2最终实体 | 已脱离账户与`SimulationEngine`兼容外壳 | 真实09:25/14:50验收 |
-| 调度器 | `v4/production_task_runner.py`, `v4/scripts/p4_task_adapter.py` | 九任务DAG、不可变尝试、重试、心跳、实体投影 | P4 已接管生产调度；旧任务Disabled | 真实任务/SLA/恢复验收 |
-| 推送 | `v4/push.py`, `v4/notification_contracts.py`, `v4/scripts/` | 冻结实体通知投影、负载/请求/响应哈希与父ID血缘 | 两个生产通知已接入P4；离线接受/拒绝/超时/重试通过 | 真实PushPlus送达回执验收 |
-| 看板 | `v4/p5_read_model.py`, `v4/p5_sources.py`, `v4/p5_beginner_dashboard.py`, `v4/p5_dashboard.py` | 唯一只读读模型、严格新鲜度、候选解释、市场/账户/证据/运维投影 | P5 已接管 8898；提供新手、研究、运维三视图；POST 固定 405 | 等待真实四窗口实体观测 |
-| 研究评估 | `phase1/overnight/`, `v4/p6_research_audit.py` | 数据集、WF、压力测试、严格审计 | 离线门禁完整；真实严格样本不足 | 积累样本后运行全市场WF/压力验收 |
-| 模型注册 | `v4/model_registry.py`, `v4/p7_release_audit.py` | 发布清单、推理、报告血缘终审 | 离线发布包审计通过；模型未发布 | 仅在P6全部门禁通过后发布 |
-| 备份恢复 | `v4/p8_backup.py` | 内容寻址备份、损坏检测、隔离恢复 | V3退役包已通过内容哈希与隔离恢复校验；未覆盖生产数据 | V2及根目录历史资产后续归档 |
-| 切换准备 | `v4/live_window_acceptance.py`, `v4/cutover_readiness.py`, `v4/offline_rehearsal.py`, `v4/operations_preflight.py` | 四窗口证据、任务差异、单写者、切换/回滚、统一验收 | 全部只读或显式隔离输出，`apply_allowed=false` | 等待真实窗口填充证据 |
+## 强制实体
 
-## 统一业务实体（P2离线契约已验收，真实窗口待验）
+- `MarketSnapshotV1`、`MarketStateV1`
+- `MorningPoolV1`、`ConfirmationDecisionV1`
+- `PaperOrderIntentV1`、`PaperFillV1`、`PaperRoundTripV1`
+- `TaskOutputV1`、`NotificationReceiptV1`
 
-- `MorningPool`: 交易日、候选、全市场状态、输入快照、排序版本；
-- `ConfirmationDecision`: 母池成员、确认排序、买/空仓/阻断、原因码；
-- `PaperOrderIntent`: 决策ID、参考价、预算、股数、幂等键；
-- `PaperFill`: 成交价、费用、时间、行情来源；
-- `PaperRoundTrip`: 买卖配对、净收益、持有交易日；
-- `TaskReceipt`: 任务、计划时间、开始/结束、结果、重试次数。
+实体落盘后不可就地修改；派生视图可以重建。核心模块不得直接访问 `DataFetcher`。通知验收只读取不可变 `NotificationReceiptV1`，`push_receipts.json` 仅为旧兼容索引。
 
-实体一旦落盘不可就地改写；派生视图可以重建。
+## 当前生产入口
 
-候选业务事实只允许存在于 `candidate_journal`。`dashboard_state.json` 不得承载候选或决策业务语义；`runtime_state.json` 只允许保存可删除、可重建的诊断数据。任何消费者不得以当前时钟、缓存行情或自适应策略重新解释已经落盘的最终实体。
+```text
+v4/scripts/p4_task_adapter.py
+v4/scripts/decision_job.py
+v4/scripts/morning_push.py
+v4/scripts/afternoon_push.py
+v4/p3_production.py
+python -m v4.p5_dashboard --port 8898 --data-dir v4/data
+```
+
+旧 `paper_scheduler.py`、`dashboard.py`、`simulation.py`、`sim_engine.py` 不属于当前生产架构。

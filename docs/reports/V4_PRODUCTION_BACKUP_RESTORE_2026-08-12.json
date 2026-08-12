@@ -1,0 +1,33 @@
+{
+  "schema_version": "v4-production-backup-rehearsal-v2",
+  "created_at": "2026-08-12T23:00:00+08:00",
+  "bundles": [
+    {
+      "name": "v4-data",
+      "source": "v4/data",
+      "bundle": "backups/v4-production-data/v4-data/backup1-63282d5da80401e776f1d31c.zip",
+      "verification_passed": true,
+      "restore_passed": true,
+      "files": 101
+    },
+    {
+      "name": "strict-overnight",
+      "source": "phase1/data/overnight",
+      "bundle": "backups/v4-production-data/strict-overnight/backup1-ff6b2c3a39b5274242739052.zip",
+      "verification_passed": true,
+      "restore_passed": true,
+      "files": 65
+    },
+    {
+      "name": "execution-snapshots",
+      "source": "phase1/data/execution_snapshots",
+      "bundle": "backups/v4-production-data/execution-snapshots/backup1-81e3756ccec75c027ce56e97.zip",
+      "verification_passed": true,
+      "restore_passed": true,
+      "files": 53
+    }
+  ],
+  "passed": true,
+  "restore_destination": "isolated temporary directories deleted after verification",
+  "production_mutated": false
+}

@@ -45,19 +45,18 @@ def build(project_root: Path, trade_date: str) -> dict:
     by_name={x.task_name:x for x in outputs}; failed=[{"task":x.task_name,"status":x.status,"reason":x.reason_code} for x in outputs if x.status!="SUCCEEDED"]
     chain=CandidateJournal(root/"v4/data/candidate_journal").load(day)
     push_checks=[]
-    receipt_file=root/"v4/data/push_receipts.json"
-    try: receipts=json.loads(receipt_file.read_text(encoding="utf-8"))
-    except (OSError,ValueError,TypeError): receipts={}
     for key,parent in ((f"v4-morning:{day}",chain.get("morning",{}).get("pool_id","")),
                        (f"v4-afternoon:{day}",chain.get("confirmation",{}).get("decision_id",""))):
         try:
-            receipt=dict(receipts[key]); outcome=str(receipt.get("outcome","")); response=int(receipt.get("response_code",0) or 0)
+            safe=__import__("hashlib").sha256(key.encode()).hexdigest()[:24]
+            receipt=dict(json.loads((root/"v4/data/notifications"/f"{safe}.json").read_text(encoding="utf-8")))
+            outcome=str(receipt.get("outcome","")); response=int(receipt.get("response_code",0) or 0)
             passed=(receipt.get("schema_version")=="notification-receipt-v1" and outcome=="ACCEPTED"
                     and response==200 and receipt.get("parent_entity_id")==parent
                     and bool(receipt.get("transport_request_id")))
             push_checks.append({"message_key":key,"passed":passed,"notification_id":receipt.get("notification_id",""),
                                 "response_code":response,"outcome":outcome,"parent_entity_id":receipt.get("parent_entity_id","")})
-        except (KeyError,ValueError,TypeError) as exc:
+        except (OSError,KeyError,ValueError,TypeError) as exc:
             push_checks.append({"message_key":key,"passed":False,"error":str(exc)})
     lineage=audit_output_chain(outputs)
     time_check=windows_time_status()

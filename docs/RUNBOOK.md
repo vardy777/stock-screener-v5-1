@@ -16,13 +16,13 @@ cd C:\Users\lisha\stock-screener
 独立启动：
 
 ```powershell
-.\.venv\Scripts\python.exe -X utf8 -m v4.dashboard
+.\.venv\Scripts\python.exe -X utf8 -m v4.p5_dashboard --port 8898 --data-dir v4/data
 ```
 
 健康检查：
 
 ```powershell
-Invoke-RestMethod http://127.0.0.1:8898/api/state?mode=chase
+Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8898/?view=ops
 ```
 
 ## 每日关键链路
@@ -56,9 +56,9 @@ phase1/data/execution_snapshots/
 1. Windows任务是否执行、返回码是什么；
 2. `phase1/data/logs/` 对应任务日志；
 3. 当日candidate journal是否有早盘和确认；
-4. `v4/data/paper_receipts/` 是否有买卖回执；
-5. `v4/data/paper_account.json` 是否存在且可对账；
-6. 看板进程是否为 `python -m v4.dashboard`；
+4. `v4/data/notifications/` 是否有完整 `NotificationReceiptV1`；
+5. `v4/data/p3/` 账本、订单、成交和执行结果是否可对账；
+6. 看板进程是否为 `python -m v4.p5_dashboard`；
 7. 不得通过降低严格门槛掩盖数据失败。
 
 ## 验证

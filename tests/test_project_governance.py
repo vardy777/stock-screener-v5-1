@@ -36,6 +36,7 @@ class ProjectGovernanceTests(unittest.TestCase):
         report = build_report()
         self.assertTrue(report["ok"], json.dumps(report, ensure_ascii=False))
         self.assertEqual(report["v3_import_violations"], [])
+        self.assertEqual(report["governance_issues"], [])
 
     def test_context_files_are_strict_utf8_without_replacement_characters(self):
         for name in UTF8_CONTEXT_FILES:
@@ -81,8 +82,8 @@ class ProjectGovernanceTests(unittest.TestCase):
         self.assertEqual(state["phase_status"]["P5"], "in_progress")
         self.assertFalse(state["p6_validation"]["production_evaluation_allowed"])
         self.assertFalse(state["p7_validation"]["production_publication_allowed"])
-        self.assertFalse(state["p8_validation"]["production_data_backup_performed"])
-        self.assertFalse(state["p8_validation"]["production_restore_performed"])
+        self.assertTrue(state["p8_validation"]["production_data_backup_performed"])
+        self.assertTrue(state["p8_validation"]["production_restore_performed"])
         self.assertTrue(state["p8_validation"]["historical_archive_performed"])
         self.assertTrue(state["p8_validation"]["v3_runtime_tree_retired"])
         self.assertEqual(

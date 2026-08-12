@@ -34,6 +34,7 @@ class P5ReadOnlySources:
 
     def __init__(self, data_dir: Path):
         self.data_dir = Path(data_dir)
+        self.project_root = self.data_dir.resolve().parents[1]
 
     @staticmethod
     def _read(path: Path, name: str) -> tuple[dict, ReadOnlyArtifactV1]:
@@ -101,6 +102,9 @@ class P5ReadOnlySources:
             ("cutover_readiness", self.data_dir / "acceptance" / "cutover_readiness.json"),
             ("strict_model_admission", self.data_dir / "research" / "strict_model_admission.json"),
             ("production_authorization", self.data_dir / "cutover" / "production_authorization.json"),
+            ("daily_operations", self.data_dir / "acceptance" / "daily_operations_latest.json"),
+            ("strict_execution_labels", self.project_root / "phase1" / "data" / "overnight" /
+             "execution_labels.csv.gz.meta.json"),
         )
         return {name: self._read(path, name) for name, path in specs}
 
@@ -158,6 +162,9 @@ class P5ReadOnlySources:
                 "plan_id":authorization.get("authorization_id","")}
         evidence.setdefault("live_windows", optional["live_window_acceptance"][0])
         evidence.setdefault("strict_admission", optional["strict_model_admission"][0])
+        evidence.setdefault("daily_operations", optional["daily_operations"][0])
+        label_meta=optional["strict_execution_labels"][0]
+        evidence.setdefault("strict_pairs", int(label_meta.get("paired_rows",0) or 0))
         evidence.setdefault("execution_result_count", len(p3_results.get("results", [])))
         source_issues = [{"severity": "ERROR" if a.status != "VALID" else "INFO",
                           "reason_code": f"SOURCE_{a.status}", "message": f"{a.name}: {a.error}"}

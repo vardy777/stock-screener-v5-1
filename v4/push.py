@@ -12,6 +12,7 @@ from pathlib import Path
 
 from v4.config import DATA_DIR, POSITION_SIZE, PUSHPLUS_TOKEN
 from v4.notification_contracts import NotificationReceiptV1
+from v4.offline_storage import atomic_json_write,exclusive_file_lock
 
 logger = logging.getLogger(__name__)
 PUSH_RECEIPT_PATH = Path(DATA_DIR) / "push_receipts.json"
@@ -26,7 +27,8 @@ def _load_receipts() -> dict:
 
 
 def _already_sent(message_key: str) -> bool:
-    return bool(message_key and message_key in _load_receipts())
+    receipt=load_notification_receipt(message_key) if message_key else None
+    return bool(receipt is not None and receipt.outcome=="ACCEPTED")
 
 
 def _notification_path(message_key):
@@ -68,31 +70,11 @@ def _record_sent(message_key: str, title: str, content: str, *, parent_entity_id
         raise ValueError("notification message key required")
     receipt=_record_attempt(message_key,content,parent_entity_id=parent_entity_id,outcome="ACCEPTED",
         response_code=response_code,transport_request_id=transport_request_id,attempt=attempt)
-    receipts = _load_receipts()
-    cutoff = datetime.now(timezone.utc) - timedelta(days=45)
-    clean = {}
-    for key, value in receipts.items():
-        try:
-            sent_at = datetime.fromisoformat(str(value.get("sent_at", "")))
-            if sent_at.tzinfo is None:
-                continue
-            if sent_at >= cutoff:
-                clean[key] = value
-        except (AttributeError, TypeError, ValueError):
-            continue
-    clean[message_key] = {
-        "sent_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "title": title,
-        "content_sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
-        "parent_entity_id":parent_entity_id,
-    }
-    PUSH_RECEIPT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    temporary = PUSH_RECEIPT_PATH.with_suffix(".tmp")
-    temporary.write_text(
-        json.dumps(clean, ensure_ascii=False, indent=2, sort_keys=True),
-        encoding="utf-8",
-    )
-    temporary.replace(PUSH_RECEIPT_PATH)
+    # Compatibility index mirrors complete immutable receipts. It is never the
+    # source of truth and may be rebuilt from notifications/ at any time.
+    with exclusive_file_lock(PUSH_RECEIPT_PATH.with_suffix(".lock")):
+        receipts=_load_receipts(); receipts[message_key]=receipt.to_dict()
+        atomic_json_write(PUSH_RECEIPT_PATH,receipts)
     return receipt
 
 

@@ -1,6 +1,6 @@
 """Authorized P4 scheduler leaf runner with immutable final output projection."""
 from __future__ import annotations
-from datetime import datetime
+from datetime import datetime,time as wall_time
 import hashlib,json,subprocess,sys,time
 from pathlib import Path
 from .candidate_journal import CandidateJournal
@@ -33,6 +33,26 @@ TERMINAL_DEPENDENCIES={
  ("confirmation_decision","feature_freeze"),
  ("maintenance","health_check"),
 }
+
+# Fail closed when Task Scheduler starts a task after its business window.
+# StartWhenAvailable is useful for bounded recovery, but must never turn a
+# missed 09:25/14:50 event into a different-time market observation.
+TASK_WINDOWS={
+ "morning_decision":(wall_time(9,25),wall_time(9,29,59)),
+ "morning_push":(wall_time(9,25),wall_time(9,29,59)),
+ "paper_sell":(wall_time(9,30),wall_time(9,35)),
+ "feature_freeze":(wall_time(14,49),wall_time(14,49,59)),
+ "confirmation_decision":(wall_time(14,50),wall_time(14,51,59)),
+ "confirmation_push":(wall_time(14,50),wall_time(14,51,59)),
+ "paper_buy":(wall_time(14,50),wall_time(14,51,59)),
+ "health_check":(wall_time(14,53),wall_time(15,5)),
+ "maintenance":(wall_time(15,10),wall_time(16,30)),
+}
+
+def _inside_task_window(task,current):
+    start,end=TASK_WINDOWS[task]
+    value=current.timetz().replace(tzinfo=None)
+    return start <= value <= end
 
 def _digest(value): return hashlib.sha256(json.dumps(value,ensure_ascii=False,sort_keys=True,separators=(",",":")).encode()).hexdigest()
 
@@ -84,6 +104,13 @@ def _persist(output):
     else: atomic_json_write(target,output.to_dict())
     atomic_json_write(latest,output.to_dict()); return output.to_dict()
 
+def _refresh_daily_acceptance(day):
+    """Refresh a derived read-only daily status after maintenance is durable."""
+    from .daily_operations_acceptance import build
+    report=build(ROOT,day)
+    atomic_json_write(ROOT/"v4/data/acceptance/daily_operations_latest.json",report)
+    return report
+
 def _persist_process_artifact(task,day,attempt,*,started_at,finished_at,returncode=None,stdout="",stderr="",error=""):
     value={"schema_version":"p4-process-artifact-v1","task_name":task,"trade_date":day,
       "attempt":attempt,"started_at":started_at.isoformat(timespec="seconds"),
@@ -110,6 +137,13 @@ def run(task,*,authorization_file,now=None,preflight=False):
     if existing.get("status")=="SUCCEEDED":
         _heartbeat(task,day,existing.get("attempt",1),"SUCCEEDED",output_id=existing["output_id"],now=current); return existing
     attempt=_next_attempt(task,day); _heartbeat(task,day,attempt,"STARTED",now=current)
+    if not _inside_task_window(task,current):
+        blocked=TaskOutputV1.build(task_name=task,trade_date=day,status="BLOCKED",
+            reason_code="OUTSIDE_TASK_WINDOW",recorded_at=current,attempt=attempt)
+        result=_persist(blocked)
+        _heartbeat(task,day,attempt,"BLOCKED",output_id=blocked.output_id,
+                   reason_code=blocked.reason_code,now=current)
+        return result
     deadline=time.monotonic()+85
     for dependency in DEPENDENCIES.get(task,()):
         dependency_output=_latest(dependency,day)
@@ -146,4 +180,8 @@ def run(task,*,authorization_file,now=None,preflight=False):
         result=_persist(failed); _heartbeat(task,day,attempt,"FAILED",output_id=failed.output_id,reason_code=failed.reason_code,now=current); return result
     output=TaskOutputV1.build(task_name=task,trade_date=day,status="SUCCEEDED",reason_code="OK",recorded_at=current,
         entity_kind=OUTPUT_KINDS[task],entity_id=entity_id,entity_payload=payload,input_ids=inputs,attempt=attempt)
-    result=_persist(output); _heartbeat(task,day,attempt,"SUCCEEDED",output_id=output.output_id,now=current); return result
+    result=_persist(output)
+    if task=="maintenance":
+        try: _refresh_daily_acceptance(day)
+        except Exception: pass  # derived observability must not rewrite task truth
+    _heartbeat(task,day,attempt,"SUCCEEDED",output_id=output.output_id,now=current); return result
