@@ -5,6 +5,7 @@ import hashlib,json
 from pathlib import Path
 from .candidate_journal import CandidateJournal
 from .execution import CHINA_TZ,ExecutionBlocked,TradingClock
+from .market_contracts import EvidenceCohort,MarketSnapshotV1
 from .market_gateway import MarketDataGateway,SnapshotRepository
 from .p3_account import OfflinePaperLedger
 from .p3_execution import OfflineExecutionEngine,OfflineIntentFactory
@@ -28,6 +29,21 @@ def _decision_snapshot(decision):
     if len(paths)!=1: raise RuntimeError("BUY_SNAPSHOT_NOT_UNIQUELY_RESOLVED")
     return SnapshotRepository().load(paths[0])
 
+def _strict_buy_snapshot(decision, observation):
+    eligible=[x for x in decision.get("candidates",[]) if x.get("v4_paper_eligible") is True]
+    if len(eligible)!=1: raise RuntimeError("ELIGIBLE_TOP1_NOT_UNIQUE")
+    code=str(eligible[0].get("code","")).zfill(6)
+    quotes=tuple(x for x in observation.quotes if x.code==code)
+    strict=MarketSnapshotV1.build(trade_date=observation.trade_date,session="buy",
+        batch_started_at=observation.batch_started_at,batch_completed_at=observation.batch_completed_at,
+        quotes=quotes,expected_codes=1,cohort=EvidenceCohort.STRICT,minimum_coverage=1.0,
+        maximum_age_seconds=observation.policy.maximum_age_seconds,
+        maximum_batch_seconds=observation.policy.maximum_batch_seconds,require_order_book=True)
+    SnapshotRepository().save(strict)
+    if archive_market_snapshot(strict,capture_role="p3_buy_gateway") is None:
+        raise RuntimeError("STRICT_BUY_SNAPSHOT_ARCHIVE_FAILED")
+    return strict
+
 def execute(mode,*,authorization_file,now=None,account_dir=None):
     require_authorized_owner(authorization_file,resource="paper_account",owner="P3")
     current=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ)
@@ -40,7 +56,8 @@ def execute(mode,*,authorization_file,now=None,account_dir=None):
         if decision.get("outcome")=="BUY":
             clock=TradingClock.action_status(mode,now=current)
             if not clock.allowed: raise ExecutionBlocked(clock.reason)
-            intents=[factory.buy_from_decision(decision,_decision_snapshot(decision),created_at=current,total_equity=ledger.snapshot()["cash"])]
+            snapshot=_strict_buy_snapshot(decision,_decision_snapshot(decision))
+            intents=[factory.buy_from_decision(decision,snapshot,created_at=current,total_equity=ledger.snapshot()["cash"])]
     else:
         positions=ledger.snapshot()["positions"]
         if positions:

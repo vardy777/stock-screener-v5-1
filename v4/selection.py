@@ -440,6 +440,11 @@ class V4CandidateSelector:
                     "overnight_mean_20": round(float(row["overnight_mean_20"]), 6),
                     "overnight_hit_1pct_20": round(float(row["overnight_hit_1pct_20"]), 6),
                     "execution_price_source": "ask1" if ask1 > 0 else "last_observation_only",
+                    "ask1": ask1,
+                    "ask1_volume": int(row.get("ask1_volume", 0) or 0),
+                    "halted": bool(row.get("halted", False)),
+                    "limit_up": bool(row.get("limit_up", False)),
+                    "limit_down": bool(row.get("limit_down", False)),
                     "selection_stage": stage,
                     "candidate_source": RESEARCH_RANK_VERSION,
                     "score_version": (

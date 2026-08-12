@@ -22,17 +22,11 @@ project.  Every coding session must begin by reading, in order:
   09:30 sell, CNY 100,000 initial capital, at most one-third per symbol.
 - Strict evidence, paper-account evidence and proxy backtests are separate
   cohorts and must never be merged.
-- P3 may proceed in offline-only development while P1/P2 live-window evidence
-  is pending. Do not enable P3 scheduling, connect it to the daily paper-fill
-  production chain, or mark P3 complete. Any P1/P2 live-window failure pauses
-  P3 immediately and takes repair priority.
-- P4 may proceed only as isolated offline contract development. Do not register
-  Windows tasks, call real PushPlus, import P4 modules from existing production
-  entrypoints, or mark P4 complete. P1/P2 live failures preempt P4 immediately.
-- P5 may proceed only as an isolated read-only dashboard replacement. Keep the
-  existing port 8898 dashboard untouched until offline visual and contract
-  acceptance passes; never let P5 fetch quotes, select stocks, push, trade, or
-  mutate accounts. Production cutover requires separate authorization.
+- P3/P4/P5 were explicitly cut over on 2026-08-09: P3 is the only local paper
+  account writer, P4 is the only active business scheduler/notification owner,
+  and P5 is the read-only dashboard on port 8898. They remain `in_progress`
+  until real-window acceptance passes. Any P1/P2 live failure takes immediate
+  repair priority; never enable a second writer or legacy scheduler.
 - P6/P7/P8 may proceed only for deterministic offline contracts and isolated
   tests. Do not fabricate strict samples, publish a model, change
   `research_locked`, archive historical code, restore over live data, or alter

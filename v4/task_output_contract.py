@@ -140,7 +140,8 @@ def audit_output_chain(outputs):
             continue
         for dep in deps:
             source = by_name.get(dep)
-            if not source or source.entity_id not in row.input_ids:
+            source_id=(source.entity_id or source.output_id) if source else ""
+            if not source or source_id not in row.input_ids:
                 issues.append(f"MISSING_INPUT_LINEAGE:{name}:{dep}")
     return {"schema_version": "task-output-audit-v1", "passed": not issues,
             "issues": issues, "outputs": [x.to_dict() for x in rows]}

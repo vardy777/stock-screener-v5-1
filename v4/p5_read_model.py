@@ -96,13 +96,20 @@ class DashboardReadModelBuilder:
     def _issue(severity, code, message): return {"severity":severity,"reason_code":code,"message":message}
 
     def _timeline(self, morning, confirmation, ledger, receipts):
-        status = {(r.get("task_name"),r.get("status")) for r in receipts}
+        task_status = {str(r.get("task_name")):str(r.get("status")) for r in receipts}
+        def state(task, *, done=False):
+            value=task_status.get(task,"")
+            if value in {"FAILED","BLOCKED","OUTCOME_UNKNOWN"}: return value
+            if value=="SUCCEEDED" or done: return "DONE"
+            return "PENDING"
         fills = ledger.get("fills", [])
+        morning_state=("INVALID_ENTITY" if morning and not morning.get("pool_id") else state("morning_decision",done=bool(morning.get("pool_id"))))
+        confirmation_state=("INVALID_ENTITY" if confirmation and not confirmation.get("decision_id") else state("confirmation_decision",done=bool(confirmation.get("decision_id"))))
         return [
-            {"key":"morning","label":"09:25 母池","status":"DONE" if morning.get("pool_id") else ("INVALID_ENTITY" if morning else "MISSING"),"entity_id":morning.get("pool_id","")},
-            {"key":"feature","label":"14:49 特征冻结","status":"DONE" if ("feature_freeze","SUCCEEDED") in status else "PENDING","entity_id":confirmation.get("lineage",{}).get("feature_context_id","")},
-            {"key":"confirmation","label":"14:50 最终确认","status":"DONE" if confirmation.get("decision_id") else ("INVALID_ENTITY" if confirmation else "MISSING"),"entity_id":confirmation.get("decision_id","")},
-            {"key":"buy","label":"14:50 模拟买入","status":"DONE" if any(x.get("side")=="BUY" for x in fills) else "NO_FILL","entity_id":next((x.get("fill_id","") for x in fills if x.get("side")=="BUY"),"")},
+            {"key":"morning","label":"09:25 母池","status":morning_state,"entity_id":morning.get("pool_id","")},
+            {"key":"feature","label":"14:49 特征冻结","status":state("feature_freeze"),"entity_id":confirmation.get("lineage",{}).get("feature_context_id","")},
+            {"key":"confirmation","label":"14:50 最终确认","status":confirmation_state,"entity_id":confirmation.get("decision_id","")},
+            {"key":"buy","label":"14:50 模拟买入","status":state("paper_buy",done=any(x.get("side")=="BUY" for x in fills)),"entity_id":next((x.get("fill_id","") for x in fills if x.get("side")=="BUY"),"")},
             {"key":"sell","label":"次日09:30 模拟卖出","status":"DONE" if any(x.get("side")=="SELL" for x in fills) else "PENDING","entity_id":next((x.get("fill_id","") for x in fills if x.get("side")=="SELL"),"")},
         ]
 
@@ -198,7 +205,11 @@ class DashboardReadModelBuilder:
     @staticmethod
     def _summary(operations,market,confirmation,freshness,candidates):
         heartbeat=operations.get("heartbeat_status","")
-        if heartbeat=="IDLE_NON_TRADING_DAY":
+        failures=[x for x in operations.get("tasks",[]) if x.get("status") in {"FAILED","BLOCKED","OUTCOME_UNKNOWN"}]
+        if failures:
+            names=", ".join(str(x.get("task_name","unknown")) for x in failures[:3])
+            phase,title,action="生产故障",f"今日任务未闭环：{names}","停止依据当日结果做判断，查看运维证据"
+        elif heartbeat=="IDLE_NON_TRADING_DAY":
             phase,title,action="休市","等待下一个交易日 09:25","无需操作"
         elif not freshness.get("market_current"):
             phase,title,action="数据等待","当前没有可信的当日行情","不要依据历史数据判断"

@@ -79,6 +79,9 @@ phase1/data/execution_snapshots/
 
 ```powershell
 python scripts/offline_acceptance.py --run-tests --output docs/reports/offline-acceptance-latest.json
+
+# 当日生产验收（与离线工程验收严格分离；只读、失败关闭）
+python scripts/daily_operations_acceptance.py --trade-date YYYY-MM-DD --output docs/reports/daily-operations-YYYY-MM-DD.json
 powershell -NoProfile -File scripts/export_v4_runtime_inventory.ps1 > runtime-inventory.json
 python scripts/live_window_acceptance.py --trade-date 2026-08-10 --next-session-date 2026-08-11 --derive-project
 python scripts/cutover_preflight.py --live-report live-report.json --legacy-account account.json --task-inventory runtime-inventory.json --writer-inventory runtime-inventory.json --backup-report backup-report.json

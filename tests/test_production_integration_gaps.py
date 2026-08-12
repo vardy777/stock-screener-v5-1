@@ -20,6 +20,18 @@ class _Response:
 
 
 class ProductionIntegrationGapTests(unittest.TestCase):
+    def test_confirmation_observes_pool_without_global_order_book_gate(self):
+        from v4.decision_production import P2DecisionProducer
+        from unittest.mock import Mock
+        gateway=SimpleNamespace(fetch_snapshot=Mock(return_value=SimpleNamespace(quotes=[1],batch_completed_at="2026-08-10T14:50:20+08:00")))
+        journal=SimpleNamespace(morning_candidates=lambda day:[{"code":"600721"}],has_morning=lambda day:True)
+        runtime=SimpleNamespace(evaluate_universe=lambda *a,**k:[])
+        with (patch("v4.decision_production.TradingClock.now",return_value=datetime(2026,8,10,14,50,20,tzinfo=CHINA_TZ)),
+              patch("v4.decision_production.analyze_market",return_value={"market_state":{"snapshot_id":"ms1-x","market_state_id":"mstate1-x"}}),
+              patch("v4.decision_production.DecisionChainService.publish_confirmation",return_value={"outcome":"EMPTY"})):
+            result=P2DecisionProducer(gateway=gateway,journal=journal,runtime=runtime).produce("confirmation")
+        self.assertEqual(result["outcome"],"EMPTY")
+        self.assertFalse(gateway.fetch_snapshot.call_args.kwargs["require_order_book"])
     def test_terminal_feature_failure_still_allows_empty_confirmation(self):
         now=datetime(2026,8,10,14,50,20,tzinfo=CHINA_TZ)
         outputs={

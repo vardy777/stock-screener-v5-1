@@ -57,7 +57,10 @@ def _entity(task,day,process=None,authorization_file=None,now=None):
     value=json.loads(report_path.read_text(encoding="utf-8"))
     if value.get("passed") is not True: raise RuntimeError(f"{task.upper()}_REPORT_FAILED")
     value={**value,"source_report_sha256":hashlib.sha256(report_path.read_bytes()).hexdigest()}
-    return ("health1-" if task=="health_check" else "maintenance1-")+_digest(value)[:24],value,()
+    dependency="confirmation_decision" if task=="health_check" else "health_check"
+    upstream=_latest(dependency,day)
+    lineage_id=upstream.get("entity_id") or upstream.get("output_id","")
+    return ("health1-" if task=="health_check" else "maintenance1-")+_digest(value)[:24],value,tuple(x for x in (lineage_id,) if x)
 
 def _paths(task,day):
     root=ROOT/"v4/data/p4/outputs"/day
@@ -70,7 +73,7 @@ def _latest(task,day):
 
 def _next_attempt(task,day):
     directory,_=_paths(task,day)
-    return len(list(directory.glob("attempt-*.json")))+1 if directory.is_dir() else 1
+    return len(list(directory.glob("attempt-[0-9][0-9][0-9][0-9].json")))+1 if directory.is_dir() else 1
 
 def _persist(output):
     directory,latest=_paths(output.task_name,output.trade_date); directory.mkdir(parents=True,exist_ok=True)
@@ -80,6 +83,17 @@ def _persist(output):
         if existing.output_id!=output.output_id: raise RuntimeError("TASK_ATTEMPT_IMMUTABLE_COLLISION")
     else: atomic_json_write(target,output.to_dict())
     atomic_json_write(latest,output.to_dict()); return output.to_dict()
+
+def _persist_process_artifact(task,day,attempt,*,started_at,finished_at,returncode=None,stdout="",stderr="",error=""):
+    value={"schema_version":"p4-process-artifact-v1","task_name":task,"trade_date":day,
+      "attempt":attempt,"started_at":started_at.isoformat(timespec="seconds"),
+      "finished_at":finished_at.isoformat(timespec="seconds"),
+      "duration_seconds":max(0.0,(finished_at-started_at).total_seconds()),
+      "returncode":returncode,"stdout_tail":str(stdout)[-8000:],"stderr_tail":str(stderr)[-8000:],
+      "error":str(error)}
+    directory,_=_paths(task,day); directory.mkdir(parents=True,exist_ok=True)
+    atomic_json_write(directory/f"attempt-{attempt:04d}.process.json",value)
+    return value
 
 def _heartbeat(task,day,attempt,task_status,*,output_id="",reason_code="",now=None):
     current=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ)
@@ -111,13 +125,16 @@ def run(task,*,authorization_file,now=None,preflight=False):
             result=_persist(blocked); _heartbeat(task,day,attempt,"BLOCKED",output_id=blocked.output_id,reason_code=blocked.reason_code,now=current); return result
     process=None
     if task not in {"paper_buy","paper_sell"}:
+      process_started=datetime.now(CHINA_TZ)
       try:
         process=subprocess.run(COMMANDS[task],cwd=ROOT,capture_output=True,text=True,encoding="utf-8",errors="replace",timeout=2700)
       except Exception as exc:
+        _persist_process_artifact(task,day,attempt,started_at=process_started,finished_at=datetime.now(CHINA_TZ),error=f"{type(exc).__name__}: {exc}")
         output=TaskOutputV1.build(task_name=task,trade_date=day,status="FAILED",
             reason_code=f"PROCESS_FAILED:{type(exc).__name__}",recorded_at=current,attempt=attempt)
         result=_persist(output); _heartbeat(task,day,attempt,"FAILED",output_id=output.output_id,reason_code=output.reason_code,now=current); return result
       else:
+        _persist_process_artifact(task,day,attempt,started_at=process_started,finished_at=datetime.now(CHINA_TZ),returncode=process.returncode,stdout=process.stdout,stderr=process.stderr)
         if process.returncode:
             output=TaskOutputV1.build(task_name=task,trade_date=day,status="FAILED",reason_code=f"EXIT_{process.returncode}",recorded_at=current,attempt=attempt)
             result=_persist(output); _heartbeat(task,day,attempt,"FAILED",output_id=output.output_id,reason_code=output.reason_code,now=current); return result

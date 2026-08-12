@@ -2,7 +2,7 @@
   "schema_version": "project-state-v1",
   "project": "a-share-overnight-v4",
   "display_name": "A股隔夜研究与模拟系统 V4",
-  "updated_at": "2026-08-11T16:37:00+08:00",
+  "updated_at": "2026-08-12T23:10:00+08:00",
   "active_phase": "P6",
   "active_phase_name": "严格研究数据积累与真实窗口验收",
   "production_status": "research_locked",
@@ -125,11 +125,25 @@
     "confirmation_push_success": true
   },
   "quality": {
-    "tests_passed": 236,
+    "tests_passed": 238,
     "tests_failed": 0,
     "v4_imports_v3": false
   },
   "known_issues": [
+    {
+      "id": "P2-LIVE-003",
+      "severity": "P0",
+      "title": "14:50整批快照被单只涨停无卖一拖垮",
+      "phase": "P1/P2/P3",
+      "status": "fixed_offline_2026_08_12_live_retest_pending"
+    },
+    {
+      "id": "P5-LIVE-002",
+      "severity": "P0",
+      "title": "看板未准确投影当日P4失败",
+      "phase": "P5",
+      "status": "fixed_offline_2026_08_12_live_observation_pending"
+    },
     {
       "id": "P2-001",
       "severity": "P0",

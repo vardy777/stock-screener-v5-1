@@ -11,7 +11,6 @@ from .execution import TradingClock
 from .market import analyze_market, empty_market_state
 from .market_gateway import MarketDataGateway
 from .runtime import V4Runtime
-from .snapshot_compat import archive_market_snapshot
 
 
 class P2DecisionProducer:
@@ -46,14 +45,15 @@ class P2DecisionProducer:
             codes = list(self.universe_codes or list_universe_codes(root / "phase1" / "data" / "daily"))
             if not codes:
                 raise RuntimeError("FULL_MARKET_UNIVERSE_EMPTY")
+        # Confirmation is an observation over the whole frozen mother pool.
+        # A halted/limit-locked/non-executable member must be rejected per
+        # symbol by policy, not invalidate the complete decision snapshot.
+        # P3 creates the strict order-book execution snapshot only for the
+        # final eligible Top1 immediately before a paper fill.
         snapshot = self.gateway.fetch_snapshot(codes, session="buy" if stage == "confirmation" else "morning",
-            require_order_book=stage == "confirmation", now=current)
+            require_order_book=False, now=current)
         if not snapshot.quotes:
             raise RuntimeError("MARKET_SNAPSHOT_EMPTY")
-        if stage == "confirmation" and archive_market_snapshot(
-            snapshot, capture_role="p2_confirmation_gateway"
-        ) is None:
-            raise RuntimeError("STRICT_BUY_SNAPSHOT_ARCHIVE_FAILED")
         # Quote validity belongs to the immutable capture, not to however long
         # downstream analytics take.  This also makes replay deterministic.
         reference_time = datetime.fromisoformat(snapshot.batch_completed_at)

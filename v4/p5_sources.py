@@ -129,8 +129,12 @@ class P5ReadOnlySources:
             ledger = {**snapshot,"equity":snapshot["cash"]+sum(float(x.get("notional",0)) for x in snapshot["positions"]),
                       "fills":account.fills(),"round_trips":account.round_trips()}
         if not p4_receipts:
-            paths=sorted((self.data_dir/"p4"/"outputs").glob("*/*.json")) if (self.data_dir/"p4"/"outputs").is_dir() else []
-            p4_receipts={"receipts":[self._read(path,"p4_task_output")[0] for path in paths[-90:]]}
+            # Operational state is session-scoped. Mixing yesterday's success
+            # with today's missing/failed run can falsely show a healthy phase.
+            day=generated_at.date().isoformat()
+            day_dir=self.data_dir/"p4"/"outputs"/day
+            paths=sorted(day_dir.glob("*.json")) if day_dir.is_dir() else []
+            p4_receipts={"receipts":[self._read(path,"p4_task_output")[0] for path in paths]}
         operations.setdefault("task_receipts", p4_receipts.get("receipts", p4_receipts.get("results", [])))
         if "heartbeat" not in operations:
             heartbeat=optional["p4_heartbeat"][0]

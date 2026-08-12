@@ -1,0 +1,185 @@
+{
+  "schema_version": "daily-operations-acceptance-v1",
+  "trade_date": "2026-08-12",
+  "passed": false,
+  "checks": {
+    "all_tasks_present": true,
+    "all_tasks_succeeded": false,
+    "output_lineage": false,
+    "morning_entity": true,
+    "confirmation_entity": false,
+    "pushplus_200_accepted": false,
+    "windows_time": false
+  },
+  "missing_tasks": [],
+  "invalid_tasks": [],
+  "failed_tasks": [
+    {
+      "task": "confirmation_decision",
+      "status": "FAILED",
+      "reason": "EXIT_1"
+    },
+    {
+      "task": "confirmation_push",
+      "status": "BLOCKED",
+      "reason": "DEPENDENCY_NOT_SUCCEEDED:confirmation_decision"
+    },
+    {
+      "task": "paper_buy",
+      "status": "BLOCKED",
+      "reason": "DEPENDENCY_NOT_SUCCEEDED:confirmation_decision"
+    },
+    {
+      "task": "health_check",
+      "status": "BLOCKED",
+      "reason": "DEPENDENCY_NOT_SUCCEEDED:confirmation_decision"
+    }
+  ],
+  "push_checks": [
+    {
+      "message_key": "v4-morning:2026-08-12",
+      "passed": false,
+      "notification_id": "",
+      "response_code": 0,
+      "outcome": "",
+      "parent_entity_id": "mp-df42fe73b7cbf7644f247194"
+    },
+    {
+      "message_key": "v4-afternoon:2026-08-12",
+      "passed": false,
+      "error": "'v4-afternoon:2026-08-12'"
+    }
+  ],
+  "time_sync": {
+    "passed": false,
+    "service_running": false,
+    "synchronized": false,
+    "service_output": "\nSERVICE_NAME: W32Time \n        TYPE               : 30  WIN32  \n        STATE              : 1  STOPPED \n        WIN32_EXIT_CODE    : 0  (0x0)\n        SERVICE_EXIT_CODE  : 0  (0x0)\n        CHECKPOINT         : 0x0\n        WAIT_HINT          : 0x0\n",
+    "status_output": "发生下列错误: 服务尚未启动。 (0x80070426)\n",
+    "reason": "WINDOWS_TIME_NOT_SYNCHRONIZED"
+  },
+  "output_chain": {
+    "schema_version": "task-output-audit-v1",
+    "passed": false,
+    "issues": [
+      "MISSING_INPUT_LINEAGE:maintenance:health_check"
+    ],
+    "outputs": [
+      {
+        "output_id": "tout-0101f75e09e3fb2ba1277312",
+        "task_name": "morning_decision",
+        "trade_date": "2026-08-12",
+        "status": "SUCCEEDED",
+        "reason_code": "OK",
+        "recorded_at": "2026-08-12T09:25:02+08:00",
+        "entity_kind": "MorningPoolV1",
+        "entity_id": "mp-df42fe73b7cbf7644f247194",
+        "entity_sha256": "9a0c0b235a1607dc0c8a74b1571e57110b790633d2d99bc0f0c96ec0c19c1a9c",
+        "input_ids": [],
+        "attempt": 1,
+        "schema_version": "task-output-v1"
+      },
+      {
+        "output_id": "tout-a7ac8e3f2120e4c9a028dd7e",
+        "task_name": "morning_push",
+        "trade_date": "2026-08-12",
+        "status": "SUCCEEDED",
+        "reason_code": "OK",
+        "recorded_at": "2026-08-12T09:25:21+08:00",
+        "entity_kind": "NotificationReceiptV1",
+        "entity_id": "notification1-3b05b0845d5f2804b19d796b",
+        "entity_sha256": "e9c580575e6d28f7392db4841f49271318fdca5bad1592d0a69e0749771b6fd9",
+        "input_ids": [
+          "mp-df42fe73b7cbf7644f247194"
+        ],
+        "attempt": 1,
+        "schema_version": "task-output-v1"
+      },
+      {
+        "output_id": "tout-b7dde09c71ed3b8479e96cb3",
+        "task_name": "feature_freeze",
+        "trade_date": "2026-08-12",
+        "status": "SUCCEEDED",
+        "reason_code": "OK",
+        "recorded_at": "2026-08-12T14:49:02+08:00",
+        "entity_kind": "FeatureContextV1",
+        "entity_id": "fc1-e53c4eeb69847c0923c5c47f49712a9dca28e58e078643427a00e382c4c5d735",
+        "entity_sha256": "c8e28a29c1a1cb3739cd043ba0f227be2438d601dd0a850b983181eb7adf4353",
+        "input_ids": [],
+        "attempt": 1,
+        "schema_version": "task-output-v1"
+      },
+      {
+        "output_id": "tout-30a71a6395c66a4ab476e5e9",
+        "task_name": "confirmation_decision",
+        "trade_date": "2026-08-12",
+        "status": "FAILED",
+        "reason_code": "EXIT_1",
+        "recorded_at": "2026-08-12T14:50:21+08:00",
+        "entity_kind": "",
+        "entity_id": "",
+        "entity_sha256": "",
+        "input_ids": [],
+        "attempt": 1,
+        "schema_version": "task-output-v1"
+      },
+      {
+        "output_id": "tout-633edcc6840b0c808a24adf6",
+        "task_name": "confirmation_push",
+        "trade_date": "2026-08-12",
+        "status": "BLOCKED",
+        "reason_code": "DEPENDENCY_NOT_SUCCEEDED:confirmation_decision",
+        "recorded_at": "2026-08-12T14:50:31+08:00",
+        "entity_kind": "",
+        "entity_id": "",
+        "entity_sha256": "",
+        "input_ids": [],
+        "attempt": 1,
+        "schema_version": "task-output-v1"
+      },
+      {
+        "output_id": "tout-a5f05c399e99a6ac0487ae78",
+        "task_name": "paper_buy",
+        "trade_date": "2026-08-12",
+        "status": "BLOCKED",
+        "reason_code": "DEPENDENCY_NOT_SUCCEEDED:confirmation_decision",
+        "recorded_at": "2026-08-12T14:50:41+08:00",
+        "entity_kind": "",
+        "entity_id": "",
+        "entity_sha256": "",
+        "input_ids": [],
+        "attempt": 1,
+        "schema_version": "task-output-v1"
+      },
+      {
+        "output_id": "tout-5289485cafab1816274834e3",
+        "task_name": "health_check",
+        "trade_date": "2026-08-12",
+        "status": "BLOCKED",
+        "reason_code": "DEPENDENCY_NOT_SUCCEEDED:confirmation_decision",
+        "recorded_at": "2026-08-12T14:53:01+08:00",
+        "entity_kind": "",
+        "entity_id": "",
+        "entity_sha256": "",
+        "input_ids": [],
+        "attempt": 1,
+        "schema_version": "task-output-v1"
+      },
+      {
+        "output_id": "tout-f7f93e24c6aa37bc17d3b405",
+        "task_name": "maintenance",
+        "trade_date": "2026-08-12",
+        "status": "SUCCEEDED",
+        "reason_code": "OK",
+        "recorded_at": "2026-08-12T15:10:01+08:00",
+        "entity_kind": "MaintenanceReportV1",
+        "entity_id": "maintenance1-93e3ff8bba41bf690c81d414",
+        "entity_sha256": "93e3ff8bba41bf690c81d41422871a677fab7e7cd7a4252a8410dbeabfdf5624",
+        "input_ids": [],
+        "attempt": 1,
+        "schema_version": "task-output-v1"
+      }
+    ]
+  },
+  "read_only": true
+}

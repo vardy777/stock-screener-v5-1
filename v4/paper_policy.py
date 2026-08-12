@@ -10,6 +10,9 @@ from .execution import TradingClock
 
 
 PAPER_POLICY_VERSION = "paper-top1-integrity-v1"
+MAX_RET_5D_PCT = 30.0
+MAX_DISTANCE_MA10_PCT = 25.0
+MIN_INTRADAY_AMOUNT_YI = 1.0
 
 
 @dataclass(frozen=True)
@@ -84,4 +87,24 @@ def evaluate_paper_candidate(
         item.get("quote_time"), now=reference_time
     ):
         reasons.append("确认价格或时效不合格")
+    # Legacy frozen fixtures predate explicit order-book fields. Production
+    # selectors now always carry them; when present they are fail-closed.
+    if ("ask1" in item or "ask1_volume" in item) and (
+        float(item.get("ask1", 0.0) or 0.0) <= 0
+        or int(item.get("ask1_volume", 0) or 0) <= 0
+    ):
+        reasons.append("确认卖一盘口不可成交")
+    if item.get("halted") is True:
+        reasons.append("确认时标的已停牌")
+    if item.get("limit_up") is True or item.get("limit_down") is True:
+        reasons.append("确认时标的涨跌停锁定")
+    # Predeclared safety rails prevent extreme momentum/chase observations
+    # from becoming paper fills. They are risk controls, not fitted win-rate
+    # thresholds, and must be evaluated later as a frozen policy cohort.
+    if float(item.get("near_5d_return", 0.0) or 0.0) > MAX_RET_5D_PCT:
+        reasons.append("近5日涨幅过热")
+    if float(item.get("dist_to_ma10", 0.0) or 0.0) > MAX_DISTANCE_MA10_PCT:
+        reasons.append("价格偏离MA10过大")
+    if "amount_yi" in item and float(item.get("amount_yi", 0.0) or 0.0) < MIN_INTRADAY_AMOUNT_YI:
+        reasons.append("当日成交额不足")
     return PaperPolicyResult(not reasons, tuple(dict.fromkeys(reasons)))
