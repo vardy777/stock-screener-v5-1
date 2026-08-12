@@ -9,6 +9,7 @@ from typing import Any, Dict, Iterable
 
 from .decision_contracts import ConfirmationDecisionV1, MorningPoolV1
 from .execution import CHINA_TZ
+from .offline_storage import atomic_json_write, exclusive_file_lock
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -43,20 +44,7 @@ class CandidateJournal:
         return dict(self.load(trade_date).get("confirmation", {}) or {})
 
     def _write(self, trade_date: str, payload: Dict[str, Any]) -> None:
-        self.directory.mkdir(parents=True, exist_ok=True)
-        path = self.path_for(trade_date)
-        temporary = path.with_suffix(".tmp")
-        try:
-            temporary.write_text(
-                json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
-            temporary.replace(path)
-        except Exception:
-            try:
-                temporary.unlink(missing_ok=True)
-            except OSError:
-                pass
-            raise
+        atomic_json_write(self.path_for(trade_date),payload)
 
     @staticmethod
     def _now() -> datetime:
@@ -65,17 +53,14 @@ class CandidateJournal:
     def save_morning(self, trade_date: str, candidates: Iterable[dict], market_state: dict, *, captured_at=None) -> dict:
         rows = [dict(item) for item in candidates if item.get("v4_candidate_origin") == "V4"]
         entity = MorningPoolV1.build(trade_date, captured_at or self._now(), rows, market_state)
-        payload = self.load(trade_date) or {"trade_date": trade_date}
-        existing = payload.get("morning", {})
-        if existing:
-            if existing.get("pool_id") == entity.pool_id:
-                return payload
-            raise ValueError("morning pool is immutable for this trade date")
-        if payload.get("confirmation"):
-            raise ValueError("cannot create morning pool after confirmation decision")
-        payload["morning"] = entity.to_dict()
-        self._write(trade_date, payload)
-        return payload
+        with exclusive_file_lock(self.directory/f".{trade_date}.lock"):
+            payload = self.load(trade_date) or {"trade_date": trade_date}
+            existing = payload.get("morning", {})
+            if existing:
+                if existing.get("pool_id") == entity.pool_id: return payload
+                raise ValueError("morning pool is immutable for this trade date")
+            if payload.get("confirmation"): raise ValueError("cannot create morning pool after confirmation decision")
+            payload["morning"] = entity.to_dict(); self._write(trade_date, payload); return payload
 
     def morning_candidates(self, trade_date: str) -> list[dict]:
         return list(self.morning(trade_date).get("candidates", []))
@@ -106,42 +91,43 @@ class CandidateJournal:
         return rows
 
     def save_confirmation(self, trade_date: str, candidates: Iterable[dict], market_state: dict, *, decided_at=None) -> dict:
-        payload = self.load(trade_date)
-        if not payload.get("morning"):
-            raise ValueError("missing current-session 09:25 mother pool")
-        rows = self.link_confirmation_candidates(trade_date, candidates)
-        morning_data = payload["morning"]
-        morning = MorningPoolV1(
-            pool_id=morning_data["pool_id"], trade_date=morning_data["trade_date"],
-            captured_at=morning_data["captured_at"],
-            candidate_codes=tuple(morning_data.get("candidate_codes", morning_data.get("codes", []))),
-            candidates=tuple(morning_data.get("candidates", [])),
-            market_state=dict(morning_data.get("market_state", {})),
-            lineage=dict(morning_data.get("lineage", {})),
-            schema_version=morning_data.get("schema_version", "morning-pool-v1"),
-        )
-        entity = ConfirmationDecisionV1.build(morning, decided_at or self._now(), rows, market_state)
-        existing = payload.get("confirmation", {})
-        if existing:
-            if existing.get("decision_id") == entity.decision_id:
-                return payload
-            raise ValueError("confirmation decision is immutable for this trade date")
-        payload["confirmation"] = entity.to_dict()
-        self._write(trade_date, payload)
-        return payload
+        with exclusive_file_lock(self.directory/f".{trade_date}.lock"):
+            payload = self.load(trade_date)
+            if not payload.get("morning"): raise ValueError("missing current-session 09:25 mother pool")
+            morning_codes={x.get("code") for x in payload["morning"].get("candidates",[])}
+            rows=[]
+            for item in candidates:
+                if item.get("code") not in morning_codes: raise ValueError(f"confirmation candidate {item.get('code')} is outside morning pool")
+                morning_row=next(x for x in payload["morning"]["candidates"] if x.get("code")==item.get("code"))
+                rows.append({**dict(item),"morning_pool_member":True,"morning_pool_id":payload["morning"].get("pool_id"),
+                    "morning_rank":morning_row.get("rank"),"morning_score":morning_row.get("score"),
+                    "morning_quote_time":morning_row.get("quote_time"),"linkage_status":"confirmed_from_morning_pool"})
+            morning_data = payload["morning"]
+            morning = MorningPoolV1(
+                pool_id=morning_data["pool_id"], trade_date=morning_data["trade_date"],
+                captured_at=morning_data["captured_at"],
+                candidate_codes=tuple(morning_data.get("candidate_codes", morning_data.get("codes", []))),
+                candidates=tuple(morning_data.get("candidates", [])),
+                market_state=dict(morning_data.get("market_state", {})),
+                lineage=dict(morning_data.get("lineage", {})),
+                schema_version=morning_data.get("schema_version", "morning-pool-v1"),
+            )
+            entity = ConfirmationDecisionV1.build(morning, decided_at or self._now(), rows, market_state)
+            existing = payload.get("confirmation", {})
+            if existing:
+                if existing.get("decision_id") == entity.decision_id: return payload
+                raise ValueError("confirmation decision is immutable for this trade date")
+            payload["confirmation"] = entity.to_dict(); self._write(trade_date, payload); return payload
 
     def save_missing_morning_confirmation(self, trade_date: str, market_state: dict) -> dict:
-        payload = self.load(trade_date) or {"trade_date": trade_date}
-        if payload.get("morning"):
-            raise ValueError("morning pool exists; use normal confirmation")
         entity = ConfirmationDecisionV1.blocked_without_morning(
             trade_date, self._now(), market_state
         )
-        existing = payload.get("confirmation", {})
-        if existing:
-            if existing.get("decision_id") == entity.decision_id:
-                return payload
-            raise ValueError("confirmation decision is immutable for this trade date")
-        payload["confirmation"] = entity.to_dict()
-        self._write(trade_date, payload)
-        return payload
+        with exclusive_file_lock(self.directory/f".{trade_date}.lock"):
+            payload = self.load(trade_date) or {"trade_date": trade_date}
+            if payload.get("morning"): raise ValueError("morning pool exists; use normal confirmation")
+            existing = payload.get("confirmation", {})
+            if existing:
+                if existing.get("decision_id") == entity.decision_id: return payload
+                raise ValueError("confirmation decision is immutable for this trade date")
+            payload["confirmation"] = entity.to_dict(); self._write(trade_date, payload); return payload

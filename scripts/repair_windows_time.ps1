@@ -13,8 +13,12 @@ if ($LASTEXITCODE -ne 0) { throw "w32tm configuration failed: $LASTEXITCODE" }
 w32tm /resync /force
 if ($LASTEXITCODE -ne 0) { throw "w32tm resync failed: $LASTEXITCODE" }
 
-$status = w32tm /query /status
+$status = w32tm /query /status 2>&1
 $status | Write-Output
-if ($status -match "Local CMOS Clock" -or $status -match "未指定") {
+if ($LASTEXITCODE -ne 0) {
+    throw "Windows Time status query failed: $LASTEXITCODE"
+}
+$statusText = ($status | Out-String)
+if ($statusText -match "Local CMOS Clock") {
     throw "Windows Time remains unsynchronized."
 }

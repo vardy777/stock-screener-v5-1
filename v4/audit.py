@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any, Dict
+from .offline_storage import atomic_json_write,exclusive_file_lock
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -13,11 +14,8 @@ STATE_PATH = DATA_DIR / "runtime_state.json"
 
 
 def save_runtime_state(state: Dict[str, Any]) -> None:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    temporary = STATE_PATH.with_suffix(".tmp")
-    with temporary.open("w", encoding="utf-8") as handle:
-        json.dump(state, handle, ensure_ascii=False, indent=2, default=str)
-    temporary.replace(STATE_PATH)
+    with exclusive_file_lock(STATE_PATH.with_suffix(".lock")):
+        atomic_json_write(STATE_PATH,json.loads(json.dumps(state,default=str)))
 
 
 def load_runtime_state() -> Dict[str, Any]:
@@ -27,4 +25,3 @@ def load_runtime_state() -> Dict[str, Any]:
         return value if isinstance(value, dict) else {}
     except (OSError, ValueError, TypeError):
         return {}
-

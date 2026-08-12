@@ -5,6 +5,7 @@ from pathlib import Path
 from .production_task_runner import COMMANDS
 
 FORBIDDEN_NAMES={"DataFetcher","SimulationEngine"}
+FORBIDDEN_PRODUCTION_IMPORTS={"v4.dashboard","v4.simulation","v4.sim_engine"}
 
 def _python_leaf(command):
     return next((Path(value) for value in command if str(value).lower().endswith(".py")),None)
@@ -23,6 +24,12 @@ def audit_production_architecture(root:Path)->dict:
                 issues.append(f"V3_IMPORT:{task}:{node.lineno}")
             if isinstance(node,ast.Name) and node.id in FORBIDDEN_NAMES:
                 issues.append(f"FORBIDDEN_COMPATIBILITY_FACADE:{task}:{node.id}:{node.lineno}")
+            if isinstance(node,ast.ImportFrom) and str(node.module or "") in FORBIDDEN_PRODUCTION_IMPORTS:
+                issues.append(f"LEGACY_RUNTIME_IMPORT:{task}:{node.module}:{node.lineno}")
+            if isinstance(node,ast.Import):
+                for alias in node.names:
+                    if alias.name in FORBIDDEN_PRODUCTION_IMPORTS:
+                        issues.append(f"LEGACY_RUNTIME_IMPORT:{task}:{alias.name}:{node.lineno}")
     signal=root/"phase1/scripts/capture_signal_features.py"
     signal_text=signal.read_text(encoding="utf-8")
     if "DataFetcher" in signal_text or "fetch_quotes_with_retries" in signal_text:

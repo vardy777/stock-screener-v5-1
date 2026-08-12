@@ -11,6 +11,7 @@ from .p3_account import OfflinePaperLedger
 from .p3_execution import OfflineExecutionEngine,OfflineIntentFactory
 from .production_gate import require_authorized_owner
 from .snapshot_compat import archive_market_snapshot
+from .offline_storage import atomic_json_write,exclusive_file_lock
 
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -18,10 +19,9 @@ def _write_batch(root,body):
     raw=json.dumps(body,ensure_ascii=False,sort_keys=True,separators=(",",":"))
     value={**body,"batch_id":"pebatch1-"+hashlib.sha256(raw.encode()).hexdigest()[:24]}
     path=Path(root)/"execution_batches"/body["trade_date"]/(body["side"].lower()+".json")
-    path.parent.mkdir(parents=True,exist_ok=True)
-    if path.exists(): return json.loads(path.read_text(encoding="utf-8"))
-    temporary=path.with_suffix(".tmp"); temporary.write_text(json.dumps(value,ensure_ascii=False,indent=2),encoding="utf-8"); temporary.replace(path)
-    return value
+    with exclusive_file_lock(path.with_suffix(".lock")):
+        if path.exists(): return json.loads(path.read_text(encoding="utf-8"))
+        atomic_json_write(path,value); return value
 
 def _decision_snapshot(decision):
     snapshot_id=str(decision.get("lineage",{}).get("input_snapshot_id",""))
