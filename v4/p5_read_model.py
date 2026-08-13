@@ -127,6 +127,11 @@ class DashboardReadModelBuilder:
             result.append({"code":row.get("code",""),"name":row.get("name",""),"morning_rank":row.get("rank"),
                 "base_score":row.get("base_score",row.get("score")),"confirmation_rank":final.get("rank"),
                 "confirm_delta":final.get("confirm_delta"),"final_score":final.get("score"),
+                "reference_price":row.get("last_price",row.get("price")),
+                "confirmed_buy_price":final.get("ask1",final.get("buy_price")),
+                "buy_price_source":final.get("execution_price_source",row.get("execution_price_source","")),
+                "change_pct":row.get("change_pct",row.get("pct_chg")),
+                "sector":row.get("sector",""),
                 "strategy":final.get("strategy",row.get("strategy","V4")),"eligible":final.get("v4_paper_eligible") is True,
                 "reason_codes":confirmation.get("reason_codes",[]) if final else ["not_confirmed"],
                 "pool_id":morning.get("pool_id",""),"decision_id":confirmation.get("decision_id","")})

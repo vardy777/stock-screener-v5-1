@@ -29,21 +29,18 @@ class P5OfflineDashboardTests(unittest.TestCase):
 
     def test_html_has_required_control_center_sections_and_no_mutation_controls(self):
         model=frozen_demo_model(); page=render(model); research=render(model,"research"); ops=render(model,"ops")
-        for text in ("新手首页","研究分析","系统运维","现在怎么做","候选分析","市场环境","板块资金流","策略验证进度","不是上涨概率"):
+        for text in ("今日股票研究","今天的结论","现在怎么做","今日股票与价格计划","今日市场","必须知道的风险","允许模拟买入价","模拟卖出价","不是上涨概率"):
             self.assertIn(text,page)
-        for text in ("09:25 → 14:49 → 14:50 → 次日09:30","模拟账户与回撤","证据分层","四个真实窗口验收"):
-            self.assertIn(text,research)
-        for text in ("数据与运行告警","P4任务与SLA","来源、实体ID与哈希"):
-            self.assertIn(text,ops)
-        for forbidden in ("运行买入","运行卖出","重置账户","api/run_buy","api/reset"):
+        self.assertEqual(page,research); self.assertEqual(page,ops)
+        for forbidden in ("新手首页","研究分析","系统运维","运行买入","运行卖出","重置账户","api/run_buy","api/reset"):
             self.assertNotIn(forbidden,page)
-        self.assertIn("本地只读模拟系统",page)
+        self.assertIn("页面只读",page)
 
     def test_http_surface_is_read_only_and_mode_chase_compatible(self):
         server=ThreadingHTTPServer(("127.0.0.1",0),Handler); thread=threading.Thread(target=server.serve_forever,daemon=True); thread.start()
         try:
             base=f"http://127.0.0.1:{server.server_port}"
-            self.assertIn("A股隔夜研究助手",urllib.request.urlopen(base+"/?mode=chase").read().decode())
+            self.assertIn("V4 今日股票研究",urllib.request.urlopen(base+"/?mode=chase").read().decode())
             payload=json.loads(urllib.request.urlopen(base+"/api/read-model").read().decode()); self.assertEqual(payload["schema_version"],"dashboard-read-model-v1")
             request=urllib.request.Request(base+"/api/reset",data=b"",method="POST")
             with self.assertRaises(urllib.error.HTTPError) as caught: urllib.request.urlopen(request)
@@ -113,7 +110,7 @@ class P5OfflineDashboardTests(unittest.TestCase):
             with self.subTest(name=name):
                 model=frozen_scenario(name); page=render(model)
                 self.assertIn(code,{x["reason_code"] for x in model.issues})
-                self.assertIn("本地只读模拟系统",page); self.assertNotIn("<button",page); self.assertNotIn("<form",page)
+                self.assertIn("页面只读",page); self.assertNotIn("<button",page); self.assertNotIn("<form",page)
 
     def test_stale_market_never_produces_directional_sentiment(self):
         model=DashboardReadModelBuilder().build(generated_at=datetime(2026,8,9,12,tzinfo=CHINA_TZ),production_status="research_locked",
@@ -132,7 +129,7 @@ class P5OfflineDashboardTests(unittest.TestCase):
 
     def test_mobile_layout_collapses_to_single_column(self):
         page=render(frozen_demo_model())
-        self.assertIn(".grid{display:block;width:100%}",page)
-        self.assertIn("grid-template-columns:repeat(3,minmax(0,1fr))",page)
+        self.assertIn(".grid{display:block}",page)
+        self.assertIn(".prices{grid-template-columns:1fr}",page)
 
 if __name__=="__main__": unittest.main()
