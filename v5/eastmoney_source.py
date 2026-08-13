@@ -23,21 +23,27 @@ def _default_fetch(url,timeout):
 
 class EastmoneyRealtimeSource:
     name="eastmoney_realtime_full_market"
-    def __init__(self,fetch_json=None,timeout=15,clock=None,page_size=500,retries=2):self.fetch_json=fetch_json or _default_fetch;self.timeout=timeout;self.clock=clock or (lambda:datetime.now(CHINA_TZ));self.page_size=int(page_size);self.retries=int(retries)
-    def _page(self,page):
+    def __init__(self,fetch_json=None,timeout=15,clock=None,page_size=500,retries=2,overall_budget_seconds=25,monotonic=None,sleeper=None):self.fetch_json=fetch_json or _default_fetch;self.timeout=timeout;self.clock=clock or (lambda:datetime.now(CHINA_TZ));self.page_size=int(page_size);self.retries=int(retries);self.overall_budget_seconds=float(overall_budget_seconds);self.monotonic=monotonic or time.monotonic;self.sleeper=sleeper or time.sleep
+    def _page(self,page,deadline):
         query=urlencode({"pn":page,"pz":self.page_size,"po":1,"np":1,"fltt":2,"invt":2,"fid":"f3","fs":UNIVERSE_FILTER,"fields":FIELDS})
         last=None
         for attempt in range(self.retries+1):
-            try:return self.fetch_json("https://push2.eastmoney.com/api/qt/clist/get?"+query,self.timeout)
+            remaining=deadline-self.monotonic()
+            if remaining<=0:raise TimeoutError("eastmoney capture exceeded overall budget")
+            try:return self.fetch_json("https://push2.eastmoney.com/api/qt/clist/get?"+query,min(self.timeout,max(.1,remaining)))
             except (HTTPError,URLError,TimeoutError,ConnectionError,OSError,RuntimeError) as exc:
                 last=exc
-                if attempt<self.retries:time.sleep(.25*(attempt+1))
+                if attempt<self.retries:
+                    remaining=deadline-self.monotonic()
+                    if remaining<=0:raise TimeoutError("eastmoney capture exceeded overall budget") from exc
+                    self.sleeper(min(.25*(attempt+1),remaining))
         raise RuntimeError(f"eastmoney page {page} unavailable: {type(last).__name__}") from last
     def capture(self,codes:list[str],*,stage:str,now:datetime):
-        started=self.clock();wanted=set(codes)
+        started=self.clock();deadline=self.monotonic()+self.overall_budget_seconds;wanted=set(codes)
         rows=[];page=1
         while page<=20:
-            payload=self._page(page);data=payload.get("data",{})
+            if self.monotonic()>=deadline:raise TimeoutError("eastmoney capture exceeded overall budget")
+            payload=self._page(page,deadline);data=payload.get("data",{})
             if payload.get("rc")!=0 or not isinstance(data.get("diff"),list):raise RuntimeError("provider payload invalid")
             rows.extend(data["diff"]);total=int(data.get("total",len(rows)) or len(rows))
             if len(rows)>=total or not data["diff"]:break

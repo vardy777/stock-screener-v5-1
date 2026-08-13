@@ -8,10 +8,11 @@ from .contracts import AcquisitionSessionV1,CandidateFunnelV1
 from .decision_flow import MorningPoolV5,ConfirmationV5
 from .performance import report_strict_paper
 from .product_read_model import build
+from .fact_reader import latest
 
 def _latest(root:Path,kind:str,day:str):
-    files=sorted((root/kind/day).glob("*.json")) if (root/kind/day).is_dir() else []
-    return json.loads(files[-1].read_text(encoding="utf-8")) if files else None
+    try:return latest(root,kind,day)
+    except Exception:return None
 
 class V5ReadOnlySources:
     def __init__(self,root:Path|str):self.root=Path(root)

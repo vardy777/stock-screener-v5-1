@@ -1,4 +1,5 @@
 import unittest
+import threading,time
 from datetime import datetime,timedelta
 from types import SimpleNamespace
 from v5.core import CHINA_TZ
@@ -44,6 +45,13 @@ class V5DataAndFunnelTests(unittest.TestCase):
         universe=UniverseV1.build(trade_date="2026-08-13",created_at=NOW,codes=["000001","000002"],sources=["test"])
         result=ConsensusAcquirer(Source("one",snapshot([quote("000001")],2)),Source("two",snapshot([quote("000002")],2))).acquire(universe,stage="signal",now=NOW)
         self.assertFalse(result.accepted);self.assertIsNone(result.primary)
+    def test_consensus_captures_independent_sources_concurrently_and_keeps_order(self):
+        universe=UniverseV1.build(trade_date="2026-08-13",created_at=NOW,codes=["000001","000002"],sources=["test"]);barrier=threading.Barrier(2);good=snapshot([quote("000001"),quote("000002")])
+        class ConcurrentSource:
+            def __init__(self,name):self.name=name
+            def capture(self,*args,**kwargs):barrier.wait(timeout=1);return good
+        result=ConsensusAcquirer(ConcurrentSource("first"),ConcurrentSource("second")).acquire(universe,stage="signal",now=NOW)
+        self.assertTrue(result.accepted);self.assertEqual([x["source"] for x in result.report["attempts"]],["first","second"])
     def test_eastmoney_source_maps_only_requested_codes_and_preserves_provider_time(self):
         epoch=int((NOW-timedelta(seconds=1)).timestamp())
         payload={"rc":0,"data":{"diff":[{"f12":"000001","f14":"平安银行","f2":10.2,"f5":1000,"f6":8000000,"f15":10.3,"f16":10.0,"f17":10.1,"f18":10.0,"f31":10.19,"f32":10.21,"f33":100,"f34":120,"f124":epoch},{"f12":"600000","f14":"浦发银行","f2":9.8,"f5":500,"f6":4000000,"f15":9.9,"f16":9.7,"f17":9.8,"f18":9.75,"f31":9.79,"f32":9.81,"f33":20,"f34":30,"f124":epoch}]}}
@@ -56,6 +64,9 @@ class V5DataAndFunnelTests(unittest.TestCase):
         payload={"rc":0,"data":{"diff":[{"f12":"000001","f14":"平安银行","f2":10.2,"f5":1000,"f6":8000000,"f15":10.3,"f16":10.0,"f17":10.1,"f18":10.0,"f31":10.19,"f32":10.21,"f33":100,"f34":120,"f124":"-"}]}}
         result=EastmoneyRealtimeSource(fetch_json=lambda *_:payload,clock=lambda:NOW).capture(["000001"],stage="signal",now=NOW)
         self.assertEqual(result.quotes,());self.assertFalse(result.quality.accepted);self.assertIn("empty",result.quality.reasons)
+    def test_eastmoney_source_fails_closed_when_overall_budget_is_exhausted(self):
+        ticks=iter((0,2));source=EastmoneyRealtimeSource(fetch_json=lambda *_:{},overall_budget_seconds=1,monotonic=lambda:next(ticks),clock=lambda:NOW)
+        with self.assertRaisesRegex(TimeoutError,"overall budget"):source.capture(["000001"],stage="signal",now=NOW)
     def test_second_source_is_selected_only_when_strict_snapshot_is_accepted(self):
         bad=snapshot([quote("000001")],2);good=snapshot([quote("000001"),quote("000002")],2)
         result=MultiSourceAcquirer([Source("primary",bad),Source("backup",good)]).acquire(["000001","000002"],stage="signal",now=NOW)

@@ -7,3 +7,7 @@ def test_sina_source_builds_native_snapshot_without_legacy_imports():
     text='var hq_str_sz000001="'+','.join(fields)+'";'
     source=SinaRealtimeSource(fetch_text=lambda *_:text,clock=lambda:NOW);snapshot=source.capture(["000001"],stage="morning",now=NOW)
     assert snapshot.quality.accepted and snapshot.quotes[0].provider==source.name and snapshot.quotes[0].exchange_time.startswith("2026-08-14T09:24:59")
+def test_sina_source_fails_closed_when_overall_budget_is_exhausted():
+    ticks=iter((0,0,2));source=SinaRealtimeSource(fetch_text=lambda *_:"",batch_size=1,overall_budget_seconds=1,monotonic=lambda:next(ticks),sleeper=lambda *_:None,clock=lambda:NOW)
+    import pytest
+    with pytest.raises(TimeoutError,match="overall budget"):source.capture(["000001","000002"],stage="morning",now=NOW)

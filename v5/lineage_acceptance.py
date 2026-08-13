@@ -1,0 +1,33 @@
+"""Fail-closed daily lineage acceptance across V5 facts and projections."""
+from __future__ import annotations
+import json
+from pathlib import Path
+from .fact_reader import latest
+from .notification import build_payload
+
+def _exists(root,kind,day,entity_id):return (Path(root)/kind/day/f"{entity_id}.json").exists()
+def audit(root,day):
+    root=Path(root);checks={};evidence={}
+    try:
+        morning_acq=latest(root,"acquisition",day,predicate=lambda row:row.get("stage")=="morning")
+        signal_acq=latest(root,"acquisition",day,predicate=lambda row:row.get("stage")=="signal")
+        pool=latest(root,"morning_pools",day);confirmation=latest(root,"confirmations",day)
+        pointer=json.loads((root/"frozen"/day/"signal.json").read_text(encoding="utf-8"))
+        checks["morning_snapshot_exists"]=_exists(root,"snapshots",day,morning_acq["selected_snapshot_id"])
+        checks["pool_uses_morning_snapshot"]=pool["snapshot_id"]==morning_acq["selected_snapshot_id"]
+        checks["signal_snapshot_exists"]=_exists(root,"snapshots",day,signal_acq["selected_snapshot_id"])
+        checks["freeze_uses_signal_snapshot"]=pointer["snapshot_id"]==signal_acq["selected_snapshot_id"]
+        checks["freeze_uses_signal_acquisition"]=pointer.get("acquisition_session_id")==signal_acq["session_id"]
+        checks["confirmation_uses_frozen_snapshot"]=confirmation["snapshot_id"]==pointer["snapshot_id"]
+        checks["confirmation_uses_morning_pool"]=confirmation["morning_pool_id"]==pool["pool_id"]
+        checks["confirmation_is_mother_pool_subset"]={x["code"] for x in confirmation.get("candidates",[])}<={x["code"] for x in pool.get("candidates",[])}
+        for stage,entity_id in (("morning",pool["pool_id"]),("confirmation",confirmation["confirmation_id"])):
+            payload=build_payload(root,day,stage);receipt=root/"notifications"/day/f"{stage}.json"
+            checks[f"{stage}_payload_parent_matches"]=payload["parent_entity_id"]==entity_id
+            if receipt.exists():
+                row=json.loads(receipt.read_text(encoding="utf-8"));checks[f"{stage}_receipt_accepted"]=row.get("outcome")=="ACCEPTED" and row.get("response_code")==200;checks[f"{stage}_receipt_lineage_matches"]=row.get("parent_entity_id")==entity_id and row.get("payload_sha256")==payload["payload_sha256"]
+            else:checks[f"{stage}_receipt_accepted"]=False;checks[f"{stage}_receipt_lineage_matches"]=False
+        evidence={"morning_pool_id":pool["pool_id"],"confirmation_id":confirmation["confirmation_id"],"morning_snapshot_id":morning_acq["selected_snapshot_id"],"signal_snapshot_id":signal_acq["selected_snapshot_id"]}
+    except Exception as exc:
+        checks["audit_completed"]=False;evidence["error"]=f"{type(exc).__name__}: {exc}"
+    return {"schema_version":"v5-daily-lineage-acceptance-v1","trade_date":day,"checks":checks,"evidence":evidence,"passed":bool(checks) and all(checks.values())}

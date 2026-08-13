@@ -13,15 +13,14 @@ from .decision_flow import MorningPoolV5,ConfirmationV5
 from .storage import V5FactStore
 from .contracts import AcquisitionSessionV1
 from .paper_production import load_snapshot
+from .fact_reader import latest
 
 def load_universe(root,day):
     files=sorted((Path(root)/"universes"/day).glob("*.json"))
     if not files:raise ContractViolation("V5 universe fact missing")
     return UniverseV1.from_mapping(json.loads(files[-1].read_text(encoding="utf-8")))
 def _latest(root,kind,day):
-    files=sorted((Path(root)/kind/day).glob("*.json"))
-    if not files:raise ContractViolation(f"V5 {kind} fact missing")
-    return json.loads(files[-1].read_text(encoding="utf-8"))
+    return latest(root,kind,day)
 def produce(root,stage,*,now=None,sources=None):
     if stage != "morning":
         raise ContractViolation("live production is morning-only; confirmation must consume the 14:49 frozen snapshot")
