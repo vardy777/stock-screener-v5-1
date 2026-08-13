@@ -10,10 +10,13 @@ from .performance import report_strict_paper
 from .product_read_model import build
 from .fact_reader import latest
 from .market_state import MarketStateV1
+from .core import ContractViolation
 
 def _latest(root:Path,kind:str,day:str,*,predicate=None,as_of=None):
     try:return latest(root,kind,day,predicate=predicate,as_of=as_of)
-    except Exception:return None
+    except ContractViolation as exc:
+        if str(exc).endswith("fact missing"):return None
+        raise
 
 class V5ReadOnlySources:
     def __init__(self,root:Path|str):self.root=Path(root)

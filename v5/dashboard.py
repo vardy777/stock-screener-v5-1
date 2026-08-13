@@ -25,11 +25,19 @@ def render(model,view="today"):
 class Handler(BaseHTTPRequestHandler):
     data_dir=Path("v5/data")
     def do_GET(self):
-        path=urlparse(self.path).path;now=datetime.now(CHINA_TZ);model=V5ReadOnlySources(self.data_dir).build(now.date().isoformat(),as_of=now)
-        if path=="/api/read-model":body=json.dumps(model.to_dict(),ensure_ascii=False).encode();kind="application/json; charset=utf-8"
-        elif path in {"/","/today","/candidates","/account","/validation"}:body=render(model).encode();kind="text/html; charset=utf-8"
-        else:self.send_error(404);return
-        self.send_response(200);self.send_header("Content-Type",kind);self.send_header("Cache-Control","no-store");self.end_headers();self.wfile.write(body)
+        path=urlparse(self.path).path
+        if path not in {"/","/today","/candidates","/account","/validation","/api/read-model"}:self.send_error(404);return
+        try:
+            now=datetime.now(CHINA_TZ);model=V5ReadOnlySources(self.data_dir).build(now.date().isoformat(),as_of=now)
+            if path=="/api/read-model":body=json.dumps(model.to_dict(),ensure_ascii=False).encode();kind="application/json; charset=utf-8"
+            else:body=render(model).encode();kind="text/html; charset=utf-8"
+            status=200
+        except Exception as exc:
+            error={"schema_version":"v5-dashboard-error-v1","status":"DATA_VALIDATION_FAILED","message":"V5事实校验失败，已停止展示决策；不会回退旧数据。","error_type":type(exc).__name__}
+            if path=="/api/read-model":body=json.dumps(error,ensure_ascii=False).encode();kind="application/json; charset=utf-8"
+            else:body=("<!doctype html><html lang='zh-CN'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"+f"<title>V5 数据校验失败</title><body style='font-family:Microsoft YaHei;background:#071019;color:#edf5f7;padding:32px'><h1>数据校验失败</h1><p>{html.escape(error['message'])}</p><p>research_locked 保持启用。</p></body></html>").encode();kind="text/html; charset=utf-8"
+            status=503
+        self.send_response(status);self.send_header("Content-Type",kind);self.send_header("Cache-Control","no-store");self.send_header("X-Content-Type-Options","nosniff");self.end_headers();self.wfile.write(body)
     def do_POST(self):self.send_error(405,"read only")
     def log_message(self,*args):pass
 def main(port=8899,data_dir="v5/data"):Handler.data_dir=Path(data_dir);ThreadingHTTPServer(("127.0.0.1",port),Handler).serve_forever()
