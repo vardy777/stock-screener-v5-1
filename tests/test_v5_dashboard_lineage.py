@@ -14,7 +14,7 @@ def write(root,kind,name,row):
     path=Path(root)/kind/DAY/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_text(json.dumps(row),encoding="utf-8")
 
 def acquisition(stage,at,snapshot):
-    return {"trade_date":DAY,"stage":stage,"requested_at":at.isoformat(),"expected_codes":1,"selected_snapshot_id":snapshot,"accepted":True,"source_attempts":[{"source":stage,"coverage":1.0}]}
+    return {"trade_date":DAY,"stage":stage,"requested_at":at.isoformat(),"expected_codes":1,"selected_snapshot_id":snapshot,"accepted":True,"source_attempts":[{"source":stage,"snapshot_id":snapshot,"coverage":1.0,"complete":True}]}
 
 def test_dashboard_never_pairs_morning_pool_with_signal_acquisition():
     with TemporaryDirectory() as d:
