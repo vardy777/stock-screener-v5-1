@@ -71,6 +71,13 @@ class V5DataAndFunnelTests(unittest.TestCase):
         self.assertEqual([q.code for q in result.quotes],["000001"]);self.assertEqual(result.quotes[0].provider,source.name)
         self.assertEqual(result.quotes[0].bid1_volume,10000);self.assertEqual(result.quotes[0].ask1_volume,12000);self.assertTrue(result.quality.accepted)
 
+    def test_sina_star_market_uses_twenty_percent_limit_band(self):
+        from v5.sina_source import SinaRealtimeSource
+        fields=["科创测试","10","10","12","12","10","0","0","1000","10000","100","12","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","2026-08-13","14:49:29"]
+        text='var hq_str_sh688001="'+','.join(fields)+'";'
+        result=SinaRealtimeSource(fetch_text=lambda *_:text,clock=lambda:NOW).capture(["688001"],stage="signal",now=NOW)
+        self.assertTrue(result.quotes[0].limit_up)
+
     def test_eastmoney_missing_timestamp_is_rejected_not_guessed(self):
         payload={"rc":0,"data":{"diff":[{"f12":"000001","f14":"平安银行","f2":10.2,"f5":1000,"f6":8000000,"f15":10.3,"f16":10.0,"f17":10.1,"f18":10.0,"f31":10.19,"f32":10.21,"f33":100,"f34":120,"f124":"-"}]}}
         result=EastmoneyRealtimeSource(fetch_json=lambda *_:payload,clock=lambda:NOW).capture(["000001"],stage="signal",now=NOW)

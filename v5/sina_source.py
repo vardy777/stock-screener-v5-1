@@ -24,7 +24,7 @@ class SinaRealtimeSource:
                 code=match.group(1);f=match.group(2).split(",")
                 try:
                     if len(f)<32 or not f[0] or not f[30] or not f[31]:continue
-                    previous,price,opened,high,low=map(float,(f[2],f[3],f[1],f[4],f[5]));exchange=datetime.fromisoformat(f"{f[30]}T{f[31]}+08:00");bid,ask=float(f[11] or 0),float(f[21] or 0);volume=int(float(f[8] or 0));halted=price<=0 or volume<=0;ratio=.2 if code.startswith("30") else .1
+                    previous,price,opened,high,low=map(float,(f[2],f[3],f[1],f[4],f[5]));exchange=datetime.fromisoformat(f"{f[30]}T{f[31]}+08:00");bid,ask=float(f[11] or 0),float(f[21] or 0);volume=int(float(f[8] or 0));halted=price<=0 or volume<=0;ratio=.2 if code.startswith(("30","688","689")) else .1
                     quotes.append(QuoteV1.from_mapping({"code":code,"name":f[0],"trade_date":f[30],"exchange_time":exchange,"provider_time":exchange,"received_at":received,"last_price":price,"previous_close":previous,"open_price":opened,"high_price":high,"low_price":low,"bid1":bid,"bid1_volume":int(float(f[10] or 0)),"ask1":ask,"ask1_volume":int(float(f[20] or 0)),"volume":volume,"amount":float(f[9] or 0),"halted":halted,"limit_up":price>=round(previous*(1+ratio),2) and ask<=0,"limit_down":price<=round(previous*(1-ratio),2) and bid<=0,"provider":self.name}))
                 except Exception:continue
             if offset+self.batch_size<len(codes):
