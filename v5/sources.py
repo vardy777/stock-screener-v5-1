@@ -25,6 +25,11 @@ class V5ReadOnlySources:
         acquisition=(AcquisitionSessionV1.build(trade_date=acquisition_raw["trade_date"],stage=acquisition_raw["stage"],requested_at=acquisition_raw["requested_at"],expected_codes=acquisition_raw["expected_codes"],selected_snapshot_id=acquisition_raw["selected_snapshot_id"],accepted=acquisition_raw["accepted"],source_attempts=acquisition_raw["source_attempts"]) if acquisition_raw else None)
         morning=(MorningPoolV5(pool_raw["trade_date"],pool_raw["created_at"],pool_raw["funnel_id"],pool_raw["snapshot_id"],pool_raw["market_state_id"],tuple(pool_raw["candidates"])) if pool_raw else None)
         confirmation=(ConfirmationV5(confirmation_raw["trade_date"],confirmation_raw["decided_at"],confirmation_raw["morning_pool_id"],confirmation_raw["funnel_id"],confirmation_raw["snapshot_id"],confirmation_raw["market_state_id"],tuple(confirmation_raw["candidates"]),tuple(confirmation_raw["changes"]),confirmation_raw["outcome"]) if confirmation_raw else None)
+        active=confirmation or morning
+        if active and (acquisition is None or not acquisition.accepted or acquisition.selected_snapshot_id!=active.snapshot_id):
+            raise ValueError("dashboard acquisition snapshot lineage mismatch")
+        if confirmation and (morning is None or confirmation.morning_pool_id!=morning.pool_id):
+            raise ValueError("dashboard confirmation mother-pool lineage mismatch")
         state_id=confirmation.market_state_id if confirmation else morning.market_state_id if morning else "";market_state=None
         if state_id:
             state_path=self.root/"market_states"/trade_date/f"{state_id}.json"

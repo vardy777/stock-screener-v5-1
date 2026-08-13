@@ -104,6 +104,7 @@
 - Replaced the stale 8899 dashboard listener through its supervised task after proving that stopping the Windows task did not terminate an older descendant Python process. The live V5 page now returns HTTP 200 from the current code and explicitly reports that risk cannot be judged when no market-state fact exists, instead of claiming that no risk gate was triggered.
 - Hardened the V5 dashboard supervisor runner against orphaned listeners: it replaces only a listener whose command line proves it is this repository's V5 dashboard, refuses destructive takeover of any foreign port owner, and verifies the port is free before launch.
 - Made the 14:53 task dependency gate ownership-aware: while V4 remains the sole paper writer the V5 shadow health task excludes paper tasks, but after a separately authorized V5 cutover it cannot start unless both the next-open sell and 14:50 buy task have immutable SUCCESS records.
+- Tightened the read-only product projection so the dashboard cannot combine a latest acquisition, mother pool and confirmation from different immutable lineages after retries; snapshot acceptance and same-day mother-pool identity must match or the page fails closed.
 - Added content-addressed V5 point-in-time universe facts and strict two-source consensus without coverage merging.
 - Added V5-native immutable market snapshots and an independent Eastmoney adapter.
 - Added V5-native event-sourced paper ledger with fees, slippage, one-third cap, T+1, immutable rejections, idempotency and reconciliation.
