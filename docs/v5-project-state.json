@@ -23,6 +23,7 @@
   "v4_notification_tasks_os_state": "ready_but_code_guarded_retired_access_denied_on_disable",
   "v5_notification_tasks": ["AStock-V5-Morning-Push-20260814", "AStock-V5-Confirmation-Push-20260814"],
   "shadow_tasks_registered": {"count":7,"required":9,"missing":["paper_sell","paper_buy"],"reason":"single_writer_cutover_not_authorized"},
+  "next_monday_shadow_tasks": {"trade_date":"2026-08-17","registered":7,"duplicate_universe_writer":false,"paper_or_broker_tasks":0},
   "weekend_preflight_task": "AStock-V5-Weekend-Preflight",
   "dashboard_supervisor_task": "AStock-V5-Dashboard-Logon",
   "tests_passed": 314,
