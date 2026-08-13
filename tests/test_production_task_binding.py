@@ -29,5 +29,8 @@ class ProductionTaskBindingTests(unittest.TestCase):
         text=source.read_text(encoding="utf-8")
         self.assertIn("-PassThru",text)
         self.assertIn("Stop-Process -Id $process.Id",text)
+        self.assertIn("Select-Object -ExpandProperty OwningProcess -Unique",text)
+        self.assertIn("param([switch]$Restart)",text)
+        self.assertIn("if (-not $Restart) { exit 0 }",text)
 
 if __name__=="__main__": unittest.main()
