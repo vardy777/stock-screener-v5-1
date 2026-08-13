@@ -2,6 +2,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 import pytest
 from v5.alerts import send_failure
 from v5.core import CHINA_TZ
@@ -28,3 +29,11 @@ def test_alert_attempts_are_immutable_and_secrets_are_redacted():
             with pytest.raises(RuntimeError):send_failure(root,"2026-08-14","preflight","failed secret-token",env,transport=lambda:{"code":500})
         attempts=list((root/"alert_attempts").rglob("*.json"));assert len(attempts)==2
         assert all("secret-token" not in path.read_text(encoding="utf-8") and "[REDACTED]" in path.read_text(encoding="utf-8") for path in attempts)
+
+def test_concurrent_identical_failure_alert_sends_exactly_once():
+    with TemporaryDirectory() as d:
+        root=Path(d);env=root/".env";env.write_text("PUSHPLUS_TOKEN=secret",encoding="utf-8");calls=[]
+        def transport():calls.append(1);return {"code":200}
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results=list(pool.map(lambda _:send_failure(root,"2026-08-14","preflight","clock",env,transport=transport),range(2)))
+        assert calls==[1] and all(row["outcome"]=="ACCEPTED" for row in results)
