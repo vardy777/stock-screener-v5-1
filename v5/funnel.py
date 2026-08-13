@@ -14,7 +14,7 @@ class CandidateFunnel:
         stages=[{"name":"universe","input_count":len(raw),"passed_count":len(raw),"rejected":{}}]
         tradeable=[];rejected={}
         for q in raw:
-            reason="halted" if q.halted else "limit_locked" if q.limit_up or q.limit_down else "missing_buy_book" if q.ask1<=0 or q.ask1_volume<=0 else ""
+            upper_name=q.name.upper();reason="special_treatment" if "ST" in upper_name or "退" in q.name else "halted" if q.halted else "limit_locked" if q.limit_up or q.limit_down else "missing_buy_book" if stage=="confirmation" and (q.ask1<=0 or q.ask1_volume<=0) else ""
             if reason:rejected[reason]=rejected.get(reason,0)+1
             else:tradeable.append(q)
         stages.append({"name":"tradeable","input_count":len(raw),"passed_count":len(tradeable),"rejected":rejected})

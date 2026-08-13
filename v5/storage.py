@@ -12,6 +12,7 @@ class V5FactStore:
     def save_funnel(self,funnel:CandidateFunnelV1)->Path:return self._save("funnels",funnel.trade_date,funnel.funnel_id,funnel.to_dict())
     def save_pool(self,pool:MorningPoolV5)->Path:return self._save("morning_pools",pool.trade_date,pool.pool_id,pool.to_dict())
     def save_confirmation(self,confirmation:ConfirmationV5)->Path:return self._save("confirmations",confirmation.trade_date,confirmation.confirmation_id,confirmation.to_dict())
+    def save_market_state(self,state)->Path:return self._save("market_states",state.trade_date,state.market_state_id,state.to_dict())
     def save_snapshot(self,snapshot)->Path:return self._save("snapshots",snapshot.trade_date,snapshot.snapshot_id,{"schema_version":snapshot.schema_version,"snapshot_id":snapshot.snapshot_id,"trade_date":snapshot.trade_date,"session":snapshot.session,"batch_started_at":snapshot.batch_started_at,"batch_completed_at":snapshot.batch_completed_at,"quality":snapshot.quality.__dict__,"quotes":[x.to_dict() for x in snapshot.quotes]})
     def _save(self,kind,day,entity_id,payload):
         path=self._path(kind,day,entity_id);raw=json.dumps(payload,ensure_ascii=False,sort_keys=True,separators=(",",":"))

@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from .fact_reader import latest
 from .notification import build_payload
+from .market_state import MarketStateV1
 
 def _exists(root,kind,day,entity_id):return (Path(root)/kind/day/f"{entity_id}.json").exists()
 def audit(root,day,*,as_of=None):
@@ -21,6 +22,8 @@ def audit(root,day,*,as_of=None):
         checks["confirmation_uses_frozen_snapshot"]=confirmation["snapshot_id"]==pointer["snapshot_id"]
         checks["confirmation_uses_morning_pool"]=confirmation["morning_pool_id"]==pool["pool_id"]
         checks["confirmation_is_mother_pool_subset"]={x["code"] for x in confirmation.get("candidates",[])}<={x["code"] for x in pool.get("candidates",[])}
+        for label,entity in (("morning",pool),("confirmation",confirmation)):
+            state_path=root/"market_states"/day/f"{entity['market_state_id']}.json";state=MarketStateV1.from_mapping(json.loads(state_path.read_text(encoding="utf-8")));checks[f"{label}_market_state_snapshot_matches"]=state.snapshot_id==entity["snapshot_id"]
         for stage,entity_id in (("morning",pool["pool_id"]),("confirmation",confirmation["confirmation_id"])):
             payload=build_payload(root,day,stage,as_of=as_of);receipt=root/"notifications"/day/f"{stage}.json"
             checks[f"{stage}_payload_parent_matches"]=payload["parent_entity_id"]==entity_id

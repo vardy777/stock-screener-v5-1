@@ -10,3 +10,9 @@ def test_production_adapter_uses_only_final_v5_confirmation_and_reconciles():
  with TemporaryDirectory() as d:
   p=PaperProduction(d);confirmation={"outcome":"BUY_CANDIDATE","confirmation_id":"v5cd1-test","trade_date":"2026-08-14","candidates":[{"code":"000001"}]};buy=p.buy(confirmation,snapshot(NOW,"buy",10.2),at=NOW,eligible_sell_date="2026-08-17");assert buy.outcome=="FILLED"
   sell_at=datetime(2026,8,17,9,30,tzinfo=CHINA_TZ);events=p.sell_all(snapshot(sell_at,"sell",10.4),at=sell_at);assert events[0].outcome=="FILLED" and p.ledger.reconcile()["passed"]
+  baseline=p.save_baseline({**confirmation,"candidates":[{"code":"000001"}]},snapshot(NOW,"buy",10.2),snapshot(sell_at,"sell",10.4),at=sell_at);assert baseline["baseline_name"]=="equal_weight_confirmed_next_open" and baseline["net_return"] is not None and list((p.root/"paper/baselines").glob("*.json"))
+
+def test_paper_buy_is_capped_by_frozen_ask_depth_and_sell_requires_full_bid_depth():
+ with TemporaryDirectory() as d:
+  p=PaperProduction(d);confirmation={"outcome":"BUY_CANDIDATE","confirmation_id":"v5cd1-depth","trade_date":"2026-08-14","candidates":[{"code":"000001"}]};buy_snapshot=snapshot(NOW,"buy",10.2);quote=buy_snapshot.quotes[0];limited=MarketSnapshotV1.build(trade_date=buy_snapshot.trade_date,session="buy",batch_started_at=NOW-timedelta(seconds=2),batch_completed_at=NOW,quotes=[QuoteV1.from_mapping({**quote.__dict__,"ask1_volume":500})],expected_codes=1);event=p.buy(confirmation,limited,at=NOW,eligible_sell_date="2026-08-17");assert event.shares==500
+  sell_at=datetime(2026,8,17,9,30,tzinfo=CHINA_TZ);sell_snapshot=snapshot(sell_at,"sell",10.4);q=sell_snapshot.quotes[0];thin=MarketSnapshotV1.build(trade_date=sell_snapshot.trade_date,session="sell",batch_started_at=sell_at-timedelta(seconds=2),batch_completed_at=sell_at,quotes=[QuoteV1.from_mapping({**q.__dict__,"bid1_volume":100})],expected_codes=1);assert p.sell_all(thin,at=sell_at)==[]

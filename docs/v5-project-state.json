@@ -18,7 +18,7 @@
   "second_source_network_probe": "initial_http_200_then_remote_disconnect",
   "real_source_ready": false,
   "live_shadow_accepted": false,
-  "offline_deliverables": {"source_consensus":true,"versioned_universe":true,"native_paper_ledger":true,"explainable_funnel_v2":true,"disabled_shadow_schedule":true,"frozen_end_to_end_replay":true,"dashboard_entity_projection":true},
+  "offline_deliverables": {"source_consensus":true,"versioned_universe":true,"native_market_state":true,"native_paper_ledger":true,"paper_order_recovery":true,"strict_baseline_facts":true,"nine_task_entrypoint":true,"explainable_funnel_v2":true,"disabled_shadow_schedule":true,"frozen_end_to_end_replay":true,"dashboard_entity_projection":true},
   "notification_owner": "v5_only_from_2026-08-14",
   "v4_notification_tasks_os_state": "ready_but_code_guarded_retired_access_denied_on_disable",
   "v5_notification_tasks": ["AStock-V5-Morning-Push-20260814", "AStock-V5-Confirmation-Push-20260814"],
@@ -26,7 +26,7 @@
   "next_monday_shadow_tasks": {"trade_date":"2026-08-17","registered":7,"duplicate_universe_writer":false,"paper_or_broker_tasks":0},
   "weekend_preflight_task": "AStock-V5-Weekend-Preflight",
   "dashboard_supervisor_task": "AStock-V5-Dashboard-Logon",
-  "tests_passed": 314,
+  "tests_passed": 328,
   "migration_completion": {
     "complete": false,
     "v5_runtime_imports_v4": false,
@@ -58,6 +58,22 @@
     "native_ntp_clock_gate": {"threshold_seconds":0.5,"current_status":"failed_offset_about_0.616s","repair_requires_elevated_windows_token":true},
     "weekend_preflight_mode": "market_closed_diagnostic_no_market_access",
     "full_suite": "314 passed"
+  },
+  "latest_paper_strategy_hardening": {
+    "paper_entrypoints_implemented": true,
+    "paper_writer_enabled": false,
+    "ownership_gate": "v4_single_writer_until_cutover",
+    "initial_capital_third_cap": true,
+    "order_and_event_recovery": true,
+    "multi_process_lock": true,
+    "order_book_depth_gate": true,
+    "causal_execution_windows": true,
+    "round_trip_derivation": true,
+    "equal_weight_confirmed_next_open_baseline": true,
+    "native_verified_calendar": true,
+    "market_state_risk_gate": true,
+    "strategy_evidence": "INSUFFICIENT_EVIDENCE",
+    "full_suite": "328 passed"
   },
   "next_acceptance": ["real 08:30 native universe preparation", "real dual-source 09:24:30/14:49 shadow capture", "real 09:25/14:49/14:50/next-09:30 entity lineage", "V5-to-P3/P4/P5 cutover remains separately gated"]
 }

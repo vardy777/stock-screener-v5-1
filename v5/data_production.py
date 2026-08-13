@@ -63,12 +63,14 @@ class ConsensusAcquirer:
         report={"schema_version":"v5-source-consensus-v1","universe_id":universe.universe_id,"attempts":attempts,"accepted":False}
         if None in snapshots:return ConsensusResult(False,None,report)
         left,right=({q.code:q for q in snap.quotes} for snap in snapshots);common=sorted(set(left)&set(right));denominator=len(universe.codes);match=len(common)/denominator
-        price_bad=0;time_bad=0
+        price_bad=set();time_bad=set()
         for code in common:
             a,b=left[code],right[code];base=max(a.last_price,b.last_price)
-            if base<=0 or abs(a.last_price-b.last_price)/base>self.maximum_price_deviation:price_bad+=1
-            if abs((datetime.fromisoformat(a.exchange_time)-datetime.fromisoformat(b.exchange_time)).total_seconds())>self.maximum_time_difference_seconds:time_bad+=1
-        consistent=(len(common)-price_bad-time_bad)/denominator
+            if base<=0 or abs(a.last_price-b.last_price)/base>self.maximum_price_deviation:price_bad.add(code)
+            if abs((datetime.fromisoformat(a.exchange_time)-datetime.fromisoformat(b.exchange_time)).total_seconds())>self.maximum_time_difference_seconds:time_bad.add(code)
+        consistent=(len(common)-len(price_bad|time_bad))/denominator
         accepted=match>=self.minimum_match and consistent>=self.minimum_match
-        report.update({"matched_codes":len(common),"expected_codes":denominator,"match_ratio":match,"price_conflicts":price_bad,"time_conflicts":time_bad,"consistent_ratio":consistent,"accepted":accepted})
-        return ConsensusResult(accepted,snapshots[0] if accepted else None,report)
+        report.update({"matched_codes":len(common),"expected_codes":denominator,"match_ratio":match,"price_conflicts":len(price_bad),"time_conflicts":len(time_bad),"conflict_codes":sorted(price_bad|time_bad),"consistent_ratio":consistent,"accepted":accepted})
+        primary=max(snapshots,key=lambda snapshot:(datetime.fromisoformat(snapshot.batch_completed_at),snapshot.snapshot_id))
+        report["selected_snapshot_id"]=primary.snapshot_id if accepted else ""
+        return ConsensusResult(accepted,primary if accepted else None,report)

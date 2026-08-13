@@ -5,13 +5,15 @@ from tempfile import TemporaryDirectory
 import pytest
 from v5.core import CHINA_TZ,ContractViolation
 from v5.notification import build_payload,send
+from v5.market_state import MarketStateV1
 def facts(root):
-    day="2026-08-14";(root/"acquisition"/day).mkdir(parents=True);(root/"morning_pools"/day).mkdir(parents=True);(root/"confirmations"/day).mkdir(parents=True)
+    day="2026-08-14";(root/"acquisition"/day).mkdir(parents=True);(root/"morning_pools"/day).mkdir(parents=True);(root/"confirmations"/day).mkdir(parents=True);(root/"market_states"/day).mkdir(parents=True)
     (root/"acquisition"/day/"a.json").write_text(json.dumps({"accepted":True,"stage":"morning","requested_at":f"{day}T09:25:00+08:00","selected_snapshot_id":"ms1-a"}),encoding="utf-8")
     (root/"acquisition"/day/"b.json").write_text(json.dumps({"accepted":True,"stage":"signal","requested_at":f"{day}T14:49:00+08:00","selected_snapshot_id":"ms1-b"}),encoding="utf-8")
     candidate={"name":"测试","code":"000001","rank":1,"change_pct":2.3,"reasons":["可交易"],"risks":["隔夜风险"]}
-    (root/"morning_pools"/day/"m.json").write_text(json.dumps({"pool_id":"v5mp1-test","created_at":f"{day}T09:25:00+08:00","snapshot_id":"ms1-a","candidates":[candidate]}),encoding="utf-8")
-    (root/"confirmations"/day/"c.json").write_text(json.dumps({"confirmation_id":"v5cd1-test","decided_at":f"{day}T14:50:00+08:00","morning_pool_id":"v5mp1-test","snapshot_id":"ms1-b","candidates":[candidate]}),encoding="utf-8");return day
+    morning_state=MarketStateV1(day,"ms1-a",4900,3000,1900,0,0,0,0,1e12,.01,3000/4900,0,"STRONG",True,());signal_state=MarketStateV1(day,"ms1-b",4900,3000,1900,0,0,0,0,1e12,.01,3000/4900,0,"STRONG",True,())
+    (root/"morning_pools"/day/"m.json").write_text(json.dumps({"pool_id":"v5mp1-test","created_at":f"{day}T09:25:00+08:00","snapshot_id":"ms1-a","market_state_id":morning_state.market_state_id,"candidates":[candidate]}),encoding="utf-8")
+    (root/"confirmations"/day/"c.json").write_text(json.dumps({"confirmation_id":"v5cd1-test","decided_at":f"{day}T14:50:00+08:00","morning_pool_id":"v5mp1-test","snapshot_id":"ms1-b","market_state_id":signal_state.market_state_id,"candidates":[candidate]}),encoding="utf-8");(root/"market_states"/day/f"{morning_state.market_state_id}.json").write_text(json.dumps(morning_state.to_dict()),encoding="utf-8");(root/"market_states"/day/f"{signal_state.market_state_id}.json").write_text(json.dumps(signal_state.to_dict()),encoding="utf-8");return day
 def test_payload_and_dashboard_share_final_v5_entity():
     with TemporaryDirectory() as d:
         root=Path(d);day=facts(root);morning=build_payload(root,day,"morning");confirmation=build_payload(root,day,"confirmation");assert morning["parent_entity_id"]=="v5mp1-test";assert confirmation["parent_entity_id"]=="v5cd1-test";assert "早盘候选只观察" in morning["content"] and "不展示买价" in morning["content"];assert "本地严格模拟" in confirmation["content"] and "不预测卖价" in confirmation["content"] and "不连接券商" in confirmation["content"]

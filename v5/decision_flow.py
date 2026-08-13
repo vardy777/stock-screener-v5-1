@@ -22,7 +22,8 @@ class MorningPoolV5:
     trade_date:str;created_at:str;funnel_id:str;snapshot_id:str;market_state_id:str;candidates:tuple[dict,...];schema_version:str="v5-morning-pool-v1"
     @classmethod
     def from_funnel(cls,funnel:CandidateFunnelV1,*,created_at:Any):
-        if funnel.stage!="morning" or not funnel.accepted:raise ContractViolation("morning funnel: accepted required")
+        if funnel.stage!="morning":raise ContractViolation("morning funnel: morning stage required")
+        if not funnel.accepted and funnel.candidates:raise ContractViolation("morning funnel: rejected funnel must be empty")
         return cls(funnel.trade_date,_time(created_at,"created_at"),funnel.funnel_id,funnel.snapshot_id,funnel.market_state_id,tuple(_plain(x) for x in funnel.candidates))
     @property
     def pool_id(self):return _id("v5mp1",self.to_dict(include_id=False))

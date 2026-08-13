@@ -20,7 +20,7 @@ def health(root,day,now):
     try:universe=load_universe(root,day,as_of=now,require_native=True);native_universe_exists=bool(universe.codes)
     except Exception:native_universe_exists=False
     lineage=lineage_audit(root,day,as_of=now)
-    checks={"native_universe_exists":native_universe_exists,"morning_fact_exists":morning is not None,"confirmation_fact_exists":confirmation is not None,"morning_notification_accepted":False,"confirmation_notification_accepted":False,"lineage_accepted":lineage["passed"],"paper_ledger_reconciled":PaperLedger(root/"paper").reconcile()["passed"],"paper_writer_exclusive":ownership["paper_writer"] in {"v4","v5"}}
+    ledger=PaperLedger(root/"paper");checks={"native_universe_exists":native_universe_exists,"morning_fact_exists":morning is not None,"confirmation_fact_exists":confirmation is not None,"morning_notification_accepted":False,"confirmation_notification_accepted":False,"lineage_accepted":lineage["passed"],"paper_ledger_reconciled":ledger.reconcile()["passed"],"paper_recovery_clean":ledger.recovery_report()["status"]=="CLEAN","paper_writer_exclusive":ownership["paper_writer"] in {"v4","v5"}}
     for stage in ("morning","confirmation"):
         path=notifications/f"{stage}.json"
         checks[f"{stage}_notification_accepted"]=path.exists() and json.loads(path.read_text(encoding="utf-8")).get("outcome")=="ACCEPTED"

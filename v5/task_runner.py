@@ -4,7 +4,7 @@ from datetime import datetime
 import json,traceback
 from pathlib import Path
 from .core import CHINA_TZ
-from .jobs import produce,freeze,confirm_frozen
+from .jobs import produce,freeze,confirm_frozen,paper_buy,paper_sell
 from .notification import send
 from .operations import health,maintenance
 from .shadow_schedule import ShadowScheduler
@@ -19,8 +19,10 @@ WINDOWS={
     "confirmation_push":((14,50,0),(14,52,59)),
     "health_check":((14,53,0),(15,9,59)),
     "maintenance":((15,10,0),(23,59,59)),
+    "paper_sell":((9,30,0),(9,35,59)),
+    "paper_buy":((14,50,0),(14,51,59)),
 }
-SAFE_DEPENDENCIES={"morning_push":("morning_pool",),"confirmation":("morning_pool","feature_freeze"),"confirmation_push":("confirmation",),"health_check":("morning_pool","morning_push","feature_freeze","confirmation","confirmation_push"),"maintenance":("health_check",)}
+SAFE_DEPENDENCIES={"morning_push":("morning_pool",),"confirmation":("morning_pool","feature_freeze"),"confirmation_push":("confirmation",),"paper_buy":("confirmation",),"health_check":("morning_pool","morning_push","feature_freeze","confirmation","confirmation_push"),"maintenance":("health_check",)}
 
 def inside_window(task,now):
     if task not in WINDOWS:return False
@@ -31,7 +33,7 @@ def run(root,task,*,now=None,failure_alert_env=None,clock_checker=None):
     root=Path(root);now=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=now.date().isoformat();scheduler=ShadowScheduler(root);outcome="SUCCESS";details={}
     try:
         if not inside_window(task,now):raise ValueError(f"V5 task outside allowed window: {task} at {now.isoformat()}")
-        if task in {"morning_pool","feature_freeze"}:
+        if task in {"morning_pool","feature_freeze","paper_sell"}:
             clock=(clock_checker or check_clock)()
             if not clock.get("passed"):raise ValueError(f"V5 causal clock rejected: {clock.get('reason','UNKNOWN')}")
             details["clock_gate"]=clock
@@ -42,6 +44,8 @@ def run(root,task,*,now=None,failure_alert_env=None,clock_checker=None):
         elif task=="feature_freeze":details.update(freeze(root,now=now))
         elif task=="confirmation":details=confirm_frozen(root,now=now)
         elif task=="confirmation_push":details=send(root,day,"confirmation",root.parent/".env",as_of=now)
+        elif task=="paper_buy":details=paper_buy(root,now=now)
+        elif task=="paper_sell":details=paper_sell(root,now=now)
         elif task=="health_check":details=health(root,day,now);outcome="SUCCESS" if details["passed"] else "FAILED"
         elif task=="maintenance":details=maintenance(root,day,now);outcome="SUCCESS" if details["passed"] else "FAILED"
         else:raise ValueError("unsupported V5 task")

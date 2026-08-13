@@ -43,6 +43,9 @@ class V5DataAndFunnelTests(unittest.TestCase):
         rejected=ConsensusAcquirer(Source("sina",left),Source("eastmoney",conflict)).acquire(universe,stage="signal",now=NOW)
         self.assertFalse(rejected.accepted);self.assertEqual(rejected.report["price_conflicts"],1)
 
+    def test_consensus_conflict_union_is_not_double_counted_and_latest_strict_snapshot_is_primary(self):
+        universe=UniverseV1.build(trade_date="2026-08-13",created_at=NOW,codes=["000001","000002"],sources=["test"]);left=snapshot([quote("000001"),quote("000002")]);later_at=NOW+timedelta(seconds=1);later=MarketSnapshotV1.build(trade_date="2026-08-13",session="signal",batch_started_at=NOW-timedelta(seconds=1),batch_completed_at=later_at,quotes=[quote("000001"),quote("000002")],expected_codes=2);result=ConsensusAcquirer(Source("sina",left),Source("eastmoney",later)).acquire(universe,stage="signal",now=NOW);assert result.accepted and result.primary.snapshot_id==later.snapshot_id and result.report["selected_snapshot_id"]==later.snapshot_id
+
     def test_consensus_never_merges_two_incomplete_sources_to_inflate_coverage(self):
         universe=UniverseV1.build(trade_date="2026-08-13",created_at=NOW,codes=["000001","000002"],sources=["test"])
         result=ConsensusAcquirer(Source("one",snapshot([quote("000001")],2)),Source("two",snapshot([quote("000002")],2))).acquire(universe,stage="signal",now=NOW)
@@ -90,6 +93,11 @@ class V5DataAndFunnelTests(unittest.TestCase):
     def test_invalid_market_fails_closed_with_explained_empty_funnel(self):
         funnel=CandidateFunnel();result=funnel.run(snapshot([quote("000001"),quote("000002")]),market_state_id="mstate1-test",market_valid=False,stage="morning")
         self.assertFalse(result.accepted);self.assertEqual(result.candidates,());self.assertEqual(result.stages[3]["rejected"]["market_data_invalid"],2)
+    def test_morning_observation_does_not_require_ask_but_confirmation_does(self):
+        no_ask=snapshot([quote("000001",ask1=0,ask1_volume=0)],1);funnel=CandidateFunnel();morning=funnel.run(no_ask,market_state_id="mstate1-test",market_valid=True,stage="morning");assert [x["code"] for x in morning.candidates]==["000001"]
+        confirmation=funnel.run(no_ask,market_state_id="mstate1-test",market_valid=True,stage="confirmation",allowed_codes=["000001"]);assert confirmation.candidates==() and confirmation.stages[1]["rejected"]["missing_buy_book"]==1
+    def test_special_treatment_and_delisting_names_are_transparently_excluded(self):
+        rows=[quote("000001",name="*ST测试"),quote("000002",name="退市测试"),quote("000003",name="正常股票")];result=CandidateFunnel().run(snapshot(rows,3),market_state_id="mstate1-test",market_valid=True,stage="morning");assert [x["code"] for x in result.candidates]==["000003"] and result.stages[1]["rejected"]["special_treatment"]==2
     def test_v5_facts_are_content_addressed_immutable(self):
         good=snapshot([quote("000001"),quote("000002")]);acq=MultiSourceAcquirer([Source("one",good)]).acquire(["000001","000002"],stage="signal",now=NOW)
         funnel=CandidateFunnel().run(good,market_state_id="mstate1-test",market_valid=True,stage="morning")
