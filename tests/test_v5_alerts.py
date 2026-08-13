@@ -18,5 +18,5 @@ def test_operational_alert_requires_real_200_and_is_idempotent():
 def test_task_failure_remains_failed_even_when_alert_is_accepted():
     now=datetime(2026,8,14,9,24,30,tzinfo=CHINA_TZ)
     with TemporaryDirectory() as d,patch("v5.task_runner.produce",side_effect=RuntimeError("source down")),patch("v5.task_runner.send_failure",return_value={"outcome":"ACCEPTED"}):
-        result=run(Path(d),"morning_pool",now=now,failure_alert_env=Path(d)/".env")
+        result=run(Path(d),"morning_pool",now=now,failure_alert_env=Path(d)/".env",clock_checker=lambda:{"passed":True,"reason":"OK"})
         assert result["passed"] is False and result["run"]["details"]["failure_alert"]["outcome"]=="ACCEPTED"

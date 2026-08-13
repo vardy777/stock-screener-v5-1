@@ -9,6 +9,7 @@ from .notification import send
 from .operations import health,maintenance
 from .shadow_schedule import ShadowScheduler
 from .alerts import send_failure
+from .clock_gate import check as check_clock
 
 WINDOWS={
     "morning_pool":((9,24,20),(9,25,19)),
@@ -26,15 +27,19 @@ def inside_window(task,now):
     start,end=WINDOWS[task];clock=(now.hour,now.minute,now.second)
     return start<=clock<=end
 
-def run(root,task,*,now=None,failure_alert_env=None):
+def run(root,task,*,now=None,failure_alert_env=None,clock_checker=None):
     root=Path(root);now=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=now.date().isoformat();scheduler=ShadowScheduler(root);outcome="SUCCESS";details={}
     try:
         if not inside_window(task,now):raise ValueError(f"V5 task outside allowed window: {task} at {now.isoformat()}")
+        if task in {"morning_pool","feature_freeze"}:
+            clock=(clock_checker or check_clock)()
+            if not clock.get("passed"):raise ValueError(f"V5 causal clock rejected: {clock.get('reason','UNKNOWN')}")
+            details["clock_gate"]=clock
         missing=[name for name in SAFE_DEPENDENCIES.get(task,()) if name not in scheduler.successful_tasks(day)]
         if missing:raise ValueError(f"V5 task dependencies incomplete: {', '.join(missing)}")
-        if task=="morning_pool":details=produce(root,"morning",now=now)
+        if task=="morning_pool":details.update(produce(root,"morning",now=now))
         elif task=="morning_push":details=send(root,day,"morning",root.parent/".env",as_of=now)
-        elif task=="feature_freeze":details=freeze(root,now=now)
+        elif task=="feature_freeze":details.update(freeze(root,now=now))
         elif task=="confirmation":details=confirm_frozen(root,now=now)
         elif task=="confirmation_push":details=send(root,day,"confirmation",root.parent/".env",as_of=now)
         elif task=="health_check":details=health(root,day,now);outcome="SUCCESS" if details["passed"] else "FAILED"

@@ -16,5 +16,5 @@ def test_preflight_retries_native_universe_refresh_before_failing(tmp_path):
  with patch("v5.preflight.datetime") as clock,patch("v5.preflight.refresh_universe",side_effect=refresh),patch("v5.preflight.load_universe") as load,patch("v5.preflight.ShadowScheduler") as scheduler,patch("v5.preflight.SinaRealtimeSource"),patch("v5.preflight.EastmoneyRealtimeSource"):
   clock.now.return_value=now;load.return_value.codes=tuple(str(x).zfill(6) for x in range(4000));load.return_value.sources=("eastmoney_realtime_market_directory",);scheduler.return_value.validate.return_value={"passed":True}
   for source in (v5.preflight.SinaRealtimeSource.return_value,v5.preflight.EastmoneyRealtimeSource.return_value):source.capture.return_value.quotes=[]
-  report=run(tmp_path,refresh_attempts=3,sleeper=lambda _:None)
+  report=run(tmp_path,refresh_attempts=3,sleeper=lambda _:None,clock_checker=lambda:{"passed":True,"reason":"OK"})
  assert report["details"]["universe_refresh_attempts"]==3 and len(calls)==3

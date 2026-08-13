@@ -10,8 +10,10 @@ from .sina_source import SinaRealtimeSource
 from .jobs import load_universe
 from .shadow_schedule import ShadowScheduler
 from .universe_refresh import refresh as refresh_universe
-def run(root,day=None,*,refresh_attempts=3,sleeper=None):
+from .clock_gate import check as check_clock
+def run(root,day=None,*,refresh_attempts=3,sleeper=None,clock_checker=None):
  root=Path(root);now=datetime.now(CHINA_TZ);day=day or now.date().isoformat();checks={};details={}
+ clock=(clock_checker or check_clock)();checks["causal_clock"]=clock["passed"];details["clock_gate"]=clock
  if now.weekday()<5 and day==now.date().isoformat():
   sleeper=sleeper or time.sleep;errors=[]
   for attempt in range(1,max(1,int(refresh_attempts))+1):
