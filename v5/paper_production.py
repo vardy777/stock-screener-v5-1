@@ -10,8 +10,10 @@ from .paper import PaperLedger,PaperEngine,PaperOrderV1
 import hashlib,os
 
 def load_snapshot(path):
-    raw=json.loads(Path(path).read_text(encoding="utf-8"));quotes=[QuoteV1.from_mapping(x) for x in raw["quotes"]]
-    return MarketSnapshotV1.build(trade_date=raw["trade_date"],session=raw["session"],batch_started_at=raw["batch_started_at"],batch_completed_at=raw["batch_completed_at"],quotes=quotes,expected_codes=raw["quality"]["expected_codes"])
+    path=Path(path);raw=json.loads(path.read_text(encoding="utf-8"));quotes=[QuoteV1.from_mapping(x) for x in raw["quotes"]]
+    snapshot=MarketSnapshotV1.build(trade_date=raw["trade_date"],session=raw["session"],batch_started_at=raw["batch_started_at"],batch_completed_at=raw["batch_completed_at"],quotes=quotes,expected_codes=raw["quality"]["expected_codes"])
+    if raw.get("snapshot_id")!=snapshot.snapshot_id or path.stem!=snapshot.snapshot_id:raise ContractViolation("V5 snapshot content-address mismatch")
+    return snapshot
 class PaperProduction:
     def __init__(self,root):self.root=Path(root);self.ledger=PaperLedger(self.root/"paper");self.engine=PaperEngine(self.ledger)
     def buy(self,confirmation,snapshot,*,at,eligible_sell_date):

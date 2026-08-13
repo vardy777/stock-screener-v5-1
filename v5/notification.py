@@ -8,6 +8,7 @@ from urllib.request import Request,urlopen
 from .core import CHINA_TZ,ContractViolation
 from .fact_reader import latest
 from .market_state import MarketStateV1
+from .decision_flow import MorningPoolV5,ConfirmationV5
 
 MAXIMUM_NOTIFICATION_QUOTE_AGE_SECONDS=120
 
@@ -31,8 +32,14 @@ def _acquisition(root,day,stage,*,as_of=None):
 def build_payload(root,trade_date,stage,*,as_of=None):
     acquisition=_acquisition(root,trade_date,"morning" if stage=="morning" else "signal",as_of=as_of)
     if acquisition.get("accepted") is not True:raise ContractViolation("V5 acquisition not accepted")
-    if stage=="morning":entity=_latest(root,"morning_pools",trade_date,as_of=as_of);parent=entity["pool_id"];title=f"V5早盘观察 {trade_date}";action="早盘候选只观察，不买入；等待14:49冻结和14:50同母池确认"
-    elif stage=="confirmation":entity=_latest(root,"confirmations",trade_date,as_of=as_of);parent=entity["confirmation_id"];title=f"V5尾盘确认 {trade_date}";action=("存在尾盘确认候选，仅进入本地严格模拟，不发送券商订单" if entity.get("candidates") else "没有候选通过尾盘确认，保持空仓")
+    if stage=="morning":
+        entity=_latest(root,"morning_pools",trade_date,as_of=as_of);validated=MorningPoolV5(entity["trade_date"],entity["created_at"],entity["funnel_id"],entity["snapshot_id"],entity["market_state_id"],tuple(entity["candidates"]));parent=validated.pool_id
+        if entity.get("pool_id")!=parent:raise ContractViolation("V5 notification morning entity hash mismatch")
+        title=f"V5早盘观察 {trade_date}";action="早盘候选只观察，不买入；等待14:49冻结和14:50同母池确认"
+    elif stage=="confirmation":
+        entity=_latest(root,"confirmations",trade_date,as_of=as_of);validated=ConfirmationV5(entity["trade_date"],entity["decided_at"],entity["morning_pool_id"],entity["funnel_id"],entity["snapshot_id"],entity["market_state_id"],tuple(entity["candidates"]),tuple(entity["changes"]),entity["outcome"]);parent=validated.confirmation_id
+        if entity.get("confirmation_id")!=parent:raise ContractViolation("V5 notification confirmation entity hash mismatch")
+        title=f"V5尾盘确认 {trade_date}";action=("存在尾盘确认候选，仅进入本地严格模拟，不发送券商订单" if entity.get("candidates") else "没有候选通过尾盘确认，保持空仓")
     else:raise ContractViolation("unsupported V5 notification stage")
     if acquisition.get("selected_snapshot_id")!=entity.get("snapshot_id"):raise ContractViolation("V5 notification snapshot lineage mismatch")
     maximum_quote_age=_validate_snapshot_freshness(root,trade_date,entity.get("snapshot_id",""),as_of)
