@@ -18,7 +18,7 @@ def acquisition(stage,at,snapshot):
 
 def test_dashboard_never_pairs_morning_pool_with_signal_acquisition():
     with TemporaryDirectory() as d:
-        root=Path(d);write(root,"acquisition","m.json",acquisition("morning",MORNING,"ms1-morning"));write(root,"acquisition","s.json",acquisition("signal",MORNING.replace(hour=14,minute=49),"ms1-signal"));write(root,"morning_pools","m.json",{"trade_date":DAY,"created_at":MORNING.isoformat(),"funnel_id":"f1","snapshot_id":"ms1-morning","market_state_id":"state","candidates":[]})
+        root=Path(d);write(root,"acquisition","m.json",acquisition("morning",MORNING,"ms1-morning"));write(root,"acquisition","s.json",acquisition("signal",MORNING.replace(hour=14,minute=49),"ms1-signal"));write(root,"morning_pools","m.json",{"trade_date":DAY,"created_at":MORNING.isoformat(),"funnel_id":"f1","snapshot_id":"ms1-morning","market_state_id":"","candidates":[]})
         model=V5ReadOnlySources(root).build(DAY,as_of=MORNING.replace(hour=14,minute=49,second=30)).to_dict()
         assert model["today"]["snapshot_id"]=="ms1-morning" and model["today"]["source"]=="morning"
 
@@ -32,6 +32,12 @@ def test_dashboard_rejects_acquisition_snapshot_mismatch():
     with TemporaryDirectory() as d:
         root=Path(d);write(root,"acquisition","m.json",acquisition("morning",MORNING,"ms1-other"));write(root,"morning_pools","m.json",{"trade_date":DAY,"created_at":MORNING.isoformat(),"funnel_id":"f1","snapshot_id":"ms1-morning","market_state_id":"state","candidates":[]})
         with pytest.raises(ValueError,match="acquisition snapshot lineage mismatch"):
+            V5ReadOnlySources(root).build(DAY,as_of=MORNING)
+
+def test_dashboard_rejects_missing_market_state_named_by_entity():
+    with TemporaryDirectory() as d:
+        root=Path(d);write(root,"acquisition","m.json",acquisition("morning",MORNING,"ms1-morning"));write(root,"morning_pools","m.json",{"trade_date":DAY,"created_at":MORNING.isoformat(),"funnel_id":"f1","snapshot_id":"ms1-morning","market_state_id":"mstate1-missing","candidates":[]})
+        with pytest.raises(ValueError,match="market state missing"):
             V5ReadOnlySources(root).build(DAY,as_of=MORNING)
 
 def test_dashboard_rejects_confirmation_from_other_mother_pool():

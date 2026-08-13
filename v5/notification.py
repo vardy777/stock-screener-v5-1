@@ -39,6 +39,7 @@ def build_payload(root,trade_date,stage,*,as_of=None):
     market_path=Path(root)/"market_states"/trade_date/f"{entity.get('market_state_id','')}.json"
     if not market_path.exists():raise ContractViolation("V5 notification market state missing")
     market=MarketStateV1.from_mapping(json.loads(market_path.read_text(encoding="utf-8"))).to_dict()
+    if market["market_state_id"]!=entity.get("market_state_id"):raise ContractViolation("V5 notification market state id mismatch")
     if market["snapshot_id"]!=entity.get("snapshot_id"):raise ContractViolation("V5 notification market state snapshot mismatch")
     candidates=entity.get("candidates",[]);rows=[]
     for row in candidates:

@@ -36,11 +36,12 @@ class V5ReadOnlySources:
         state_id=confirmation.market_state_id if confirmation else morning.market_state_id if morning else "";market_state=None
         if state_id:
             state_path=self.root/"market_states"/trade_date/f"{state_id}.json"
-            if state_path.exists():
-                validated=MarketStateV1.from_mapping(json.loads(state_path.read_text(encoding="utf-8")))
-                expected_snapshot=confirmation.snapshot_id if confirmation else morning.snapshot_id
-                if validated.snapshot_id!=expected_snapshot:raise ValueError("dashboard market state snapshot mismatch")
-                market_state=validated.to_dict()
+            if not state_path.exists():raise ValueError("dashboard market state missing")
+            validated=MarketStateV1.from_mapping(json.loads(state_path.read_text(encoding="utf-8")))
+            if validated.market_state_id!=state_id:raise ValueError("dashboard market state id mismatch")
+            expected_snapshot=confirmation.snapshot_id if confirmation else morning.snapshot_id
+            if validated.snapshot_id!=expected_snapshot:raise ValueError("dashboard market state snapshot mismatch")
+            market_state=validated.to_dict()
         from .paper import PaperLedger
         ledger=PaperLedger(self.root/"paper");trips=ledger.round_trips(as_of=as_of)
         baselines={}
