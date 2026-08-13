@@ -20,11 +20,11 @@ $dashboardSupervised=[bool]($dashboard -and $dashboard.State -ne "Disabled" -and
 $v5Dashboard=Get-ScheduledTask -TaskName "AStock-V5-Dashboard-Logon" -ErrorAction SilentlyContinue
 $v5DashboardSupervised=[bool]($v5Dashboard -and $v5Dashboard.State -ne "Disabled" -and $v5Dashboard.Actions.Arguments -like '*v5\scripts\run_v5_dashboard.ps1*' -and $v5Dashboard.Settings.ExecutionTimeLimit -eq "PT0S" -and $v5Dashboard.Settings.RestartCount -ge 1)
 $v5Tasks=@(Get-ScheduledTask -TaskName "AStock-V5-*" -ErrorAction SilentlyContinue)
-$requiredV5=@("readiness","morning_pool","morning_push","feature_freeze","confirmation","confirmation_push","health_check","maintenance")
+$requiredV5=@("readiness","morning_pool","morning_push","feature_freeze","confirmation","confirmation_push","health_check","maintenance","live_acceptance")
 $v5Rows=foreach($task in $v5Tasks){
  $action=$task.Actions|Select-Object -First 1;$argument=[string]$action.Arguments
- $kind=if($argument -match 'v5_task.py"?\s+([a-z_]+)'){$Matches[1]}elseif($argument -match '-m v5\.preflight\s+--trade-date\s+(\d{4}-\d{2}-\d{2})'){"readiness"}elseif($argument -match '-m v5\.preflight'){"preflight"}else{"unknown"}
- [pscustomobject]@{task_name=$task.TaskName;state=[string]$task.State;kind=$kind;v5_bound=[bool]($argument -match 'v5[\\/]scripts[\\/]v5_task.py|-m v5\.preflight');paper_or_broker=[bool]($argument -match 'paper_buy|paper_sell|broker');allow_battery=[bool](-not $task.Settings.DisallowStartIfOnBatteries);wake_to_run=[bool]$task.Settings.WakeToRun;restart_count=[int]$task.Settings.RestartCount}
+ $kind=if($argument -match 'v5_task.py"?\s+([a-z_]+)'){$Matches[1]}elseif($argument -match '-m v5\.preflight\s+--trade-date\s+(\d{4}-\d{2}-\d{2})'){"readiness"}elseif($argument -match 'live_acceptance.py"?\s+--trade-date\s+(\d{4}-\d{2}-\d{2})\s+--save'){"live_acceptance"}elseif($argument -match '-m v5\.preflight'){"preflight"}else{"unknown"}
+ [pscustomobject]@{task_name=$task.TaskName;state=[string]$task.State;kind=$kind;v5_bound=[bool]($argument -match 'v5[\\/]scripts[\\/]v5_task.py|-m v5\.preflight|v5[\\/]scripts[\\/]live_acceptance.py');paper_or_broker=[bool]($argument -match 'paper_buy|paper_sell|broker');allow_battery=[bool](-not $task.Settings.DisallowStartIfOnBatteries);wake_to_run=[bool]$task.Settings.WakeToRun;restart_count=[int]$task.Settings.RestartCount}
 }
 $targetDate=(Get-Date).Date.AddDays(1)
 while($targetDate.DayOfWeek -in @([DayOfWeek]::Saturday,[DayOfWeek]::Sunday)){$targetDate=$targetDate.AddDays(1)}

@@ -13,11 +13,17 @@ $readinessName="AStock-V5-Readiness-$suffix"
 $readinessAction=New-ScheduledTaskAction -Execute $python -Argument ('-X utf8 -m v5.preflight --trade-date {0}' -f $date) -WorkingDirectory $root
 $readinessTrigger=New-ScheduledTaskTrigger -Once -At ([datetime]::Parse("$date 08:30:00"))
 Register-ScheduledTask -TaskName $readinessName -Action $readinessAction -Trigger $readinessTrigger -Settings $settings -Principal $principal -Description "V5 native universe readiness; diagnostic and fail-closed; no notification, paper or broker writes" -Force | Out-Null
+$acceptanceName="AStock-V5-Live-Acceptance-$suffix"
+$acceptanceScript=Join-Path $root "v5\scripts\live_acceptance.py"
+$acceptanceAction=New-ScheduledTaskAction -Execute $python -Argument ('-X utf8 "{0}" --trade-date {1} --save' -f $acceptanceScript,$date) -WorkingDirectory $root
+$acceptanceTrigger=New-ScheduledTaskTrigger -Once -At ([datetime]::Parse("$date 15:20:00"))
+Register-ScheduledTask -TaskName $acceptanceName -Action $acceptanceAction -Trigger $acceptanceTrigger -Settings $settings -Principal $principal -Description "V5 read-only live evidence summary; no notification, paper or broker writes" -Force | Out-Null
 foreach($spec in $specs){
  $name="AStock-V5-$($spec[0])-$suffix";$action=New-ScheduledTaskAction -Execute $python -Argument ('-X utf8 "{0}" {1}' -f $script,$spec[1]) -WorkingDirectory $root;$trigger=New-ScheduledTaskTrigger -Once -At ([datetime]::Parse("$date $($spec[2])"))
  Register-ScheduledTask -TaskName $name -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description ("V5 safe shadow; no broker/paper writes: "+$spec[1]) -Force | Out-Null
 }
 $readiness=Get-ScheduledTask -TaskName $readinessName -ErrorAction Stop
+$acceptance=Get-ScheduledTask -TaskName $acceptanceName -ErrorAction Stop
 $installed=@($specs|ForEach-Object{Get-ScheduledTask -TaskName ("AStock-V5-$($_[0])-$suffix") -ErrorAction Stop})
-if($installed.Count -ne 7 -or $readiness.State -eq "Disabled" -or $readiness.Actions.Arguments -notlike "*--trade-date $date*" -or $readiness.Settings.RestartCount -lt 3){throw "V5 safe shadow registration incomplete"}
-@($readiness)+$installed|Select-Object TaskName,State,@{n="Arguments";e={$_.Actions.Arguments}}
+if($installed.Count -ne 7 -or $readiness.State -eq "Disabled" -or $readiness.Actions.Arguments -notlike "*--trade-date $date*" -or $readiness.Settings.RestartCount -lt 3 -or $acceptance.State -eq "Disabled" -or $acceptance.Actions.Arguments -notlike "*--trade-date $date --save*"){throw "V5 safe shadow registration incomplete"}
+@($readiness,$acceptance)+$installed|Select-Object TaskName,State,@{n="Arguments";e={$_.Actions.Arguments}}

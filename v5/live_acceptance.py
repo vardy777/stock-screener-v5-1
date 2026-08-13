@@ -1,7 +1,7 @@
 """Read-only V5 live-window evidence summary. Never mutates facts or sends."""
 from __future__ import annotations
 from datetime import datetime
-import json
+import hashlib,json,os
 from pathlib import Path
 from .core import CHINA_TZ
 from .fact_reader import latest
@@ -39,4 +39,13 @@ def build(root,day,*,now=None):
     report["lineage"]=lineage_audit(root,day,as_of=current) if morning and signal else {"passed":False,"reason":"WINDOW_CHAIN_INCOMPLETE"}
     required=("morning_pool","morning_push","feature_freeze","confirmation","confirmation_push","health_check","maintenance")
     report["complete"]=bool(report["readiness"]["latest_passed"] is True and all(completed.get(task)=="SUCCESS" for task in required) and all(accepted_receipts.values()) and report["lineage"].get("passed") is True)
+    return report
+
+
+def save(root,report):
+    root=Path(root);unsigned=json.dumps(report,ensure_ascii=False,sort_keys=True,separators=(",",":"));report=dict(report);report["report_id"]="liveacc1-"+hashlib.sha256(unsigned.encode()).hexdigest()[:24];raw=json.dumps(report,ensure_ascii=False,sort_keys=True,separators=(",",":"));path=root/"live_acceptance"/report["trade_date"]/f"{report['report_id']}.json";path.parent.mkdir(parents=True,exist_ok=True);tmp=path.with_suffix(f".{os.getpid()}.tmp");tmp.write_text(raw,encoding="utf-8")
+    try:os.link(tmp,path)
+    except FileExistsError:
+        if path.read_text(encoding="utf-8")!=raw:raise RuntimeError("live acceptance immutable collision")
+    finally:tmp.unlink(missing_ok=True)
     return report
