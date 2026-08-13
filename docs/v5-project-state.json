@@ -1,6 +1,8 @@
 {
   "schema_version": "v5-project-state-v1",
   "project": "a-share-overnight-v5",
+  "display_name": "A股隔夜交易研究系统 V5",
+  "dashboard": {"url":"http://127.0.0.1:8899/","production_8898_cutover":false},
   "canonical_project": true,
   "development_target": "v5_only",
   "legacy_policy": "v4_phase1_read_only_migration_and_rollback_only_no_new_business_features",

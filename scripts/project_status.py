@@ -11,6 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 STATE_PATH = ROOT / "docs" / "project-state.json"
+V5_STATE_PATH = ROOT / "docs" / "v5-project-state.json"
 REQUIRED_FILES = (
     "AGENTS.md",
     "PROJECT.md",
@@ -27,7 +28,11 @@ REQUIRED_FILES = (
 
 
 def load_state() -> dict:
+    """Legacy V4 state reader retained for migration/rollback tests."""
     return json.loads(STATE_PATH.read_text(encoding="utf-8"))
+
+def load_canonical_state() -> dict:
+    return json.loads(V5_STATE_PATH.read_text(encoding="utf-8"))
 
 
 def v3_import_violations() -> list[str]:
@@ -40,25 +45,16 @@ def v3_import_violations() -> list[str]:
 
 
 def runtime_observation() -> dict:
-    journal_dir = ROOT / "v4" / "data" / "candidate_journal"
-    execution_dir = ROOT / "v4" / "data" / "p3" / "execution_batches"
-    journals = sorted(journal_dir.glob("*.json")) if journal_dir.exists() else []
-    if not journals:
-        return {"available": False}
-    journal = json.loads(journals[-1].read_text(encoding="utf-8"))
-    trade_date = str(journal.get("trade_date", ""))
-    buy_path = execution_dir / trade_date / "buy.json"
-    buy = json.loads(buy_path.read_text(encoding="utf-8")) if buy_path.exists() else {}
+    pools=sorted((ROOT/"v5/data/morning_pools").glob("*/*.json")) if (ROOT/"v5/data/morning_pools").exists() else []
+    if not pools:return {"available":False}
+    pool=json.loads(pools[-1].read_text(encoding="utf-8"));trade_date=str(pool.get("trade_date",""));confirmations=sorted((ROOT/"v5/data/confirmations"/trade_date).glob("*.json")) if (ROOT/"v5/data/confirmations"/trade_date).exists() else []
+    confirmation=json.loads(confirmations[-1].read_text(encoding="utf-8")) if confirmations else {}
     return {
         "available": True,
         "trade_date": trade_date,
-        "morning_candidates": len(journal.get("morning", {}).get("candidates", [])),
-        "confirmation_candidates": len(
-            journal.get("confirmation", {}).get("candidates", [])
-        ),
-        "paper_bought": int(buy.get("result", {}).get("filled", 0) or 0),
-        "paper_message": ("filled" if buy.get("result", {}).get("filled") else
-                          "empty_or_blocked" if buy else "no batch"),
+        "morning_candidates":len(pool.get("candidates",[])),
+        "confirmation_candidates":len(confirmation.get("candidates",[])),
+        "paper_bought":0,"paper_message":"V5 paper writer disabled during shadow acceptance",
     }
 
 def governance_issues(state: dict) -> list[str]:
@@ -78,19 +74,25 @@ def governance_issues(state: dict) -> list[str]:
 
 
 def build_report() -> dict:
-    state = load_state()
+    state = load_canonical_state()
     missing = [name for name in REQUIRED_FILES if not (ROOT / name).exists()]
     violations = v3_import_violations()
     v3_tree_retired = not (ROOT / "v3").exists()
-    governance=governance_issues(state)
+    governance=[]
+    if state.get("production_status")!="research_locked":governance.append("RESEARCH_GATE_CHANGED")
+    v5_v4_imports=[]
+    for path in (ROOT/"v5").rglob("*.py"):
+        text=path.read_text(encoding="utf-8")
+        if "from v4" in text or "import v4" in text:v5_v4_imports.append(str(path.relative_to(ROOT)))
+    if v5_v4_imports:governance.extend("V5_RUNTIME_IMPORTS_V4:"+x for x in v5_v4_imports)
     return {
         "ok": not missing and not violations and v3_tree_retired and not governance,
-        "project": state.get("display_name"),
-        "active_phase": state.get("active_phase"),
-        "active_phase_name": state.get("active_phase_name"),
+        "project": state.get("display_name","A股隔夜交易研究系统 V5"),
+        "active_phase": state.get("active_stage"),
+        "active_phase_name": "真实影子窗口验收",
         "production_status": state.get("production_status"),
-        "dashboard": state.get("dashboard"),
-        "next_tasks": state.get("next_tasks", []),
+        "dashboard": state.get("dashboard",{"url":"http://127.0.0.1:8899/"}),
+        "next_tasks": state.get("next_acceptance", []),
         "known_issues": state.get("known_issues", []),
         "missing_context_files": missing,
         "v3_import_violations": violations,
