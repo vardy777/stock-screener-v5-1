@@ -24,3 +24,10 @@ def test_preflight_never_contacts_market_sources_when_clock_gate_fails(tmp_path)
   report=run(tmp_path,clock_checker=lambda:{"passed":False,"reason":"WINDOWS_TIME_OFFSET_TOO_LARGE"})
  assert not report["passed"] and report["details"]["market_checks_skipped"]=="causal_clock_rejected"
  refresh.assert_not_called();sina.assert_not_called();eastmoney.assert_not_called()
+
+def test_weekend_preflight_is_quiet_market_closed_diagnostic(tmp_path):
+ weekend=datetime(2026,8,15,8,30,tzinfo=CHINA_TZ)
+ with patch("v5.preflight.datetime") as clock,patch("v5.preflight.refresh_universe") as refresh,patch("v5.preflight.load_universe") as load,patch("v5.preflight.SinaRealtimeSource") as sina,patch("v5.preflight.EastmoneyRealtimeSource") as eastmoney:
+  clock.now.return_value=weekend;report=run(tmp_path,clock_checker=lambda:{"passed":True,"reason":"OK"})
+ assert report["passed"] and report["mode"]=="MARKET_CLOSED_DIAGNOSTIC" and not report["universe_preparation"]
+ refresh.assert_not_called();load.assert_not_called();sina.assert_not_called();eastmoney.assert_not_called()
