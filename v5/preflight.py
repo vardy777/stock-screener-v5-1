@@ -14,7 +14,9 @@ from .clock_gate import check as check_clock
 def run(root,day=None,*,refresh_attempts=3,sleeper=None,clock_checker=None):
  root=Path(root);now=datetime.now(CHINA_TZ);day=day or now.date().isoformat();checks={};details={}
  clock=(clock_checker or check_clock)();checks["causal_clock"]=clock["passed"];details["clock_gate"]=clock
- if now.weekday()<5 and day==now.date().isoformat():
+ if not clock["passed"]:
+  checks["universe_refresh"]=False;checks["universe"]=False;checks["sina_transport"]=False;checks["eastmoney_transport"]=False;details["market_checks_skipped"]="causal_clock_rejected"
+ elif now.weekday()<5 and day==now.date().isoformat():
   sleeper=sleeper or time.sleep;errors=[]
   for attempt in range(1,max(1,int(refresh_attempts))+1):
    try:r=refresh_universe(root,now=now);checks["universe_refresh"]=True;details["universe_refresh_id"]=r["universe_id"];details["universe_refresh_count"]=r["count"];details["universe_refresh_attempts"]=attempt;break
@@ -24,14 +26,16 @@ def run(root,day=None,*,refresh_attempts=3,sleeper=None,clock_checker=None):
   if not checks.get("universe_refresh"):
    checks["universe_refresh"]=False;details["universe_refresh_error"]=errors[-1];details["universe_refresh_errors"]=errors;details["universe_refresh_attempts"]=len(errors)
  else:checks["universe_refresh"]=True;details["universe_refresh_skipped"]="non_trading_preflight_date"
- try:u=load_universe(root,day,as_of=now,require_native=(day==now.date().isoformat() and now.weekday()<5));checks["universe"]=len(u.codes)>=4000;details["universe_count"]=len(u.codes);details["universe_sources"]=list(u.sources)
- except Exception as exc:checks["universe"]=False;details["universe_error"]=type(exc).__name__;u=None
+ if clock["passed"]:
+  try:u=load_universe(root,day,as_of=now,require_native=(day==now.date().isoformat() and now.weekday()<5));checks["universe"]=len(u.codes)>=4000;details["universe_count"]=len(u.codes);details["universe_sources"]=list(u.sources)
+  except Exception as exc:checks["universe"]=False;details["universe_error"]=type(exc).__name__;u=None
  checks["schedule_contract"]=ShadowScheduler(root).validate()["passed"]
  # One known liquid symbol proves transport/parser availability only; it is
  # never accepted as full-market or strict-window evidence.
- for name,source in (("sina",SinaRealtimeSource()),("eastmoney",EastmoneyRealtimeSource(page_size=500,retries=0))):
-  try:s=source.capture(["600000"],stage="signal",now=now);checks[name+"_transport"]=len(s.quotes)==1;details[name+"_quote_time"]=s.quotes[0].exchange_time if s.quotes else None
-  except Exception as exc:checks[name+"_transport"]=False;details[name+"_error"]=type(exc).__name__
+ if clock["passed"]:
+  for name,source in (("sina",SinaRealtimeSource()),("eastmoney",EastmoneyRealtimeSource(page_size=500,retries=0))):
+   try:s=source.capture(["600000"],stage="signal",now=now);checks[name+"_transport"]=len(s.quotes)==1;details[name+"_quote_time"]=s.quotes[0].exchange_time if s.quotes else None
+   except Exception as exc:checks[name+"_transport"]=False;details[name+"_error"]=type(exc).__name__
  report={"schema_version":"v5-readiness-preflight-v2","recorded_at":now.isoformat(),"trade_date":day,"diagnostic_only":True,"strict_evidence":False,"universe_preparation":True,"checks":checks,"details":details,"passed":all(checks.values())};path=root/"preflight"/now.date().isoformat()/f"{now.strftime('%H%M%S')}.json";path.parent.mkdir(parents=True,exist_ok=True);path.write_text(json.dumps(report,ensure_ascii=False,sort_keys=True,separators=(",",":")),encoding="utf-8");return report
 if __name__=="__main__":
  data=Path(__file__).resolve().parent/"data";report=run(data);print(json.dumps(report,ensure_ascii=False,indent=2))

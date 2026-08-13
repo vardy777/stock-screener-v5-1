@@ -30,4 +30,5 @@ No strict fact is manufactured and `research_locked` remains active.
 ## Acceptance
 
 - Focused clock/preflight/task suite: 8 passed.
-- Full repository suite: 312 passed in 100.11 seconds.
+- Full repository suite after ordering correction: 313 passed in 98.95 seconds.
+- When the clock gate fails, universe refresh and both market-source probes are not called.

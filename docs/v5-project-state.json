@@ -25,7 +25,7 @@
   "shadow_tasks_registered": {"count":7,"required":9,"missing":["paper_sell","paper_buy"],"reason":"single_writer_cutover_not_authorized"},
   "weekend_preflight_task": "AStock-V5-Weekend-Preflight",
   "dashboard_supervisor_task": "AStock-V5-Dashboard-Logon",
-  "tests_passed": 312,
+  "tests_passed": 313,
   "migration_completion": {
     "complete": false,
     "v5_runtime_imports_v4": false,
@@ -55,7 +55,7 @@
     "entrypoint_dependency_gate": true,
     "health_requires_causal_native_universe": true,
     "native_ntp_clock_gate": {"threshold_seconds":0.5,"current_status":"failed_offset_about_0.616s","repair_requires_elevated_windows_token":true},
-    "full_suite": "312 passed"
+    "full_suite": "313 passed"
   },
   "next_acceptance": ["real 08:30 native universe preparation", "real dual-source 09:24:30/14:49 shadow capture", "real 09:25/14:49/14:50/next-09:30 entity lineage", "V5-to-P3/P4/P5 cutover remains separately gated"]
 }
