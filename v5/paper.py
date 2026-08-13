@@ -86,8 +86,8 @@ class PaperLedger:
         state=self.state();cash=self.initial+sum((D(x["event"]["cash_flow"]) for x in self.events() if x["event"]["outcome"]=="FILLED"),D(0))
         return {"passed":D(str(state["cash"]))==cash.quantize(CENT),"cash":state["cash"],"event_count":state["event_count"]}
     def round_trips(self,*,as_of=None):
-        open_buys={};trips=[]
-        for row in self.events():
+        all_events=self.events();event_ids={row["event"]["order_id"]:row["event_id"] for row in all_events};open_buys={};trips=[]
+        for row in all_events:
             event=row["event"]
             if as_of is not None and datetime.fromisoformat(event["recorded_at"])>as_of:continue
             if event["outcome"]!="FILLED":continue
@@ -96,13 +96,16 @@ class PaperLedger:
             buy=open_buys.pop(key,None)
             if buy is None:raise ContractViolation("paper sell has no matching buy")
             invested=-D(buy["cash_flow"]);proceeds=D(event["cash_flow"]);pnl=(proceeds-invested).quantize(CENT)
-            trips.append({"schema_version":"v5-paper-round-trip-v1","decision_id":event["decision_id"],"code":event["code"],"buy_trade_date":buy["trade_date"],"sell_trade_date":event["trade_date"],"buy_event_id":next(x["event_id"] for x in self.events() if x["event"]==buy),"sell_event_id":row["event_id"],"shares":event["shares"],"invested":float(invested),"proceeds":float(proceeds),"net_pnl":float(pnl),"net_return":float(pnl/invested) if invested else 0.0})
+            trips.append({"schema_version":"v5-paper-round-trip-v1","decision_id":event["decision_id"],"code":event["code"],"buy_trade_date":buy["trade_date"],"sell_trade_date":event["trade_date"],"buy_event_id":event_ids[buy["order_id"]],"sell_event_id":row["event_id"],"shares":event["shares"],"invested":float(invested),"proceeds":float(proceeds),"net_pnl":float(pnl),"net_return":float(pnl/invested) if invested else 0.0})
         return trips
 
 class PaperEngine:
     def __init__(self,ledger,commission_rate="0.0003",minimum_commission="5",stamp_tax="0.0005",slippage="0.0005"):
         self.ledger=ledger;self.commission_rate=D(commission_rate);self.minimum_commission=D(minimum_commission);self.stamp_tax=D(stamp_tax);self.slippage=D(slippage)
     def _reject(self,order,reason,at):return PaperEventV1(order.order_id,"REJECTED",reason,at.isoformat(),order.code,order.side,order.shares,"0","0","0","0",order.decision_id,order.trade_date,order.eligible_sell_date)
+    def reject(self,order,reason,*,at):
+        self.ledger.save_order(order)
+        event=self._reject(order,reason,at.astimezone(CHINA_TZ));self.ledger.append(event);return event
     def execute(self,order,*,at):
         if at.tzinfo is None or at.utcoffset() is None:raise ContractViolation("paper execution timezone required")
         current=at.astimezone(CHINA_TZ);created=datetime.fromisoformat(order.created_at)

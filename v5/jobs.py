@@ -80,4 +80,5 @@ def paper_sell(root,*,now=None,sources=None):
     baselines=[]
     for confirmation in confirmations:
         buy_snapshot=load_snapshot(root/"snapshots"/confirmation["trade_date"]/f"{confirmation['snapshot_id']}.json");baselines.append(production.save_baseline(confirmation,buy_snapshot,result.primary,at=current))
-    return {"events":[event.__dict__ for event in events],"baselines":baselines,"snapshot_id":result.primary.snapshot_id,"outcome":"FILLED"}
+    outcomes=[event.outcome for event in events]
+    return {"events":[event.__dict__ for event in events],"baselines":baselines,"snapshot_id":result.primary.snapshot_id,"outcome":"FILLED" if outcomes and all(value=="FILLED" for value in outcomes) else "PARTIALLY_FILLED" if "FILLED" in outcomes else "UNFILLED"}

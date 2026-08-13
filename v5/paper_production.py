@@ -25,8 +25,11 @@ class PaperProduction:
         events=[]
         for position in list(self.ledger.state()["positions"]):
             quote=next((x for x in snapshot.quotes if x.code==position["code"]),None)
-            if not quote or quote.bid1<=0 or quote.bid1_volume<int(position["shares"]):continue
-            order=PaperOrderV1(position["decision_id"],"SELL",position["code"],at.date().isoformat(),at.isoformat(),str(quote.bid1),int(position["shares"]),snapshot.snapshot_id,position["eligible_sell_date"]);events.append(self.engine.execute(order,at=at))
+            reference=str(quote.bid1) if quote and quote.bid1>0 else "0"
+            order=PaperOrderV1(position["decision_id"],"SELL",position["code"],at.date().isoformat(),at.isoformat(),reference,int(position["shares"]),snapshot.snapshot_id,position["eligible_sell_date"])
+            if not quote or quote.bid1<=0:events.append(self.engine.reject(order,"NO_EXECUTABLE_BID",at=at));continue
+            if quote.bid1_volume<int(position["shares"]):events.append(self.engine.reject(order,"INSUFFICIENT_BID_DEPTH",at=at));continue
+            events.append(self.engine.execute(order,at=at))
         return events
     def save_baseline(self,confirmation,buy_snapshot,sell_snapshot,*,at):
         rows=[]
