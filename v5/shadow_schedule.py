@@ -44,5 +44,5 @@ class ShadowScheduler:
         for task in TASKS:
             if task.name in excluded:continue
             scheduled=datetime.fromisoformat(f"{trade_date}T{task.time}+08:00")
-            if scheduled<=now.astimezone(CHINA_TZ) and task.name not in completed:due.append({"task":task.name,"scheduled_at":scheduled.isoformat(),"blocked_by":[x for x in task.depends_on if x not in completed]})
+            if scheduled<=now.astimezone(CHINA_TZ) and task.name not in completed:due.append({"task":task.name,"scheduled_at":scheduled.isoformat(),"blocked_by":[x for x in task.depends_on if x not in completed and x not in excluded]})
         return {"schema_version":"v5-shadow-recovery-v1","trade_date":trade_date,"excluded_tasks":sorted(excluded),"missing_due_tasks":due,"status":"RECOVERY_REQUIRED" if due else "CLEAN"}

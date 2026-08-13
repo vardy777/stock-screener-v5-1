@@ -18,6 +18,17 @@ def facts(root):
 def test_payload_and_dashboard_share_final_v5_entity():
     with TemporaryDirectory() as d:
         root=Path(d);day=facts(root);morning=build_payload(root,day,"morning");confirmation=build_payload(root,day,"confirmation");assert morning["parent_entity_id"]=="v5mp1-test";assert confirmation["parent_entity_id"]=="v5cd1-test";assert "早盘候选只观察" in morning["content"] and "不展示买价" in morning["content"];assert "本地严格模拟" in confirmation["content"] and "不预测卖价" in confirmation["content"] and "不连接券商" in confirmation["content"]
+        assert morning["candidate_codes"]==confirmation["candidate_codes"]==["000001"]
+        assert morning["candidate_count"]==confirmation["candidate_count"]==1
+        assert morning["snapshot_id"]=="ms1-a" and confirmation["snapshot_id"]=="ms1-b"
+
+def test_notification_projects_every_candidate_from_final_entity():
+    with TemporaryDirectory() as d:
+        root=Path(d);day=facts(root);path=root/"confirmations"/day/"c.json";entity=json.loads(path.read_text(encoding="utf-8"));base=entity["candidates"][0]
+        entity["candidates"]=[dict(base,code=f"{index:06d}",rank=index) for index in range(1,6)];path.write_text(json.dumps(entity),encoding="utf-8")
+        payload=build_payload(root,day,"confirmation")
+        assert payload["candidate_codes"]==[f"{index:06d}" for index in range(1,6)] and payload["candidate_count"]==5
+        assert all(code in payload["content"] for code in payload["candidate_codes"])
 def test_failed_gate_never_sends_and_accepted_receipt_is_idempotent():
     with TemporaryDirectory() as d:
         root=Path(d);day=facts(root);env=root/".env";env.write_text("PUSHPLUS_TOKEN=secret",encoding="utf-8");calls=[]
