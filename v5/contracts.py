@@ -46,23 +46,23 @@ class AcquisitionSessionV1:
 
 @dataclass(frozen=True)
 class CandidateFunnelV1:
-    trade_date:str; stage:str; snapshot_id:str; market_state_id:str; accepted:bool; policy_version:str; stages:tuple[dict,...]; candidates:tuple[dict,...]; schema_version:str="v5-candidate-funnel-v1"
+    trade_date:str; stage:str; snapshot_id:str; market_state_id:str; accepted:bool; policy_version:str; stages:tuple[dict,...]; candidates:tuple[dict,...]; policy_parameters:dict|None=None; schema_version:str="v5-candidate-funnel-v1"
     def __post_init__(self):
-        object.__setattr__(self,"stages",_freeze(self.stages));object.__setattr__(self,"candidates",_freeze(self.candidates))
+        object.__setattr__(self,"stages",_freeze(self.stages));object.__setattr__(self,"candidates",_freeze(self.candidates));object.__setattr__(self,"policy_parameters",_freeze(self.policy_parameters or {}))
     @classmethod
-    def build(cls,*,snapshot,market_state_id,stage,accepted,policy_version,stages,candidates):
+    def build(cls,*,snapshot,market_state_id,stage,accepted,policy_version,stages,candidates,policy_parameters=None):
         if stage not in {"morning","confirmation"}: raise ContractViolation("funnel stage: unsupported value")
         if not is_market_snapshot(snapshot):raise ContractViolation("funnel snapshot: versioned market snapshot required")
         if not snapshot.snapshot_id.startswith("ms1-") or not str(market_state_id).startswith("mstate1-"): raise ContractViolation("funnel lineage: snapshot and market state IDs required")
         if not policy_version or not stages: raise ContractViolation("funnel policy/stages: required")
         codes=[str(row.get("code","")) for row in candidates]
         if len(codes)!=len(set(codes)) or any(len(c)!=6 or not c.isdigit() for c in codes): raise ContractViolation("funnel candidates: unique six-digit codes required")
-        return cls(snapshot.trade_date,stage,snapshot.snapshot_id,str(market_state_id),bool(accepted),str(policy_version),tuple(dict(x) for x in stages),tuple(dict(x) for x in candidates))
+        return cls(snapshot.trade_date,stage,snapshot.snapshot_id,str(market_state_id),bool(accepted),str(policy_version),tuple(dict(x) for x in stages),tuple(dict(x) for x in candidates),dict(policy_parameters or {}))
     @property
     def funnel_id(self): return _id("funnel1",self.to_dict(include_id=False))
     def to_dict(self,*,include_id=True):
         value={"schema_version":self.schema_version,"trade_date":self.trade_date,"stage":self.stage,
                "snapshot_id":self.snapshot_id,"market_state_id":self.market_state_id,"accepted":self.accepted,
-               "policy_version":self.policy_version,"stages":_thaw(self.stages),"candidates":_thaw(self.candidates)}
+               "policy_version":self.policy_version,"policy_parameters":_thaw(self.policy_parameters),"stages":_thaw(self.stages),"candidates":_thaw(self.candidates)}
         if include_id:value["funnel_id"]=self.funnel_id
         return value

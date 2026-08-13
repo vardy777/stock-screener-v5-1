@@ -73,6 +73,8 @@
     "native_verified_calendar": true,
     "market_state_risk_gate": true,
     "strategy_evidence": "INSUFFICIENT_EVIDENCE",
+    "liquidity_threshold_calibration": "PENDING_REAL_09_25_AND_14_49_DISTRIBUTIONS",
+    "funnel_policy_parameters_embedded": true,
     "full_suite": "344 passed",
     "dashboard_lineage_fail_closed": true,
     "owned_paper_health_dependencies": true,

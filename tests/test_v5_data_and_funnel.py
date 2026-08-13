@@ -104,6 +104,7 @@ class V5DataAndFunnelTests(unittest.TestCase):
         rows=[quote("000001"),quote("000002",amount=1),quote("000003",limit_up=True),quote("000004",last_price=10.5)]
         snap=snapshot(rows,4);funnel=CandidateFunnel(FunnelPolicyV1(min_amount=5_000_000,max_candidates=5))
         morning=funnel.run(snap,market_state_id="mstate1-test",market_valid=True,stage="morning")
+        self.assertEqual(morning.policy_parameters["min_amount"],5_000_000);self.assertTrue(morning.policy_parameters["confirmation_reuses_morning_rank"])
         self.assertEqual([x["code"] for x in morning.candidates],["000004","000001"])
         self.assertEqual(morning.stages[1]["rejected"]["limit_locked"],1);self.assertEqual(morning.stages[2]["rejected"]["insufficient_amount"],1)
         baseline=[dict(morning.candidates[1])];confirm=funnel.run(snap,market_state_id="mstate1-test",market_valid=True,stage="confirmation",allowed_codes=["000001"],baseline_candidates=baseline)

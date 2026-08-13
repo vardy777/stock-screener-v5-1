@@ -120,6 +120,7 @@
 - Serialized each V5 business-notification stage across processes. Concurrent retries now recheck the immutable accepted receipt under a Windows file lock, send PushPlus at most once, and atomically create both attempt and final receipt artifacts.
 - Corrected confirmation ranking leakage-by-rescaling: the 14:49 confirmation no longer recomputes factor percentiles inside the much smaller mother pool. It uses the frozen morning full-market score, percentile and rank, while current data may only remove ineligible names and record changes. This restores comparability and prevents small-pool rank distortion.
 - Kept deterministic end-to-end replay on that exact production path by passing the immutable morning candidate baseline into confirmation; replay can no longer silently exercise a different ranking policy.
+- Embedded the complete funnel policy parameters and factor weights into every content-addressed funnel fact. The current CNY 5 million cumulative-turnover threshold remains explicitly pending calibration against real 09:25 and 14:49 distributions; it was not changed without evidence.
 - Added content-addressed V5 point-in-time universe facts and strict two-source consensus without coverage merging.
 - Added V5-native immutable market snapshots and an independent Eastmoney adapter.
 - Added V5-native event-sourced paper ledger with fees, slippage, one-third cap, T+1, immutable rejections, idempotency and reconciliation.
