@@ -56,6 +56,13 @@ class V5DataAndFunnelTests(unittest.TestCase):
         result=ConsensusAcquirer(Source("sina",left),Source("eastmoney",forged)).acquire(universe,stage="signal",now=NOW)
         self.assertFalse(result.accepted);self.assertFalse(result.report["attempts"][1]["provider_lineage_valid"])
 
+    def test_consensus_rejects_snapshot_with_shrunk_coverage_denominator(self):
+        universe=UniverseV1.build(trade_date="2026-08-13",created_at=NOW,codes=["000001","000002"],sources=["test"])
+        honest=snapshot([quote("000001",provider="sina"),quote("000002",provider="sina")],2)
+        shrunk=snapshot([quote("000001",provider="eastmoney")],1)
+        result=ConsensusAcquirer(Source("sina",honest),Source("eastmoney",shrunk)).acquire(universe,stage="signal",now=NOW)
+        self.assertFalse(result.accepted);self.assertFalse(result.report["attempts"][1]["universe_denominator_valid"])
+
     def test_consensus_conflict_union_is_not_double_counted_and_latest_strict_snapshot_is_primary(self):
         universe=UniverseV1.build(trade_date="2026-08-13",created_at=NOW,codes=["000001","000002"],sources=["test"]);left=snapshot([quote("000001",provider="sina"),quote("000002",provider="sina")]);later_at=NOW+timedelta(seconds=1);later=MarketSnapshotV1.build(trade_date="2026-08-13",session="signal",batch_started_at=NOW-timedelta(seconds=1),batch_completed_at=later_at,quotes=[quote("000001",provider="eastmoney"),quote("000002",provider="eastmoney")],expected_codes=2);result=ConsensusAcquirer(Source("sina",left),Source("eastmoney",later)).acquire(universe,stage="signal",now=NOW);assert result.accepted and result.primary.snapshot_id==later.snapshot_id and result.report["selected_snapshot_id"]==later.snapshot_id
 
