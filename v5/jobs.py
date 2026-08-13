@@ -1,7 +1,7 @@
 """V5 fact production jobs. Shadow-only until live acceptance changes state."""
 from __future__ import annotations
 from datetime import datetime
-import json
+import hashlib,json,os
 from pathlib import Path
 from .core import CHINA_TZ,ContractViolation
 from .universe import UniverseV1
@@ -36,11 +36,18 @@ def load_universe(root,day,*,as_of=None,require_native=False):
     return UniverseV1.from_mapping(selected)
 def _latest(root,kind,day):
     return latest(root,kind,day)
+def _save_immutable(root,kind,day,prefix,payload):
+    raw=json.dumps(payload,ensure_ascii=False,sort_keys=True,separators=(",",":"));entity_id=prefix+hashlib.sha256(raw.encode()).hexdigest()[:24];path=Path(root)/kind/day/f"{entity_id}.json";path.parent.mkdir(parents=True,exist_ok=True);tmp=path.with_suffix(f".{os.getpid()}.tmp");tmp.write_text(raw,encoding="utf-8")
+    try:os.link(tmp,path)
+    except FileExistsError:
+        if path.read_text(encoding="utf-8")!=raw:raise ContractViolation(f"{kind} immutable collision")
+    finally:tmp.unlink(missing_ok=True)
+    return entity_id,path
 def produce(root,stage,*,now=None,sources=None):
     if stage != "morning":
         raise ContractViolation("live production is morning-only; confirmation must consume the 14:49 frozen snapshot")
     current=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=current.date().isoformat();universe=load_universe(root,day,as_of=current,require_native=True);sources=sources or (SinaRealtimeSource(),EastmoneyRealtimeSource());result=ConsensusAcquirer(*sources).acquire(universe,stage=stage,now=current)
-    report_path=Path(root)/"consensus"/day/f"{stage}.json";report_path.parent.mkdir(parents=True,exist_ok=True);report_path.write_text(json.dumps(result.report,ensure_ascii=False,sort_keys=True,separators=(",",":")),encoding="utf-8")
+    _save_immutable(root,"consensus",day,"cons1-",result.report)
     attempts=result.report.get("attempts",[]);session=AcquisitionSessionV1.build(trade_date=day,stage=stage,requested_at=current,expected_codes=len(universe.codes),selected_snapshot_id=result.primary.snapshot_id if result.accepted else "",accepted=result.accepted,source_attempts=attempts);store=V5FactStore(root);store.save_session(session)
     if not result.accepted:raise ContractViolation("V5 dual-source consensus rejected")
     store.save_snapshot(result.primary);market=MarketStateV1.from_snapshot(result.primary);store.save_market_state(market);funnel=CandidateFunnel()
@@ -55,10 +62,15 @@ def confirm_frozen(root,*,now=None):
     snapshot=load_snapshot(paths[0]);pool_raw=_latest(root,"morning_pools",day);pool=MorningPoolV5(pool_raw["trade_date"],pool_raw["created_at"],pool_raw["funnel_id"],pool_raw["snapshot_id"],pool_raw["market_state_id"],tuple(pool_raw["candidates"]));market=MarketStateV1.from_snapshot(snapshot);store=V5FactStore(root);store.save_market_state(market);funnel=CandidateFunnel().run(snapshot,market_state_id=market.market_state_id,market_valid=market.trade_allowed,stage="confirmation",allowed_codes=[x["code"] for x in pool.candidates]);store.save_funnel(funnel);entity=ConfirmationV5.from_funnel(pool,funnel,decided_at=current);store.save_confirmation(entity);return entity.to_dict()
 
 def freeze(root,*,now=None,sources=None):
-    current=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=current.date().isoformat();universe=load_universe(root,day,as_of=current,require_native=True);sources=sources or (SinaRealtimeSource(),EastmoneyRealtimeSource());result=ConsensusAcquirer(*sources).acquire(universe,stage="signal",now=current);path=Path(root)/"consensus"/day/"feature_freeze.json";path.parent.mkdir(parents=True,exist_ok=True);path.write_text(json.dumps(result.report,ensure_ascii=False,sort_keys=True,separators=(",",":")),encoding="utf-8")
+    current=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=current.date().isoformat();universe=load_universe(root,day,as_of=current,require_native=True);sources=sources or (SinaRealtimeSource(),EastmoneyRealtimeSource());result=ConsensusAcquirer(*sources).acquire(universe,stage="signal",now=current);_save_immutable(root,"consensus",day,"cons1-",result.report)
     attempts=result.report.get("attempts",[]);session=AcquisitionSessionV1.build(trade_date=day,stage="signal",requested_at=current,expected_codes=len(universe.codes),selected_snapshot_id=result.primary.snapshot_id if result.accepted else "",accepted=result.accepted,source_attempts=attempts);store=V5FactStore(root);store.save_session(session)
     if not result.accepted:raise ContractViolation("V5 feature freeze consensus rejected")
-    store.save_snapshot(result.primary);pointer=Path(root)/"frozen"/day/"signal.json";pointer.parent.mkdir(parents=True,exist_ok=True);pointer.write_text(json.dumps({"snapshot_id":result.primary.snapshot_id,"frozen_at":current.isoformat(),"acquisition_session_id":session.session_id},sort_keys=True),encoding="utf-8");return {"snapshot_id":result.primary.snapshot_id,"frozen_at":current.isoformat(),"acquisition_session_id":session.session_id}
+    store.save_snapshot(result.primary);pointer=Path(root)/"frozen"/day/"signal.json";pointer.parent.mkdir(parents=True,exist_ok=True);pointer_value={"snapshot_id":result.primary.snapshot_id,"frozen_at":current.isoformat(),"acquisition_session_id":session.session_id};raw=json.dumps(pointer_value,sort_keys=True,separators=(",",":"));tmp=pointer.with_suffix(f".{os.getpid()}.tmp");tmp.write_text(raw,encoding="utf-8")
+    try:os.link(tmp,pointer)
+    except FileExistsError:
+        if pointer.read_text(encoding="utf-8")!=raw:raise ContractViolation("14:49 frozen pointer immutable collision")
+    finally:tmp.unlink(missing_ok=True)
+    return pointer_value
 
 def paper_buy(root,*,now=None):
     root=Path(root);require_ownership(root/"ownership.json","paper_writer");current=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=current.date().isoformat();confirmation=_latest(root,"confirmations",day);pointer=json.loads((root/"frozen"/day/"signal.json").read_text(encoding="utf-8"));snapshot_path=root/"snapshots"/day/f"{pointer['snapshot_id']}.json"

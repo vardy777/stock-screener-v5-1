@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from v5.core import CHINA_TZ
 from v5.market_snapshot import MarketSnapshotV1,QuoteV1
 from v5.eastmoney_source import EastmoneyRealtimeSource
+from v5.contracts import AcquisitionSessionV1
 from v5.data_production import MultiSourceAcquirer,ConsensusAcquirer
 from v5.universe import UniverseV1
 from v5.funnel import CandidateFunnel,FunnelPolicyV1
@@ -136,6 +137,10 @@ class V5DataAndFunnelTests(unittest.TestCase):
     def test_product_read_model_is_decision_first_and_honest_when_data_missing(self):
         model=build_product();self.assertIn("不交易",model.today["action"]);self.assertEqual(model.candidates["empty_reason"],"行情质量未通过");self.assertTrue(model.validation["research_locked"])
         page=render(model);self.assertIn("今天的结论",page);self.assertIn("今日推荐与执行规则",page);self.assertIn("模拟账户与策略证据",page);self.assertIn("证据不足，不能证明策略有效",page);self.assertNotIn("<button",page);self.assertNotIn("<nav",page)
+
+    def test_product_read_model_projects_selected_snapshot_source_not_last_attempt(self):
+        session=AcquisitionSessionV1.build(trade_date="2026-08-13",stage="morning",requested_at=NOW,expected_codes=2,selected_snapshot_id="ms1-selected",accepted=True,source_attempts=[{"source":"selected","snapshot_id":"ms1-selected","coverage":.97,"complete":True},{"source":"other","snapshot_id":"ms1-other","coverage":1.0,"complete":True}])
+        today=build_product(acquisition=session).today;self.assertEqual(today["source"],"selected");self.assertEqual(today["coverage"],.97);self.assertEqual(today["source_consensus"],["selected","other"])
 
     def test_v5_runtime_has_no_direct_v4_imports(self):
         root=Path(__file__).resolve().parents[1]/"v5"
