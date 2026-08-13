@@ -29,7 +29,7 @@ class P5OfflineDashboardTests(unittest.TestCase):
 
     def test_html_has_required_control_center_sections_and_no_mutation_controls(self):
         model=frozen_demo_model(); page=render(model); research=render(model,"research"); ops=render(model,"ops")
-        for text in ("今日股票研究","今天的结论","现在怎么做","今日股票与价格计划","今日市场","必须知道的风险","允许模拟买入价","模拟卖出价","不是上涨概率"):
+        for text in ("今日股票研究","今天的结论","现在怎么做","推荐股票与价格计划","今天市场怎么样","主要风险","模拟买入价","模拟卖出规则","评分不代表上涨概率","策略真的有效吗","现在不能下结论"):
             self.assertIn(text,page)
         self.assertEqual(page,research); self.assertEqual(page,ops)
         for forbidden in ("新手首页","研究分析","系统运维","运行买入","运行卖出","重置账户","api/run_buy","api/reset"):
@@ -129,7 +129,7 @@ class P5OfflineDashboardTests(unittest.TestCase):
 
     def test_mobile_layout_collapses_to_single_column(self):
         page=render(frozen_demo_model())
-        self.assertIn(".grid{display:block}",page)
+        self.assertIn(".layout{display:block}",page)
         self.assertIn(".prices{grid-template-columns:1fr}",page)
 
 if __name__=="__main__": unittest.main()
