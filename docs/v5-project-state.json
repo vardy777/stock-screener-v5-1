@@ -26,7 +26,7 @@
   "next_monday_shadow_tasks": {"trade_date":"2026-08-17","registered":7,"duplicate_universe_writer":false,"paper_or_broker_tasks":0},
   "weekend_preflight_task": "AStock-V5-Weekend-Preflight",
   "dashboard_supervisor_task": "AStock-V5-Dashboard-Logon",
-  "tests_passed": 328,
+  "tests_passed": 333,
   "migration_completion": {
     "complete": false,
     "v5_runtime_imports_v4": false,
@@ -73,7 +73,11 @@
     "native_verified_calendar": true,
     "market_state_risk_gate": true,
     "strategy_evidence": "INSUFFICIENT_EVIDENCE",
-    "full_suite": "328 passed"
+    "full_suite": "333 passed",
+    "dashboard_lineage_fail_closed": true,
+    "owned_paper_health_dependencies": true,
+    "unfilled_exit_events": true,
+    "execution_equivalent_baseline": true
   },
   "next_acceptance": ["real 08:30 native universe preparation", "real dual-source 09:24:30/14:49 shadow capture", "real 09:25/14:49/14:50/next-09:30 entity lineage", "V5-to-P3/P4/P5 cutover remains separately gated"]
 }
