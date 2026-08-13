@@ -16,9 +16,11 @@ from .paper_production import load_snapshot
 from .fact_reader import latest
 
 def load_universe(root,day):
-    files=sorted((Path(root)/"universes"/day).glob("*.json"))
+    files=list((Path(root)/"universes"/day).glob("*.json"))
     if not files:raise ContractViolation("V5 universe fact missing")
-    return UniverseV1.from_mapping(json.loads(files[-1].read_text(encoding="utf-8")))
+    rows=[json.loads(path.read_text(encoding="utf-8")) for path in files]
+    selected=max(rows,key=lambda row:(datetime.fromisoformat(row["created_at"]),row["universe_id"]))
+    return UniverseV1.from_mapping(selected)
 def _latest(root,kind,day):
     return latest(root,kind,day)
 def produce(root,stage,*,now=None,sources=None):

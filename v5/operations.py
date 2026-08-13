@@ -22,7 +22,9 @@ def health(root,day,now):
     for stage in ("morning","confirmation"):
         path=notifications/f"{stage}.json"
         checks[f"{stage}_notification_accepted"]=path.exists() and json.loads(path.read_text(encoding="utf-8")).get("outcome")=="ACCEPTED"
-    excluded=() if v5_owns_paper else ("paper_sell","paper_buy")
+    # A running health task cannot have recorded its own SUCCESS yet.  Treating
+    # that as a missed task makes every otherwise healthy 14:53 run fail.
+    excluded=("health_check",) if v5_owns_paper else ("paper_sell","paper_buy","health_check")
     recovery=ShadowScheduler(root).recovery_report(day,now,excluded_tasks=excluded);report={"schema_version":"v5-health-v1","trade_date":day,"recorded_at":now.astimezone(CHINA_TZ).isoformat(),"mode":"production" if v5_owns_paper else "shadow_without_paper_writer","checks":checks,"lineage":lineage,"recovery":recovery,"production_complete":v5_owns_paper,"passed":all(checks.values()) and recovery["status"]=="CLEAN"};return report
 def maintenance(root,day,now):
     root=Path(root);files=[];bad=[]

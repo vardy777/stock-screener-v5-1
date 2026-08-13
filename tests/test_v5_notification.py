@@ -14,7 +14,7 @@ def facts(root):
     (root/"confirmations"/day/"c.json").write_text(json.dumps({"confirmation_id":"v5cd1-test","decided_at":f"{day}T14:50:00+08:00","morning_pool_id":"v5mp1-test","snapshot_id":"ms1-b","candidates":[candidate]}),encoding="utf-8");return day
 def test_payload_and_dashboard_share_final_v5_entity():
     with TemporaryDirectory() as d:
-        root=Path(d);day=facts(root);assert build_payload(root,day,"morning")["parent_entity_id"]=="v5mp1-test";assert build_payload(root,day,"confirmation")["parent_entity_id"]=="v5cd1-test"
+        root=Path(d);day=facts(root);morning=build_payload(root,day,"morning");confirmation=build_payload(root,day,"confirmation");assert morning["parent_entity_id"]=="v5mp1-test";assert confirmation["parent_entity_id"]=="v5cd1-test";assert "早盘候选只观察" in morning["content"] and "不展示买价" in morning["content"];assert "本地严格模拟" in confirmation["content"] and "不预测卖价" in confirmation["content"] and "不连接券商" in confirmation["content"]
 def test_failed_gate_never_sends_and_accepted_receipt_is_idempotent():
     with TemporaryDirectory() as d:
         root=Path(d);day=facts(root);env=root/".env";env.write_text("PUSHPLUS_TOKEN=secret",encoding="utf-8");calls=[]
@@ -24,3 +24,9 @@ def test_failed_gate_never_sends_and_accepted_receipt_is_idempotent():
 def test_v5_notification_entrypoint_never_reads_v4_configuration():
     text=(Path(__file__).resolve().parents[1]/"v5/scripts/v5_push_job.py").read_text(encoding="utf-8")
     assert 'ROOT/"v5/.env"' in text and 'ROOT/"v4/.env"' not in text
+def test_rejected_push_attempt_is_audited_but_does_not_block_retry():
+    with TemporaryDirectory() as d:
+        root=Path(d);day=facts(root);env=root/".env";env.write_text("PUSHPLUS_TOKEN=secret",encoding="utf-8")
+        with pytest.raises(RuntimeError):send(root,day,"morning",env,transport=lambda:{"code":500})
+        assert not (root/"notifications"/day/"morning.json").exists() and len(list((root/"notification_attempts"/day/"morning").glob("*.json")))==1
+        receipt=send(root,day,"morning",env,transport=lambda:{"code":200});assert receipt["outcome"]=="ACCEPTED" and (root/"notifications"/day/"morning.json").exists()

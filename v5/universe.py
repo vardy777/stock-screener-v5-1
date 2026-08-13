@@ -19,7 +19,9 @@ class UniverseV1:
         if not values or not origins:raise ContractViolation("universe codes/sources required")
         return cls(str(trade_date),created_at.astimezone(CHINA_TZ).isoformat(timespec="seconds"),values,origins)
     @property
-    def universe_id(self):return "univ1-"+hashlib.sha256("\n".join(self.codes).encode()).hexdigest()
+    def universe_id(self):
+        payload={"schema_version":self.schema_version,"trade_date":self.trade_date,"created_at":self.created_at,"codes":list(self.codes),"sources":list(self.sources)}
+        return "univ1-"+hashlib.sha256(json.dumps(payload,ensure_ascii=False,sort_keys=True,separators=(",",":")).encode()).hexdigest()
     def to_dict(self):return {"schema_version":self.schema_version,"universe_id":self.universe_id,"trade_date":self.trade_date,"created_at":self.created_at,"codes":list(self.codes),"sources":list(self.sources),"count":len(self.codes)}
     def save(self,root):
         path=Path(root)/"universes"/self.trade_date/f"{self.universe_id}.json";path.parent.mkdir(parents=True,exist_ok=True);raw=json.dumps(self.to_dict(),ensure_ascii=False,sort_keys=True,separators=(",",":"))
