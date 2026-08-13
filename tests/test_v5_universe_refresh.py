@@ -46,3 +46,9 @@ def test_native_universe_refresh_follows_provider_actual_page_length_not_request
   page=int(parse_qs(urlparse(url).query)["pn"][0]);all_codes=[f"00000{x}" for x in range(1,7)];chunk=all_codes[(page-1)*2:page*2];return {"rc":0,"data":{"diff":[{"f12":x} for x in chunk],"total":6}}
  from v5.universe_refresh import fetch_codes
  assert len(fetch_codes(fetch_json=paged,page_size=500))==6
+
+def test_prior_universe_selection_uses_entity_time_not_hash_filename(tmp_path):
+ from v5.universe_refresh import _previous
+ from v5.universe import UniverseV1
+ old=UniverseV1.build(trade_date="2026-08-14",created_at=NOW,codes=["000001"],sources=["native"]);new=UniverseV1.build(trade_date="2026-08-14",created_at=NOW+timedelta(minutes=1),codes=["000001","688001"],sources=["native"]);old.save(tmp_path);new.save(tmp_path)
+ assert _previous(tmp_path,"2026-08-14",as_of=NOW+timedelta(minutes=2))["universe_id"]==new.universe_id

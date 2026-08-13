@@ -44,15 +44,18 @@ def fetch_codes(*,fetch_json=None,timeout=10,page_size=500,overall_budget_second
     values=sorted({code for code in codes if eligible(code)})
     if not values:raise ContractViolation("universe provider returned no eligible codes")
     return (values,{"endpoint_failures":failures,"declared_total":declared_total,"pages":page}) if return_diagnostics else values
-def _previous(root,day):
+def _previous(root,day,*,as_of=None):
     candidates=[]
     for directory in (Path(root)/"universes").iterdir() if (Path(root)/"universes").exists() else ():
         if directory.name>day:continue
-        for path in directory.glob("*.json"):candidates.append((directory.name,path))
+        for path in directory.glob("*.json"):
+            row=json.loads(path.read_text(encoding="utf-8"));created=datetime.fromisoformat(row["created_at"])
+            if created.tzinfo is None:raise ContractViolation("prior universe time requires timezone")
+            if as_of is None or created.astimezone(CHINA_TZ)<=as_of.astimezone(CHINA_TZ):candidates.append((created,row.get("universe_id",path.name),row))
     if not candidates:return None
-    return json.loads(max(candidates,key=lambda item:(item[0],item[1].name))[1].read_text(encoding="utf-8"))
+    return max(candidates,key=lambda item:(item[0],item[1]))[2]
 def refresh(root,*,now=None,fetch_json=None,minimum_prior_ratio=.98,maximum_churn_ratio=.02,overall_budget_seconds=12,monotonic=None):
-    current=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=current.date().isoformat();codes,diagnostics=fetch_codes(fetch_json=fetch_json,overall_budget_seconds=overall_budget_seconds,monotonic=monotonic,return_diagnostics=True);prior=_previous(root,day);checks={"provider_nonempty":bool(codes),"pagination_complete":True}
+    current=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=current.date().isoformat();codes,diagnostics=fetch_codes(fetch_json=fetch_json,overall_budget_seconds=overall_budget_seconds,monotonic=monotonic,return_diagnostics=True);prior=_previous(root,day,as_of=current);checks={"provider_nonempty":bool(codes),"pagination_complete":True}
     if prior:
         old=set(prior["codes"]);new=set(codes);legacy_seed="legacy_daily_archive_seed_migration" in prior.get("sources",[])
         checks["minimum_prior_count"]=len(new)>=len(old)*minimum_prior_ratio

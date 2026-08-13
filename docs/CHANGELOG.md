@@ -123,6 +123,7 @@
 - Embedded the complete funnel policy parameters and factor weights into every content-addressed funnel fact. The current CNY 5 million cumulative-turnover threshold remains explicitly pending calibration against real 09:25 and 14:49 distributions; it was not changed without evidence.
 - Corrected the investable-universe scope: STAR Market `688/689` securities are now retained, with a one-time expansion-only anomaly exception that requires every prior code to remain. The product explicitly states "SSE/SZSE A shares including STAR, excluding BSE" because the current independent Sina source cannot validate BSE; it no longer labels a partial universe as all A shares.
 - Corrected Sina limit-band parsing for STAR Market `688/689` securities to the 20% band (like ChiNext) instead of the main-board 10% band, preventing false limit-lock classifications after expanding the universe.
+- Fixed the daily universe anomaly baseline to select the latest causal entity by timezone-aware `created_at`, not by a content-hash filename; future rehearsal facts and random same-day older retries cannot become the comparison baseline.
 - Added content-addressed V5 point-in-time universe facts and strict two-source consensus without coverage merging.
 - Added V5-native immutable market snapshots and an independent Eastmoney adapter.
 - Added V5-native event-sourced paper ledger with fees, slippage, one-third cap, T+1, immutable rejections, idempotency and reconciliation.
