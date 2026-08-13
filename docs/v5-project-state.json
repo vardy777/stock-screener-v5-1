@@ -55,7 +55,7 @@
     "notification_snapshot_lineage_gate": true,
     "entrypoint_dependency_gate": true,
     "health_requires_causal_native_universe": true,
-    "native_ntp_clock_gate": {"threshold_seconds":0.5,"current_status":"failed_offset_about_0.616s","repair_requires_elevated_windows_token":true},
+    "native_ntp_clock_gate": {"threshold_seconds":0.5,"current_status":"failed_offset_about_0.85s_measured_2026_08_14","repair_requires_elevated_windows_token":true},
     "weekend_preflight_mode": "market_closed_diagnostic_no_market_access",
     "full_suite": "314 passed"
   },
