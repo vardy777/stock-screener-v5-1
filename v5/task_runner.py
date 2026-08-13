@@ -10,6 +10,7 @@ from .operations import health,maintenance
 from .shadow_schedule import ShadowScheduler
 from .alerts import send_failure
 from .clock_gate import check as check_clock
+from .ownership import load as load_ownership
 
 WINDOWS={
     "morning_pool":((9,24,20),(9,25,19)),
@@ -24,6 +25,14 @@ WINDOWS={
 }
 SAFE_DEPENDENCIES={"morning_push":("morning_pool",),"confirmation":("morning_pool","feature_freeze"),"confirmation_push":("confirmation",),"paper_buy":("confirmation",),"health_check":("morning_pool","morning_push","feature_freeze","confirmation","confirmation_push"),"maintenance":("health_check",)}
 
+def dependencies_for(root,task):
+    dependencies=list(SAFE_DEPENDENCIES.get(task,()))
+    ownership=load_ownership(Path(root)/"ownership.json")
+    v5_owns_paper=ownership.get("paper_writer")=="v5" and ownership.get("authorized") is True
+    if task=="health_check" and v5_owns_paper:
+        dependencies.extend(("paper_sell","paper_buy"))
+    return tuple(dependencies)
+
 def inside_window(task,now):
     if task not in WINDOWS:return False
     start,end=WINDOWS[task];clock=(now.hour,now.minute,now.second)
@@ -37,7 +46,7 @@ def run(root,task,*,now=None,failure_alert_env=None,clock_checker=None):
             clock=(clock_checker or check_clock)()
             if not clock.get("passed"):raise ValueError(f"V5 causal clock rejected: {clock.get('reason','UNKNOWN')}")
             details["clock_gate"]=clock
-        missing=[name for name in SAFE_DEPENDENCIES.get(task,()) if name not in scheduler.successful_tasks(day)]
+        missing=[name for name in dependencies_for(root,task) if name not in scheduler.successful_tasks(day)]
         if missing:raise ValueError(f"V5 task dependencies incomplete: {', '.join(missing)}")
         if task=="morning_pool":details.update(produce(root,"morning",now=now))
         elif task=="morning_push":details=send(root,day,"morning",root.parent/".env",as_of=now)

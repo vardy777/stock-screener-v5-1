@@ -4,7 +4,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from v5.core import CHINA_TZ
-from v5.task_runner import inside_window,run
+from v5.task_runner import dependencies_for,inside_window,run
 
 def at(hour,minute,second=0):
     return datetime(2026,8,14,hour,minute,second,tzinfo=CHINA_TZ)
@@ -46,3 +46,14 @@ def test_market_capture_fails_before_provider_call_when_clock_is_unhealthy():
         result=run(Path(d),"morning_pool",now=at(9,24,30),clock_checker=lambda:{"passed":False,"reason":"WINDOWS_TIME_OFFSET_TOO_LARGE"})
         assert result["passed"] is False and "causal clock rejected" in result["run"]["details"]["error"]
         producer.assert_not_called()
+
+def test_health_dependencies_include_paper_tasks_only_after_authorized_cutover():
+    with TemporaryDirectory() as d:
+        root=Path(d)
+        assert "paper_buy" not in dependencies_for(root,"health_check")
+        (root/"ownership.json").write_text(
+            '{"schema_version":"v5-ownership-v1","paper_writer":"v5","scheduler":"v5","dashboard":"v5","notifications":"v5","authorized":true}',
+            encoding="utf-8",
+        )
+        dependencies=dependencies_for(root,"health_check")
+        assert dependencies[-2:]==("paper_sell","paper_buy")
