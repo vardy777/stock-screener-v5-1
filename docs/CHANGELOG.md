@@ -112,6 +112,7 @@
 - Hardened real-source acquisition: consensus now refuses the same source identity or same instance masquerading as two independent providers. Eastmoney full-market capture derives its page count from the provider's actual returned page size, supports server-side downscaling beyond twenty pages, caps unreasonable pagination, and rejects incomplete traversal instead of quietly yielding sub-95% coverage.
 - Made operational-alert attempts append-only instead of overwriting a fixed failure file on retry. Persisted error text is bounded and the configured PushPlus token is redacted before hashing, display or audit storage; only a real accepted receipt suppresses repeat delivery.
 - Made dashboard fact corruption and lineage failures explicit product states: readers no longer collapse invalid JSON/contracts into "no data", and both HTML and API return a cache-disabled HTTP 503 validation response without stack details or stale-decision fallback.
+- Changed V5 readiness evidence from a mutable wall-clock filename to atomic content-addressed reports under the requested trade date. Identical retries are idempotent and distinct attempts cannot overwrite one another.
 - Added content-addressed V5 point-in-time universe facts and strict two-source consensus without coverage merging.
 - Added V5-native immutable market snapshots and an independent Eastmoney adapter.
 - Added V5-native event-sourced paper ledger with fees, slippage, one-third cap, T+1, immutable rejections, idempotency and reconciliation.

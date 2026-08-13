@@ -31,3 +31,9 @@ def test_weekend_preflight_is_quiet_market_closed_diagnostic(tmp_path):
   clock.now.return_value=weekend;report=run(tmp_path,clock_checker=lambda:{"passed":True,"reason":"OK"})
  assert report["passed"] and report["mode"]=="MARKET_CLOSED_DIAGNOSTIC" and not report["universe_preparation"]
  refresh.assert_not_called();load.assert_not_called();sina.assert_not_called();eastmoney.assert_not_called()
+
+def test_preflight_report_is_content_addressed_and_idempotent(tmp_path):
+ weekend=datetime(2026,8,15,8,30,tzinfo=CHINA_TZ)
+ with patch("v5.preflight.datetime") as clock:
+  clock.now.return_value=weekend;first=run(tmp_path,clock_checker=lambda:{"passed":True,"reason":"OK"});second=run(tmp_path,clock_checker=lambda:{"passed":True,"reason":"OK"})
+ assert first["report_id"]==second["report_id"] and len(list((tmp_path/"preflight/2026-08-15").glob("*.json")))==1

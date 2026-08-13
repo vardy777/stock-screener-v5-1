@@ -1,7 +1,7 @@
 """Non-trading V5 readiness probe; diagnostic only."""
 from __future__ import annotations
 from datetime import datetime
-import json
+import hashlib,json,os
 from pathlib import Path
 import time
 from .core import CHINA_TZ
@@ -37,7 +37,13 @@ def run(root,day=None,*,refresh_attempts=3,sleeper=None,clock_checker=None):
   for name,source in (("sina",SinaRealtimeSource()),("eastmoney",EastmoneyRealtimeSource(page_size=500,retries=0))):
    try:s=source.capture(["600000"],stage="signal",now=now);checks[name+"_transport"]=len(s.quotes)==1;details[name+"_quote_time"]=s.quotes[0].exchange_time if s.quotes else None
    except Exception as exc:checks[name+"_transport"]=False;details[name+"_error"]=type(exc).__name__
- report={"schema_version":"v5-readiness-preflight-v2","recorded_at":now.isoformat(),"trade_date":day,"mode":"TRADING_DAY_PREPARATION" if trading_day else "MARKET_CLOSED_DIAGNOSTIC","diagnostic_only":True,"strict_evidence":False,"universe_preparation":trading_day,"checks":checks,"details":details,"passed":all(checks.values())};path=root/"preflight"/now.date().isoformat()/f"{now.strftime('%H%M%S')}.json";path.parent.mkdir(parents=True,exist_ok=True);path.write_text(json.dumps(report,ensure_ascii=False,sort_keys=True,separators=(",",":")),encoding="utf-8");return report
+ report={"schema_version":"v5-readiness-preflight-v2","recorded_at":now.isoformat(),"trade_date":day,"mode":"TRADING_DAY_PREPARATION" if trading_day else "MARKET_CLOSED_DIAGNOSTIC","diagnostic_only":True,"strict_evidence":False,"universe_preparation":trading_day,"checks":checks,"details":details,"passed":all(checks.values())}
+ unsigned=json.dumps(report,ensure_ascii=False,sort_keys=True,separators=(",",":"));report["report_id"]="preflight1-"+hashlib.sha256(unsigned.encode()).hexdigest()[:24];raw=json.dumps(report,ensure_ascii=False,sort_keys=True,separators=(",",":"));path=root/"preflight"/day/f"{report['report_id']}.json";path.parent.mkdir(parents=True,exist_ok=True);tmp=path.with_suffix(f".{os.getpid()}.tmp");tmp.write_text(raw,encoding="utf-8")
+ try:os.link(tmp,path)
+ except FileExistsError:
+  if path.read_text(encoding="utf-8")!=raw:raise RuntimeError("preflight immutable collision")
+ finally:tmp.unlink(missing_ok=True)
+ return report
 if __name__=="__main__":
  import argparse
  parser=argparse.ArgumentParser(description="Diagnostic-only V5 readiness preflight")
