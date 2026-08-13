@@ -6,11 +6,13 @@ from .contracts import CandidateFunnelV1
 from .data_production import acquisition_accepted
 @dataclass(frozen=True)
 class FunnelPolicyV1:
-    min_amount:float=5_000_000.0;max_candidates:int=20;maximum_intraday_change:float=.095;maximum_range:float=.15;version:str="v5-funnel-policy-v2"
+    min_amount:float=5_000_000.0;max_candidates:int=20;maximum_intraday_change:float=.095;maximum_range:float=.15;version:str="v5-funnel-policy-v3"
 class CandidateFunnel:
     def __init__(self,policy:FunnelPolicyV1|None=None):self.policy=policy or FunnelPolicyV1()
-    def run(self,snapshot,*,market_state_id:str,market_valid:bool,stage:str,allowed_codes:Iterable[str]|None=None)->CandidateFunnelV1:
+    def run(self,snapshot,*,market_state_id:str,market_valid:bool,stage:str,allowed_codes:Iterable[str]|None=None,baseline_candidates:Iterable[dict]|None=None)->CandidateFunnelV1:
         allowed=None if allowed_codes is None else {str(x).zfill(6) for x in allowed_codes};raw=list(snapshot.quotes)
+        baseline={str(row["code"]):dict(row) for row in (baseline_candidates or ())}
+        if stage=="confirmation" and allowed is not None and set(baseline)!=allowed:raise ValueError("confirmation frozen baseline candidates required")
         stages=[{"name":"universe","input_count":len(raw),"passed_count":len(raw),"rejected":{}}]
         tradeable=[];rejected={}
         for q in raw:
@@ -40,12 +42,18 @@ class CandidateFunnel:
         momentum=percentiles("change");location=percentiles("close_location");amount_order=sorted(features,key=lambda x:(x["quote"].amount,x["quote"].code));n=max(len(amount_order)-1,1);liquidity={x["quote"].code:i/n for i,x in enumerate(amount_order)}
         ranked=[]
         for item in features:
-            q=item["quote"];contrib={"momentum":round(momentum[q.code]*.45,6),"liquidity":round(liquidity[q.code]*.30,6),"close_location":round(location[q.code]*.25,6)};score=sum(contrib.values());ranked.append((score,q.code,item,contrib))
+            q=item["quote"]
+            if stage=="confirmation":
+                prior=baseline[q.code];contrib=dict(prior.get("factor_contributions",{}));score=float(prior["score"]);sort_key=-int(prior["rank"])
+            else:
+                contrib={"momentum":round(momentum[q.code]*.45,6),"liquidity":round(liquidity[q.code]*.30,6),"close_location":round(location[q.code]*.25,6)};score=sum(contrib.values());sort_key=score
+            ranked.append((sort_key,q.code,item,contrib,score))
         ranked.sort(reverse=True);selected=[];total=max(len(ranked),1)
-        for rank,(score,code,item,contrib) in enumerate(ranked[:self.policy.max_candidates],1):
+        for rank,(_,code,item,contrib,score) in enumerate(ranked[:self.policy.max_candidates],1):
             q=item["quote"];risks=[]
             if item["change"]>.07:risks.append("接近追高区间")
             if item["close_location"]<.45:risks.append("尾盘位置偏弱")
-            selected.append({"code":q.code,"name":q.name,"rank":rank,"change_pct":round(item["change"]*100,4),"amount":q.amount,"last_price":q.last_price,"bid1":q.bid1,"ask1":q.ask1,"quote_time":q.exchange_time,"provider":q.provider,"score":round(score,6),"score_percentile":round((total-rank+1)/total,6),"factor_values":{"intraday_change":round(item["change"],6),"amount":q.amount,"day_range":round(item["range"],6),"close_location":round(item["close_location"],6)},"factor_contributions":contrib,"rank_basis":"frozen_v5_rule_factors_v2","input_snapshot_id":snapshot.snapshot_id,"reasons":["可交易","流动性通过","市场门禁通过"],"risks":risks or ["隔夜跳空与市场反转风险"],"v5_candidate_origin":"V5"})
+            frozen_rank=int(baseline[q.code]["rank"]) if stage=="confirmation" else rank;frozen_percentile=float(baseline[q.code].get("score_percentile",0)) if stage=="confirmation" else round((total-rank+1)/total,6)
+            selected.append({"code":q.code,"name":q.name,"rank":frozen_rank,"change_pct":round(item["change"]*100,4),"amount":q.amount,"last_price":q.last_price,"bid1":q.bid1,"ask1":q.ask1,"quote_time":q.exchange_time,"provider":q.provider,"score":round(score,6),"score_percentile":frozen_percentile,"factor_values":{"intraday_change":round(item["change"],6),"amount":q.amount,"day_range":round(item["range"],6),"close_location":round(item["close_location"],6)},"factor_contributions":contrib,"rank_basis":"frozen_morning_full_market_v3" if stage=="confirmation" else "frozen_v5_rule_factors_v3","input_snapshot_id":snapshot.snapshot_id,"reasons":["可交易","流动性通过","市场门禁通过","沿用早盘全市场排名"] if stage=="confirmation" else ["可交易","流动性通过","市场门禁通过"],"risks":risks or ["隔夜跳空与市场反转风险"],"v5_candidate_origin":"V5"})
         stages.append({"name":"ranked","input_count":len(features),"passed_count":len(selected),"rejected":{"below_top_n":max(0,len(features)-len(selected))}})
         return CandidateFunnelV1.build(snapshot=snapshot,market_state_id=market_state_id,stage=stage,accepted=bool(market_valid and acquisition_accepted(snapshot)),policy_version=self.policy.version,stages=stages,candidates=selected)

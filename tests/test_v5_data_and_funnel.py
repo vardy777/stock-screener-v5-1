@@ -106,7 +106,7 @@ class V5DataAndFunnelTests(unittest.TestCase):
         morning=funnel.run(snap,market_state_id="mstate1-test",market_valid=True,stage="morning")
         self.assertEqual([x["code"] for x in morning.candidates],["000004","000001"])
         self.assertEqual(morning.stages[1]["rejected"]["limit_locked"],1);self.assertEqual(morning.stages[2]["rejected"]["insufficient_amount"],1)
-        confirm=funnel.run(snap,market_state_id="mstate1-test",market_valid=True,stage="confirmation",allowed_codes=["000001"])
+        baseline=[dict(morning.candidates[1])];confirm=funnel.run(snap,market_state_id="mstate1-test",market_valid=True,stage="confirmation",allowed_codes=["000001"],baseline_candidates=baseline)
         self.assertEqual([x["code"] for x in confirm.candidates],["000001"])
         self.assertEqual(confirm.stages[3]["rejected"]["outside_morning_pool"],1)
     def test_invalid_market_fails_closed_with_explained_empty_funnel(self):
@@ -114,7 +114,7 @@ class V5DataAndFunnelTests(unittest.TestCase):
         self.assertFalse(result.accepted);self.assertEqual(result.candidates,());self.assertEqual(result.stages[3]["rejected"]["market_data_invalid"],2)
     def test_morning_observation_does_not_require_ask_but_confirmation_does(self):
         no_ask=snapshot([quote("000001",ask1=0,ask1_volume=0)],1);funnel=CandidateFunnel();morning=funnel.run(no_ask,market_state_id="mstate1-test",market_valid=True,stage="morning");assert [x["code"] for x in morning.candidates]==["000001"]
-        confirmation=funnel.run(no_ask,market_state_id="mstate1-test",market_valid=True,stage="confirmation",allowed_codes=["000001"]);assert confirmation.candidates==() and confirmation.stages[1]["rejected"]["missing_buy_book"]==1
+        baseline=[dict(morning.candidates[0])];confirmation=funnel.run(no_ask,market_state_id="mstate1-test",market_valid=True,stage="confirmation",allowed_codes=["000001"],baseline_candidates=baseline);assert confirmation.candidates==() and confirmation.stages[1]["rejected"]["missing_buy_book"]==1
     def test_special_treatment_and_delisting_names_are_transparently_excluded(self):
         rows=[quote("000001",name="*ST测试"),quote("000002",name="退市测试"),quote("000003",name="正常股票")];result=CandidateFunnel().run(snapshot(rows,3),market_state_id="mstate1-test",market_valid=True,stage="morning");assert [x["code"] for x in result.candidates]==["000003"] and result.stages[1]["rejected"]["special_treatment"]==2
     def test_v5_facts_are_content_addressed_immutable(self):
@@ -128,9 +128,10 @@ class V5DataAndFunnelTests(unittest.TestCase):
         confirm_snap=snapshot([quote("000001",last_price=10.3),quote("000002",last_price=10.2)])
         funnel=CandidateFunnel();morning=funnel.run(morning_snap,market_state_id="mstate1-morning",market_valid=True,stage="morning")
         pool=MorningPoolV5.from_funnel(morning,created_at=NOW)
-        confirm=funnel.run(confirm_snap,market_state_id="mstate1-confirm",market_valid=True,stage="confirmation",allowed_codes=["000001"])
+        confirm=funnel.run(confirm_snap,market_state_id="mstate1-confirm",market_valid=True,stage="confirmation",allowed_codes=["000001"],baseline_candidates=[dict(morning.candidates[0])])
         decision=ConfirmationV5.from_funnel(pool,confirm,decided_at=NOW)
         self.assertEqual(decision.morning_pool_id,pool.pool_id);self.assertEqual([x["code"] for x in decision.candidates],["000001"]);self.assertEqual(decision.changes[0]["morning_rank"],1)
+        self.assertEqual(decision.candidates[0]["score"],morning.candidates[0]["score"]);self.assertEqual(decision.candidates[0]["rank"],morning.candidates[0]["rank"])
     def test_performance_is_paper_only_and_fails_closed_for_small_sample(self):
         report=report_strict_paper([{"net_return":.01,"net_pnl":100},{"net_return":-.02,"net_pnl":-200}],baseline_returns=[0,.001],minimum_trades=40)
         self.assertEqual(report.cohort,"paper_round_trips");self.assertEqual(report.trade_count,2);self.assertEqual(report.conclusion,"INSUFFICIENT_EVIDENCE");self.assertEqual(report.win_rate,.5)
