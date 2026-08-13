@@ -10,9 +10,9 @@ class ContractViolation(ValueError):
 def is_market_snapshot(value)->bool:
     """Structural boundary for versioned immutable market snapshots.
 
-    During migration this accepts a V4 snapshot object without importing V4;
-    native V5 snapshots will satisfy the same public shape.
+    V5 owns its native schema.  The legacy schema remains structurally readable
+    only for explicit replay/migration adapters, never by importing V4 runtime.
     """
-    return (getattr(value,"schema_version","")=="market-snapshot-v1"
+    return (getattr(value,"schema_version","") in {"v5-market-snapshot-v1","market-snapshot-v1"}
             and str(getattr(value,"snapshot_id","")).startswith("ms1-")
             and hasattr(value,"quality") and hasattr(value,"quotes"))

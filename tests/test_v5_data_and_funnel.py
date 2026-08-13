@@ -1,8 +1,9 @@
 import unittest
 from datetime import datetime,timedelta
 from types import SimpleNamespace
-from v4.execution import CHINA_TZ
-from v4.market_contracts import MarketSnapshotV1,QuoteV1
+from v5.core import CHINA_TZ
+from v5.market_snapshot import MarketSnapshotV1,QuoteV1
+from v5.eastmoney_source import EastmoneyRealtimeSource
 from v5.data_production import MultiSourceAcquirer
 from v5.funnel import CandidateFunnel,FunnelPolicyV1
 from v5.storage import V5FactStore
@@ -15,8 +16,8 @@ from pathlib import Path
 
 NOW=datetime(2026,8,13,14,49,30,tzinfo=CHINA_TZ)
 def quote(code,**changes):
-    row={"code":code,"name":"测试","trade_date":"2026-08-13","exchange_time":(NOW-timedelta(seconds=1)).isoformat(),"provider_time":(NOW-timedelta(seconds=1)).isoformat(),"received_at":NOW.isoformat(),"last_price":10.2,"previous_close":10.0,"bid1":10.19,"bid1_volume":10000,"ask1":10.21,"ask1_volume":10000,"volume":100000,"amount":8_000_000,"halted":False,"limit_up":False,"limit_down":False,"provider":"test"};row.update(changes);return QuoteV1.from_mapping(row)
-def snapshot(rows,expected=2):return MarketSnapshotV1.build(trade_date="2026-08-13",session="signal",batch_started_at=NOW-timedelta(seconds=2),batch_completed_at=NOW,quotes=rows,expected_codes=expected,require_order_book=False)
+    row={"code":code,"name":"测试","trade_date":"2026-08-13","exchange_time":(NOW-timedelta(seconds=1)).isoformat(),"provider_time":(NOW-timedelta(seconds=1)).isoformat(),"received_at":NOW.isoformat(),"last_price":10.2,"previous_close":10.0,"open_price":10.0,"high_price":10.3,"low_price":9.9,"bid1":10.19,"bid1_volume":10000,"ask1":10.21,"ask1_volume":10000,"volume":100000,"amount":8_000_000,"halted":False,"limit_up":False,"limit_down":False,"provider":"test"};row.update(changes);return QuoteV1.from_mapping(row)
+def snapshot(rows,expected=2):return MarketSnapshotV1.build(trade_date="2026-08-13",session="signal",batch_started_at=NOW-timedelta(seconds=2),batch_completed_at=NOW,quotes=rows,expected_codes=expected)
 class Source:
     def __init__(self,name,value):self.name=name;self.value=value
     def capture(self,*args,**kwargs):
@@ -24,6 +25,18 @@ class Source:
         return self.value
 
 class V5DataAndFunnelTests(unittest.TestCase):
+    def test_eastmoney_source_maps_only_requested_codes_and_preserves_provider_time(self):
+        epoch=int((NOW-timedelta(seconds=1)).timestamp())
+        payload={"rc":0,"data":{"diff":[{"f12":"000001","f14":"平安银行","f2":10.2,"f5":1000,"f6":8000000,"f15":10.3,"f16":10.0,"f17":10.1,"f18":10.0,"f31":10.19,"f32":10.21,"f33":100,"f34":120,"f124":epoch},{"f12":"600000","f14":"浦发银行","f2":9.8,"f5":500,"f6":4000000,"f15":9.9,"f16":9.7,"f17":9.8,"f18":9.75,"f31":9.79,"f32":9.81,"f33":20,"f34":30,"f124":epoch}]}}
+        source=EastmoneyRealtimeSource(fetch_json=lambda *_:payload,clock=lambda:NOW)
+        result=source.capture(["000001"],stage="signal",now=NOW)
+        self.assertEqual([q.code for q in result.quotes],["000001"]);self.assertEqual(result.quotes[0].provider,source.name)
+        self.assertEqual(result.quotes[0].bid1_volume,10000);self.assertEqual(result.quotes[0].ask1_volume,12000);self.assertTrue(result.quality.accepted)
+
+    def test_eastmoney_missing_timestamp_is_rejected_not_guessed(self):
+        payload={"rc":0,"data":{"diff":[{"f12":"000001","f14":"平安银行","f2":10.2,"f5":1000,"f6":8000000,"f15":10.3,"f16":10.0,"f17":10.1,"f18":10.0,"f31":10.19,"f32":10.21,"f33":100,"f34":120,"f124":"-"}]}}
+        result=EastmoneyRealtimeSource(fetch_json=lambda *_:payload,clock=lambda:NOW).capture(["000001"],stage="signal",now=NOW)
+        self.assertEqual(result.quotes,());self.assertFalse(result.quality.accepted);self.assertIn("empty",result.quality.reasons)
     def test_second_source_is_selected_only_when_strict_snapshot_is_accepted(self):
         bad=snapshot([quote("000001")],2);good=snapshot([quote("000001"),quote("000002")],2)
         result=MultiSourceAcquirer([Source("primary",bad),Source("backup",good)]).acquire(["000001","000002"],stage="signal",now=NOW)
