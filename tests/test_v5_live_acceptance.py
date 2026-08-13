@@ -10,10 +10,15 @@ def test_live_acceptance_is_read_only_and_incomplete_without_window_evidence(tmp
     assert before==after and report["complete"] is False and report["research_locked"] is True and report["broker_orders"] is False
 
 def test_live_acceptance_selects_latest_readiness_by_entity_time(tmp_path):
+    import hashlib
     directory=tmp_path/"preflight/2026-08-14";directory.mkdir(parents=True)
-    (directory/"z.json").write_text(json.dumps({"recorded_at":"2026-08-14T08:00:00+08:00","passed":False}),encoding="utf-8")
-    (directory/"a.json").write_text(json.dumps({"recorded_at":"2026-08-14T08:30:00+08:00","passed":True}),encoding="utf-8")
+    for recorded,passed in (("2026-08-14T08:00:00+08:00",False),("2026-08-14T08:30:00+08:00",True)):
+        row={"schema_version":"v5-readiness-preflight-v2","recorded_at":recorded,"trade_date":"2026-08-14","diagnostic_only":True,"strict_evidence":False,"passed":passed};row["report_id"]="preflight1-"+hashlib.sha256(json.dumps(row,ensure_ascii=False,sort_keys=True,separators=(",",":")).encode()).hexdigest()[:24];(directory/f"{row['report_id']}.json").write_text(json.dumps(row),encoding="utf-8")
     report=build(tmp_path,"2026-08-14",now=datetime(2026,8,14,9,0,tzinfo=CHINA_TZ));assert report["readiness"]["latest_passed"] is True
+
+def test_live_acceptance_rejects_tampered_readiness_report(tmp_path):
+    directory=tmp_path/"preflight/2026-08-14";directory.mkdir(parents=True);(directory/"preflight1-forged.json").write_text(json.dumps({"trade_date":"2026-08-14","passed":True,"diagnostic_only":True,"strict_evidence":False,"report_id":"preflight1-forged"}),encoding="utf-8")
+    report=build(tmp_path,"2026-08-14",now=datetime(2026,8,14,15,20,tzinfo=CHINA_TZ));assert report["readiness"]["validation_errors"] and report["readiness"]["latest_passed"] is None and not report["complete"]
 
 def test_live_acceptance_save_is_content_addressed_and_idempotent(tmp_path):
     report=build(tmp_path,"2026-08-14",now=datetime(2026,8,14,15,20,tzinfo=CHINA_TZ));first=save(tmp_path,report);second=save(tmp_path,report)
