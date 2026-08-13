@@ -86,7 +86,7 @@ class V5DataAndFunnelTests(unittest.TestCase):
             return {"rc":0,"data":{"total":len(codes),"diff":[row]}}
         result=EastmoneyRealtimeSource(fetch_json=fetch,clock=lambda:NOW,page_size=500,overall_budget_seconds=100).capture(codes,stage="signal",now=NOW)
         self.assertEqual(len(result.quotes),21);self.assertTrue(result.quality.accepted)
-    def test_eastmoney_rejects_provider_repeated_page_instead_of_counting_duplicates():
+    def test_eastmoney_rejects_provider_repeated_page_instead_of_counting_duplicates(self):
         epoch=int((NOW-timedelta(seconds=1)).timestamp());row={"f12":"000001","f14":"test","f2":10.2,"f5":1000,"f6":8000000,"f15":10.3,"f16":10.0,"f17":10.1,"f18":10.0,"f31":10.19,"f32":10.21,"f33":100,"f34":120,"f124":epoch}
         source=EastmoneyRealtimeSource(fetch_json=lambda *_:{"rc":0,"data":{"total":2,"diff":[row]}},clock=lambda:NOW,overall_budget_seconds=100)
         with self.assertRaisesRegex(RuntimeError,"repeated page"):source.capture(["000001","000002"],stage="signal",now=NOW)
