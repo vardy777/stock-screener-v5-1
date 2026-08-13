@@ -1,7 +1,7 @@
 """V5-only PushPlus projection from final V5 facts; never recalculates candidates."""
 from __future__ import annotations
 from datetime import datetime
-import hashlib,html,json,os
+import hashlib,html,json,os,msvcrt,time
 from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request,urlopen
@@ -36,15 +36,27 @@ def _token(env_path):
         if line.startswith("PUSHPLUS_TOKEN="):return line.split("=",1)[1].strip()
     raise ContractViolation("PushPlus token missing")
 def send(root,trade_date,stage,env_path,transport=None,*,as_of=None):
-    payload=build_payload(root,trade_date,stage,as_of=as_of);receipt_path=Path(root)/"notifications"/trade_date/f"{stage}.json"
-    if receipt_path.exists():
-        prior=json.loads(receipt_path.read_text(encoding="utf-8"))
-        if prior.get("outcome")=="ACCEPTED" and prior.get("payload_sha256")==payload["payload_sha256"]:return prior
-        raise ContractViolation("V5 notification immutable collision")
-    token=_token(env_path);post=urlencode({"token":token,"title":payload["title"],"content":payload["content"],"template":"html"}).encode();transport=transport or (lambda:json.loads(urlopen(Request("https://www.pushplus.plus/send",data=post,headers={"Content-Type":"application/x-www-form-urlencoded"}),timeout=15).read().decode()))
-    response=transport();accepted=response.get("code")==200
-    receipt={"schema_version":"v5-notification-receipt-v1","parent_entity_id":payload["parent_entity_id"],"payload_sha256":payload["payload_sha256"],"stage":stage,"trade_date":trade_date,"outcome":"ACCEPTED" if accepted else "REJECTED","response_code":response.get("code"),"recorded_at":datetime.now(CHINA_TZ).isoformat()}
-    raw=json.dumps(receipt,ensure_ascii=False,sort_keys=True,separators=(",",":"));attempt_id=hashlib.sha256(raw.encode()).hexdigest();attempt_path=Path(root)/"notification_attempts"/trade_date/stage/f"attempt-{attempt_id}.json";attempt_path.parent.mkdir(parents=True,exist_ok=True);attempt_path.write_text(raw,encoding="utf-8")
-    if not accepted:raise RuntimeError("PushPlus did not return 200/ACCEPTED")
-    receipt_path.parent.mkdir(parents=True,exist_ok=True);tmp=receipt_path.with_suffix(f".{os.getpid()}.tmp");tmp.write_text(raw,encoding="utf-8");os.replace(tmp,receipt_path)
-    return receipt
+    root=Path(root);payload=build_payload(root,trade_date,stage,as_of=as_of);receipt_path=root/"notifications"/trade_date/f"{stage}.json";lock_path=root/"notification_locks"/trade_date/f"{stage}.lock";lock_path.parent.mkdir(parents=True,exist_ok=True)
+    with lock_path.open("a+b") as lock:
+        deadline=time.monotonic()+20
+        while True:
+            try:lock.seek(0);msvcrt.locking(lock.fileno(),msvcrt.LK_NBLCK,1);break
+            except OSError:
+                if time.monotonic()>=deadline:raise ContractViolation("V5 notification lock timeout")
+                time.sleep(.02)
+        try:
+            if receipt_path.exists():
+                prior=json.loads(receipt_path.read_text(encoding="utf-8"))
+                if prior.get("outcome")=="ACCEPTED" and prior.get("payload_sha256")==payload["payload_sha256"]:return prior
+                raise ContractViolation("V5 notification immutable collision")
+            token=_token(env_path);post=urlencode({"token":token,"title":payload["title"],"content":payload["content"],"template":"html"}).encode();transport=transport or (lambda:json.loads(urlopen(Request("https://www.pushplus.plus/send",data=post,headers={"Content-Type":"application/x-www-form-urlencoded"}),timeout=15).read().decode()))
+            response=transport();accepted=response.get("code")==200;receipt={"schema_version":"v5-notification-receipt-v1","parent_entity_id":payload["parent_entity_id"],"payload_sha256":payload["payload_sha256"],"stage":stage,"trade_date":trade_date,"outcome":"ACCEPTED" if accepted else "REJECTED","response_code":response.get("code"),"recorded_at":datetime.now(CHINA_TZ).isoformat()};raw=json.dumps(receipt,ensure_ascii=False,sort_keys=True,separators=(",",":"));attempt_id=hashlib.sha256(raw.encode()).hexdigest();attempt_path=root/"notification_attempts"/trade_date/stage/f"attempt-{attempt_id}.json";attempt_path.parent.mkdir(parents=True,exist_ok=True);tmp_attempt=attempt_path.with_suffix(f".{os.getpid()}.tmp");tmp_attempt.write_text(raw,encoding="utf-8")
+            try:os.link(tmp_attempt,attempt_path)
+            finally:tmp_attempt.unlink(missing_ok=True)
+            if not accepted:raise RuntimeError("PushPlus did not return 200/ACCEPTED")
+            receipt_path.parent.mkdir(parents=True,exist_ok=True);tmp=receipt_path.with_suffix(f".{os.getpid()}.tmp");tmp.write_text(raw,encoding="utf-8")
+            try:os.link(tmp,receipt_path)
+            finally:tmp.unlink(missing_ok=True)
+            return receipt
+        finally:
+            lock.seek(0);msvcrt.locking(lock.fileno(),msvcrt.LK_UNLCK,1)

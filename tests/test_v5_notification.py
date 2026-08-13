@@ -1,4 +1,5 @@
 import json
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -40,3 +41,10 @@ def test_payload_fails_closed_on_snapshot_lineage_mismatch_or_future_fact():
         with pytest.raises(ContractViolation,match="lineage mismatch"):build_payload(root,day,"morning",as_of=now)
         raw["snapshot_id"]="ms1-a";raw["created_at"]=f"{day}T09:26:00+08:00";(root/"morning_pools"/day/"m.json").write_text(json.dumps(raw),encoding="utf-8")
         with pytest.raises(ContractViolation,match="causal"):build_payload(root,day,"morning",as_of=now)
+
+def test_concurrent_notification_delivery_sends_exactly_once():
+    with TemporaryDirectory() as d:
+        root=Path(d);day=facts(root);env=root/".env";env.write_text("PUSHPLUS_TOKEN=secret",encoding="utf-8");calls=[]
+        def transport():calls.append(1);return {"code":200}
+        with ThreadPoolExecutor(max_workers=2) as pool:results=list(pool.map(lambda _:send(root,day,"morning",env,transport=transport),range(2)))
+        assert len(calls)==1 and all(row["outcome"]=="ACCEPTED" for row in results)

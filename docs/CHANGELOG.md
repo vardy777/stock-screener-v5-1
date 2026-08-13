@@ -117,6 +117,7 @@
 - Made next-open execution outcome authoritative at the scheduler boundary: `UNFILLED` and `PARTIALLY_FILLED` now persist their paper events but fail the task and trigger operational handling; only a complete fill or a genuine no-position/no-baseline no-op records SUCCESS.
 - Applied the same scheduler truth rule to 14:50 paper buys: an immutable engine rejection can no longer be reported as a successful task run.
 - Completed immutable storage hardening for two remaining paths: universe facts now use atomic create-once writes under concurrent preparation, and each maintenance scan is a content-addressed manifest instead of overwriting the day's previous audit evidence.
+- Serialized each V5 business-notification stage across processes. Concurrent retries now recheck the immutable accepted receipt under a Windows file lock, send PushPlus at most once, and atomically create both attempt and final receipt artifacts.
 - Added content-addressed V5 point-in-time universe facts and strict two-source consensus without coverage merging.
 - Added V5-native immutable market snapshots and an independent Eastmoney adapter.
 - Added V5-native event-sourced paper ledger with fees, slippage, one-third cap, T+1, immutable rejections, idempotency and reconciliation.
