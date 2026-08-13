@@ -59,9 +59,13 @@ class P5ReadOnlySources:
 
     @staticmethod
     def _market(context: dict, journal: dict) -> dict:
-        raw = dict(context.get("market_state", {}) or {})
-        if not raw:
-            raw = dict((journal.get("confirmation") or journal.get("morning") or {}).get("market_state", {}) or {})
+        journal_entity=journal.get("confirmation") or journal.get("morning") or {}
+        journal_day=str(journal.get("trade_date",""))
+        context_day=str(context.get("generated_at",context.get("market_state",{}).get("as_of","")))[:10]
+        journal_preferred=bool(journal_day) and journal_day >= context_day
+        raw=(dict(journal_entity.get("market_state",{}) or {}) if journal_preferred else
+             dict(context.get("market_state",{}) or {}))
+        if not raw: raw=dict(journal_entity.get("market_state",{}) or {})
         sentiment = dict(context.get("sentiment", {}) or {})
         aliases = {
             "rise_count": ("rise_count", "up_count", "rising_count"),
@@ -77,7 +81,7 @@ class P5ReadOnlySources:
             if target not in raw:
                 raw[target] = next((merged[n] for n in names if n in merged), 0)
         raw.setdefault("as_of", context.get("generated_at", ""))
-        raw.setdefault("data_source", "v4/data/market_context.json")
+        raw.setdefault("data_source", "candidate_journal" if journal_preferred else "v4/data/market_context.json")
         raw.setdefault("data_valid", bool(raw) and raw.get("data_valid", True))
         return raw
 

@@ -1,7 +1,8 @@
 """Pure P2 production decision producer with no account responsibilities."""
 from __future__ import annotations
-from datetime import datetime
+from datetime import datetime,time
 from pathlib import Path
+from time import sleep
 
 from market_universe import list_universe_codes
 
@@ -60,6 +61,21 @@ class P2DecisionProducer:
         market_state = dict(analyze_market(
             snapshot, reference_time=reference_time
         ).get("market_state", {}))
+        # 09:25 is a provider transition boundary: one batch can legitimately
+        # contain many 09:24:xx quotes. Retry inside the same business window
+        # before freezing an empty pool, while keeping the 95% gate unchanged.
+        # Nothing is persisted until the final capture is selected.
+        attempts=1
+        while (stage == "morning" and market_state.get("data_valid") is not True
+               and attempts < 3 and TradingClock.now().timetz().replace(tzinfo=None) < time(9,29)):
+            sleep(2)
+            retry_now=TradingClock.now()
+            snapshot=self.gateway.fetch_snapshot(codes,session="morning",require_order_book=False,now=retry_now)
+            if not snapshot.quotes: break
+            reference_time=datetime.fromisoformat(snapshot.batch_completed_at)
+            market_state=dict(analyze_market(snapshot,reference_time=reference_time).get("market_state",{}))
+            attempts+=1
+        market_state["capture_attempts"]=attempts
         candidates = self.runtime.evaluate_universe(snapshot, market_state=market_state,
             allowed_codes=allowed_codes, morning_candidates=morning_rows if stage == "confirmation" else None,
             decision_stage=stage, reference_time=reference_time)

@@ -23,7 +23,7 @@ def render(model,view="beginner"):
         for x in s["candidates"]:
             reason="；".join(REASON_LABELS.get(v,v) for v in x["reason_codes"])
             candidates+=f"<article class='candidate'><div class='candidate-head'><b>{e(x['name'])} {e(x['code'])}</b><span class='status'>{'通过模拟观察门槛' if x['eligible'] else '未确认买入'}</span></div><p>早盘排名 #{e(x['morning_rank'])} · {e(x['strategy'])} · 评分 {e(x['base_score'])} → {e(x['final_score'] if x['final_score'] is not None else '未入选')}</p><p class='muted'>原因：{e(reason)}</p></article>"
-    candidates=candidates or "<div class='empty'>当前没有可用于今日判断的候选。</div>"
+    candidates=candidates or (f"<div class='empty'>当前没有可用于今日判断的候选。行情新鲜覆盖率 {m['coverage']*100:.1f}%；低于95%时候选引擎必须停止选股。</div>" if fresh["journal_current"] else "<div class='empty'>当前没有可用于今日判断的候选。</div>")
     flows="".join(f"<tr><td>{e(x['name'])}</td><td class='{'good' if x['net_inflow']>=0 else 'bad'}'>{x['net_inflow']:+.2f}亿</td><td>{e(x['change_pct'])}%</td></tr>" for x in flow["sectors"])
     flow_body=("" if flow["status"]=="current" else f"<div class='notice'>资金流数据不可用或已过期（{e(flow['as_of'])}），不参与今日判断。</div>")+(f"<table><tr><th>板块</th><th>净流入</th><th>涨跌幅</th></tr>{flows}</table>" if flows else "<div class='empty'>暂无可信资金流。</div>")
     timeline="".join(f"<div class='node {e(x['status'])}'><b>{e(x['label'])}</b><div class='muted'>{e(x['status'])}</div></div>" for x in s["timeline"])

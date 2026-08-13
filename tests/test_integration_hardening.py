@@ -34,6 +34,20 @@ class IntegrationHardeningTests(unittest.TestCase):
             confirmation_features=features,input_snapshot_id="ms1-abc")
         self.assertEqual(context.to_dict()["input_snapshot_id"],"ms1-abc")
 
+    def test_morning_retries_invalid_transition_capture_without_lowering_gate(self):
+        snapshots=[SimpleNamespace(quotes=[object()],batch_completed_at=f"2026-08-10T09:25:0{x}+08:00") for x in (1,4)]
+        gateway=MagicMock(); gateway.fetch_snapshot.side_effect=snapshots
+        journal=MagicMock(); runtime=MagicMock(); runtime.evaluate_universe.return_value=[]
+        service=MagicMock(); service.publish_morning.side_effect=lambda d,c,m:m
+        now=datetime(2026,8,10,9,25,tzinfo=CHINA_TZ)
+        with patch("v4.decision_production.TradingClock.now",return_value=now), \
+             patch("v4.decision_production.sleep"), \
+             patch("v4.decision_production.analyze_market",side_effect=[{"market_state":{"data_valid":False,"fresh_quote_coverage":.78}},{"market_state":{"data_valid":True,"fresh_quote_coverage":.97}}]), \
+             patch("v4.decision_production.DecisionChainService",return_value=service):
+            result=P2DecisionProducer(gateway=gateway,journal=journal,runtime=runtime,universe_codes=["000001"]).produce("morning")
+        self.assertEqual(gateway.fetch_snapshot.call_count,2)
+        self.assertTrue(result["data_valid"]); self.assertEqual(result["capture_attempts"],2)
+
     def test_non_trading_day_has_expected_idle_heartbeat(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(p5_sources.TradingCalendar,"is_open",return_value=False):
             model=p5_sources.P5ReadOnlySources(Path(directory)).build(generated_at=datetime(2026,8,9,12,tzinfo=CHINA_TZ))

@@ -150,7 +150,7 @@ class DashboardReadModelBuilder:
             "definition":"上涨家数/上涨下跌平盘总数；仅描述市场宽度，不是盈利概率"}
 
     def _flow(self,f,current=True):
-        rows=list(f.get("sector_flows",{}).items())[:8]
+        rows=(list(f.get("sector_flows",{}).items())[:8] if current else [])
         status=(f.get("status","unavailable") if current else "stale") if rows else "unavailable"
         return {"status":status,"as_of":f.get("as_of",f.get("updated_at","")),
             "source":f.get("source","未提供"),"unit":"亿元","sectors":[{"name":n,"net_inflow":_money(v.get("net_inflow")),"change_pct":v.get("change_pct")} for n,v in rows]}
@@ -232,6 +232,7 @@ class DashboardReadModelBuilder:
         reasons=[]
         if not freshness.get("journal_current"): reasons.append("候选不是当日数据")
         if not freshness.get("market_current"): reasons.append("市场行情无效或已过期")
+        elif market.get("data_valid") is not True: reasons.append("全市场新鲜覆盖率未达到95%")
         reasons.extend(str(x) for x in confirmation.get("reason_codes",[])[:3])
         return {"phase":phase,"title":title,"action":action,"reasons":reasons,
             "current_candidate_count":len(candidates) if freshness.get("journal_current") else 0}
