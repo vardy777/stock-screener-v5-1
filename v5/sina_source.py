@@ -11,13 +11,21 @@ def _fetch(url,timeout):
     with urlopen(request,timeout=timeout) as response:return response.read().decode("gbk",errors="replace")
 class SinaRealtimeSource:
     name="sina_realtime_level1"
-    def __init__(self,fetch_text=None,timeout=15,batch_size=700,clock=None,overall_budget_seconds=25,monotonic=None,sleeper=None):self.fetch_text=fetch_text or _fetch;self.timeout=timeout;self.batch_size=batch_size;self.clock=clock or (lambda:datetime.now(CHINA_TZ));self.overall_budget_seconds=float(overall_budget_seconds);self.monotonic=monotonic or time.monotonic;self.sleeper=sleeper or time.sleep
+    def __init__(self,fetch_text=None,timeout=15,batch_size=700,clock=None,overall_budget_seconds=25,monotonic=None,sleeper=None,retries=1):self.fetch_text=fetch_text or _fetch;self.timeout=timeout;self.batch_size=batch_size;self.clock=clock or (lambda:datetime.now(CHINA_TZ));self.overall_budget_seconds=float(overall_budget_seconds);self.monotonic=monotonic or time.monotonic;self.sleeper=sleeper or time.sleep;self.retries=int(retries)
     def capture(self,codes,*,stage,now):
         started=self.clock();deadline=self.monotonic()+self.overall_budget_seconds;quotes=[]
         for offset in range(0,len(codes),self.batch_size):
             remaining=deadline-self.monotonic()
             if remaining<=0:raise TimeoutError("sina capture exceeded overall budget")
-            batch=codes[offset:offset+self.batch_size];symbols=[("sh" if x.startswith("6") else "sz")+x for x in batch];text=self.fetch_text("https://hq.sinajs.cn/list="+",".join(symbols),min(self.timeout,max(.1,remaining)));received=self.clock()
+            batch=codes[offset:offset+self.batch_size];symbols=[("sh" if x.startswith("6") else "sz")+x for x in batch]
+            for attempt in range(self.retries+1):
+                remaining=deadline-self.monotonic()
+                if remaining<=0:raise TimeoutError("sina capture exceeded overall budget")
+                try:text=self.fetch_text("https://hq.sinajs.cn/list="+",".join(symbols),min(self.timeout,max(.1,remaining)));break
+                except (TimeoutError,ConnectionError,OSError,RuntimeError) as exc:
+                    if attempt>=self.retries:raise RuntimeError(f"sina batch unavailable: {type(exc).__name__}") from exc
+                    self.sleeper(min(.2*(attempt+1),max(0,deadline-self.monotonic())))
+            received=self.clock()
             for line in text.splitlines():
                 match=re.match(r'var hq_str_(?:sh|sz)(\d{6})="(.*)";',line.strip())
                 if not match:continue
