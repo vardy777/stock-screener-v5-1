@@ -89,8 +89,9 @@ def paper_sell(root,*,now=None,sources=None):
     if not result.accepted:raise ContractViolation("V5 paper sell consensus rejected")
     V5FactStore(root).save_snapshot(result.primary);production=PaperProduction(root);events=production.sell_all(result.primary,at=current)
     if len(events)!=len(positions):raise ContractViolation("V5 paper sell missing executable bid")
-    baselines=[]
-    for confirmation in confirmations:
-        buy_snapshot=load_snapshot(root/"snapshots"/confirmation["trade_date"]/f"{confirmation['snapshot_id']}.json");baselines.append(production.save_baseline(confirmation,buy_snapshot,result.primary,at=current))
     outcomes=[event.outcome for event in events]
+    baselines=[]
+    if outcomes and all(value=="FILLED" for value in outcomes):
+        for confirmation in confirmations:
+            buy_snapshot=load_snapshot(root/"snapshots"/confirmation["trade_date"]/f"{confirmation['snapshot_id']}.json");baselines.append(production.save_baseline(confirmation,buy_snapshot,result.primary,at=current))
     return {"events":[event.__dict__ for event in events],"baselines":baselines,"snapshot_id":result.primary.snapshot_id,"outcome":"FILLED" if outcomes and all(value=="FILLED" for value in outcomes) else "PARTIALLY_FILLED" if "FILLED" in outcomes else "UNFILLED"}

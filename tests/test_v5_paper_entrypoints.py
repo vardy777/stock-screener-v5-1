@@ -41,3 +41,10 @@ def test_task_runner_marks_rejected_paper_buy_failed():
         ShadowScheduler(root).record("confirmation","2026-08-14","SUCCESS",NOW,{})
         result=run(root,"paper_buy",now=NOW)
         assert result["passed"] is False and "paper buy rejected: INSUFFICIENT_CASH" in result["run"]["details"]["error"] and buyer.called
+
+def test_unfilled_sell_attempt_never_persists_comparison_baseline():
+    source=(Path(__file__).resolve().parents[1]/"v5/jobs.py").read_text(encoding="utf-8")
+    outcomes=source.index('outcomes=[event.outcome for event in events]')
+    complete_gate=source.index('if outcomes and all(value=="FILLED" for value in outcomes):',outcomes)
+    baseline_write=source.index('production.save_baseline(',complete_gate)
+    assert outcomes < complete_gate < baseline_write
