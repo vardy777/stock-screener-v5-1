@@ -25,7 +25,7 @@ def render(model,view="today"):
 class Handler(BaseHTTPRequestHandler):
     data_dir=Path("v5/data")
     def do_GET(self):
-        path=urlparse(self.path).path;model=V5ReadOnlySources(self.data_dir).build(datetime.now(CHINA_TZ).date().isoformat())
+        path=urlparse(self.path).path;now=datetime.now(CHINA_TZ);model=V5ReadOnlySources(self.data_dir).build(now.date().isoformat(),as_of=now)
         if path=="/api/read-model":body=json.dumps(model.to_dict(),ensure_ascii=False).encode();kind="application/json; charset=utf-8"
         elif path in {"/","/today","/candidates","/account","/validation"}:body=render(model).encode();kind="text/html; charset=utf-8"
         else:self.send_error(404);return
