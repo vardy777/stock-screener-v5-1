@@ -43,6 +43,11 @@ class V5DataAndFunnelTests(unittest.TestCase):
         rejected=ConsensusAcquirer(Source("sina",left),Source("eastmoney",conflict)).acquire(universe,stage="signal",now=NOW)
         self.assertFalse(rejected.accepted);self.assertEqual(rejected.report["price_conflicts"],1)
 
+    def test_consensus_rejects_same_source_identity_even_with_two_objects(self):
+        good=snapshot([quote("000001"),quote("000002")])
+        with self.assertRaisesRegex(ValueError,"distinct source identities"):
+            ConsensusAcquirer(Source("same",good),Source("same",good))
+
     def test_consensus_conflict_union_is_not_double_counted_and_latest_strict_snapshot_is_primary(self):
         universe=UniverseV1.build(trade_date="2026-08-13",created_at=NOW,codes=["000001","000002"],sources=["test"]);left=snapshot([quote("000001"),quote("000002")]);later_at=NOW+timedelta(seconds=1);later=MarketSnapshotV1.build(trade_date="2026-08-13",session="signal",batch_started_at=NOW-timedelta(seconds=1),batch_completed_at=later_at,quotes=[quote("000001"),quote("000002")],expected_codes=2);result=ConsensusAcquirer(Source("sina",left),Source("eastmoney",later)).acquire(universe,stage="signal",now=NOW);assert result.accepted and result.primary.snapshot_id==later.snapshot_id and result.report["selected_snapshot_id"]==later.snapshot_id
 
@@ -72,6 +77,19 @@ class V5DataAndFunnelTests(unittest.TestCase):
     def test_eastmoney_source_fails_closed_when_overall_budget_is_exhausted(self):
         ticks=iter((0,2));source=EastmoneyRealtimeSource(fetch_json=lambda *_:{},overall_budget_seconds=1,monotonic=lambda:next(ticks),clock=lambda:NOW)
         with self.assertRaisesRegex(TimeoutError,"overall budget"):source.capture(["000001"],stage="signal",now=NOW)
+    def test_eastmoney_honors_provider_reduced_page_size_beyond_twenty_pages(self):
+        epoch=int((NOW-timedelta(seconds=1)).timestamp());codes=[f"{index:06d}" for index in range(1,22)]
+        def fetch(url,timeout):
+            from urllib.parse import parse_qs,urlparse
+            page=int(parse_qs(urlparse(url).query)["pn"][0]);code=codes[page-1]
+            row={"f12":code,"f14":"test","f2":10.2,"f5":1000,"f6":8000000,"f15":10.3,"f16":10.0,"f17":10.1,"f18":10.0,"f31":10.19,"f32":10.21,"f33":100,"f34":120,"f124":epoch}
+            return {"rc":0,"data":{"total":len(codes),"diff":[row]}}
+        result=EastmoneyRealtimeSource(fetch_json=fetch,clock=lambda:NOW,page_size=500,overall_budget_seconds=100).capture(codes,stage="signal",now=NOW)
+        self.assertEqual(len(result.quotes),21);self.assertTrue(result.quality.accepted)
+    def test_eastmoney_rejects_provider_repeated_page_instead_of_counting_duplicates():
+        epoch=int((NOW-timedelta(seconds=1)).timestamp());row={"f12":"000001","f14":"test","f2":10.2,"f5":1000,"f6":8000000,"f15":10.3,"f16":10.0,"f17":10.1,"f18":10.0,"f31":10.19,"f32":10.21,"f33":100,"f34":120,"f124":epoch}
+        source=EastmoneyRealtimeSource(fetch_json=lambda *_:{"rc":0,"data":{"total":2,"diff":[row]}},clock=lambda:NOW,overall_budget_seconds=100)
+        with self.assertRaisesRegex(RuntimeError,"repeated page"):source.capture(["000001","000002"],stage="signal",now=NOW)
     def test_second_source_is_selected_only_when_strict_snapshot_is_accepted(self):
         bad=snapshot([quote("000001")],2);good=snapshot([quote("000001"),quote("000002")],2)
         result=MultiSourceAcquirer([Source("primary",bad),Source("backup",good)]).acquire(["000001","000002"],stage="signal",now=NOW)

@@ -6,6 +6,7 @@ from urllib.parse import urlencode
 from urllib.request import Request,urlopen
 from urllib.error import HTTPError,URLError
 import time
+from math import ceil
 from .core import CHINA_TZ
 from .market_snapshot import MarketSnapshotV1,QuoteV1
 
@@ -40,14 +41,24 @@ class EastmoneyRealtimeSource:
         raise RuntimeError(f"eastmoney page {page} unavailable: {type(last).__name__}") from last
     def capture(self,codes:list[str],*,stage:str,now:datetime):
         started=self.clock();deadline=self.monotonic()+self.overall_budget_seconds;wanted=set(codes)
-        rows=[];page=1
-        while page<=20:
+        rows=[];page=1;maximum_pages=None
+        while maximum_pages is None or page<=maximum_pages:
             if self.monotonic()>=deadline:raise TimeoutError("eastmoney capture exceeded overall budget")
             payload=self._page(page,deadline);data=payload.get("data",{})
             if payload.get("rc")!=0 or not isinstance(data.get("diff"),list):raise RuntimeError("provider payload invalid")
-            rows.extend(data["diff"]);total=int(data.get("total",len(rows)) or len(rows))
+            page_rows=data["diff"]
+            page_codes={str(row.get("f12","")).zfill(6) for row in page_rows}
+            prior_codes={str(row.get("f12","")).zfill(6) for row in rows}
+            if page>1 and page_rows and page_codes<=prior_codes:raise RuntimeError("provider pagination repeated page")
+            rows.extend(page_rows);total=int(data.get("total",len(rows)) or len(rows))
+            if maximum_pages is None:
+                actual_page_size=len(page_rows)
+                if actual_page_size<1:break
+                maximum_pages=ceil(total/actual_page_size)+1
+                if maximum_pages>100:raise RuntimeError("provider pagination unreasonable")
             if len(rows)>=total or not data["diff"]:break
             page+=1
+        if len(rows)<total:raise RuntimeError(f"provider pagination incomplete: {len(rows)}/{total}")
         received=self.clock();quotes=[]
         for row in rows:
             code=str(row.get("f12","")).zfill(6)

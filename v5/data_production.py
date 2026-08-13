@@ -49,6 +49,8 @@ class ConsensusResult:
 class ConsensusAcquirer:
     """Require two independently complete snapshots and compare common symbols."""
     def __init__(self,first:SnapshotSource,second:SnapshotSource,*,minimum_match=.95,maximum_price_deviation=.005,maximum_time_difference_seconds=15):
+        if first is second or not getattr(first,"name","") or getattr(first,"name","")==getattr(second,"name",""):
+            raise ValueError("consensus requires two distinct source identities")
         self.first=first;self.second=second;self.minimum_match=minimum_match;self.maximum_price_deviation=maximum_price_deviation;self.maximum_time_difference_seconds=maximum_time_difference_seconds
     def acquire(self,universe:UniverseV1,*,stage:str,now:datetime)->ConsensusResult:
         attempts=[];snapshots=[]
