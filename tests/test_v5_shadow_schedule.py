@@ -12,3 +12,6 @@ def test_missing_due_tasks_and_dependencies_are_reported():
         scheduler.record("morning_pool","2026-08-13","SUCCESS",now);report=scheduler.recovery_report("2026-08-13",now)
         names={x["task"] for x in report["missing_due_tasks"]};assert "morning_push" in names and "confirmation" in names and "paper_buy" in names
         confirmation=next(x for x in report["missing_due_tasks"] if x["task"]=="confirmation");assert "morning_pool" not in confirmation["blocked_by"] and "feature_freeze" in confirmation["blocked_by"]
+def test_recovery_scope_can_explicitly_exclude_unowned_paper_tasks():
+    with TemporaryDirectory() as d:
+        scheduler=ShadowScheduler(d);now=datetime(2026,8,13,15,0,tzinfo=CHINA_TZ);report=scheduler.recovery_report("2026-08-13",now,excluded_tasks=("paper_sell","paper_buy"));assert report["excluded_tasks"]==["paper_buy","paper_sell"] and not ({"paper_buy","paper_sell"}&{x["task"] for x in report["missing_due_tasks"]})

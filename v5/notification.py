@@ -11,8 +11,14 @@ def _latest(root,kind,day):
     files=sorted((Path(root)/kind/day).glob("*.json"))
     if not files:raise ContractViolation(f"V5 {kind} fact missing")
     return json.loads(files[-1].read_text(encoding="utf-8"))
+def _acquisition(root,day,stage):
+    files=sorted((Path(root)/"acquisition"/day).glob("*.json"))
+    rows=[json.loads(path.read_text(encoding="utf-8")) for path in files]
+    matches=[row for row in rows if row.get("stage")==stage]
+    if not matches:raise ContractViolation(f"V5 {stage} acquisition fact missing")
+    return matches[-1]
 def build_payload(root,trade_date,stage):
-    acquisition=_latest(root,"acquisition",trade_date)
+    acquisition=_acquisition(root,trade_date,"morning" if stage=="morning" else "signal")
     if acquisition.get("accepted") is not True:raise ContractViolation("V5 acquisition not accepted")
     if stage=="morning":entity=_latest(root,"morning_pools",trade_date);parent=entity["pool_id"];title=f"V5早盘观察 {trade_date}"
     elif stage=="confirmation":entity=_latest(root,"confirmations",trade_date);parent=entity["confirmation_id"];title=f"V5尾盘确认 {trade_date}"

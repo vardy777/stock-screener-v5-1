@@ -4,7 +4,7 @@ from datetime import datetime
 import json,traceback
 from pathlib import Path
 from .core import CHINA_TZ
-from .jobs import produce,freeze
+from .jobs import produce,freeze,confirm_frozen
 from .notification import send
 from .operations import health,maintenance
 from .shadow_schedule import ShadowScheduler
@@ -15,10 +15,7 @@ def run(root,task,*,now=None):
         if task=="morning_pool":details=produce(root,"morning",now=now)
         elif task=="morning_push":details=send(root,day,"morning",root.parent/".env")
         elif task=="feature_freeze":details=freeze(root,now=now)
-        elif task=="confirmation":
-            pointer=root/"frozen"/day/"signal.json"
-            if not pointer.exists():raise ValueError("14:49 frozen snapshot missing")
-            details=produce(root,"confirmation",now=now)
+        elif task=="confirmation":details=confirm_frozen(root,now=now)
         elif task=="confirmation_push":details=send(root,day,"confirmation",root.parent/".env")
         elif task=="health_check":details=health(root,day,now);outcome="SUCCESS" if details["passed"] else "FAILED"
         elif task=="maintenance":details=maintenance(root,day,now);outcome="SUCCESS" if details["passed"] else "FAILED"

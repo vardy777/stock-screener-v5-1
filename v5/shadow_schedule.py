@@ -19,11 +19,14 @@ class ShadowScheduler:
         if task not in {x.name for x in TASKS}:raise ContractViolation("unknown shadow task")
         row={"schema_version":"v5-shadow-run-v1","task":task,"trade_date":trade_date,"outcome":outcome,"recorded_at":at.astimezone(CHINA_TZ).isoformat(),"details":details or {}};row["run_id"]="run1-"+hashlib.sha256(json.dumps(row,sort_keys=True,separators=(",",":")).encode()).hexdigest()[:24]
         path=self.root/"runs"/trade_date/f"{row['run_id']}.json";path.parent.mkdir(parents=True,exist_ok=True);path.write_text(json.dumps(row,ensure_ascii=False,sort_keys=True,separators=(",",":")),encoding="utf-8");return row
-    def recovery_report(self,trade_date,now):
+    def recovery_report(self,trade_date,now,*,excluded_tasks=()):
+        excluded=set(excluded_tasks);unknown=excluded-{x.name for x in TASKS}
+        if unknown:raise ContractViolation("unknown excluded shadow task")
         rows=[]
         for path in (self.root/"runs"/trade_date).glob("*.json") if (self.root/"runs"/trade_date).exists() else []:rows.append(json.loads(path.read_text(encoding="utf-8")))
         completed={x["task"] for x in rows if x["outcome"]=="SUCCESS"};due=[]
         for task in TASKS:
+            if task.name in excluded:continue
             scheduled=datetime.fromisoformat(f"{trade_date}T{task.time}+08:00")
             if scheduled<=now.astimezone(CHINA_TZ) and task.name not in completed:due.append({"task":task.name,"scheduled_at":scheduled.isoformat(),"blocked_by":[x for x in task.depends_on if x not in completed]})
-        return {"schema_version":"v5-shadow-recovery-v1","trade_date":trade_date,"missing_due_tasks":due,"status":"RECOVERY_REQUIRED" if due else "CLEAN"}
+        return {"schema_version":"v5-shadow-recovery-v1","trade_date":trade_date,"excluded_tasks":sorted(excluded),"missing_due_tasks":due,"status":"RECOVERY_REQUIRED" if due else "CLEAN"}
