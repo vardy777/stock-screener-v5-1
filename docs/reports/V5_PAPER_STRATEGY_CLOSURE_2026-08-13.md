@@ -21,7 +21,7 @@
 - Ask/bid depth, board lots, commission, stamp tax, slippage and T+1 are enforced.
 - Orders are immutable before execution; event append is process-locked; pending orders produce an explicit recovery report.
 - Round trips are derived from the hash-chained ledger and obey the dashboard `as_of` cutoff.
-- The comparable baseline uses the confirmed candidate set, the same 14:49 ask references, and the same next-session 09:30 strict snapshot. No closing-price proxy is used.
+- The admission baseline mirrors the production Top1 exposure, one-third capital cap, same 14:49 ask reference, fees/slippage, and the same next-session 09:30 strict bid. It does not dilute Top1 results across the broader confirmed candidate set, and no closing-price proxy is used.
 - `MarketStateV1` records breadth, turnover, median return, limit/halt counts and a versioned risk gate. Risk-off generates an explainable empty decision rather than an operational failure.
 - Market-state hashes and snapshot lineage are checked by dashboard, PushPlus and daily health acceptance.
 

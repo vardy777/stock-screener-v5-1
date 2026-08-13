@@ -150,6 +150,8 @@ class V5DataAndFunnelTests(unittest.TestCase):
     def test_performance_is_paper_only_and_fails_closed_for_small_sample(self):
         report=report_strict_paper([{"net_return":.01,"net_pnl":100},{"net_return":-.02,"net_pnl":-200}],baseline_returns=[0,.001],minimum_trades=40)
         self.assertEqual(report.cohort,"paper_round_trips");self.assertEqual(report.trade_count,2);self.assertEqual(report.conclusion,"INSUFFICIENT_EVIDENCE");self.assertEqual(report.win_rate,.5)
+        unpaired=report_strict_paper([{"net_return":.01,"net_pnl":100} for _ in range(40)],minimum_trades=40)
+        self.assertEqual(unpaired.trade_count,40);self.assertEqual(unpaired.comparable_trade_count,0);self.assertEqual(unpaired.conclusion,"INSUFFICIENT_EVIDENCE")
     def test_product_read_model_is_decision_first_and_honest_when_data_missing(self):
         model=build_product();self.assertIn("不交易",model.today["action"]);self.assertEqual(model.candidates["empty_reason"],"行情质量未通过");self.assertTrue(model.validation["research_locked"])
         page=render(model);self.assertIn("今天的结论",page);self.assertIn("今日推荐与执行规则",page);self.assertIn("模拟账户与策略证据",page);self.assertIn("证据不足，不能证明策略有效",page);self.assertNotIn("<button",page);self.assertNotIn("<nav",page)

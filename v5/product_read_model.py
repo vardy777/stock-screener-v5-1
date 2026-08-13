@@ -22,7 +22,7 @@ def build(*,acquisition:AcquisitionSessionV1|None=None,morning:MorningPoolV5|Non
     attempt=next((row for row in attempts if row.get("snapshot_id")==acquisition.selected_snapshot_id),{}) if acquisition else {}
     today={"action":action,"data_quality":"accepted" if accepted else "unavailable","coverage":attempt.get("coverage"),"market_scope":"沪深A股（含科创板，暂不含北交所）","data_as_of":acquisition.requested_at if acquisition else None,"snapshot_id":acquisition.selected_snapshot_id if acquisition else "","source":attempt.get("source",""),"source_consensus":[row.get("source","") for row in attempts if row.get("complete")],"morning_pool_id":morning.pool_id if morning else "","confirmation_id":confirmation.confirmation_id if confirmation else "","candidate_count":len(candidates),"market_state":dict(market_state or {})}
     candidate_page={"items":candidates,"changes":[dict(x) for x in confirmation.changes] if confirmation else [],"empty_reason":None if candidates else ("行情质量未通过" if not accepted else "没有标的通过当前漏斗")}
-    report=performance.to_dict() if performance else {"cohort":"paper_round_trips","trade_count":0,"conclusion":"INSUFFICIENT_EVIDENCE"}
+    report=performance.to_dict() if performance else {"cohort":"paper_round_trips","trade_count":0,"comparable_trade_count":0,"conclusion":"INSUFFICIENT_EVIDENCE"}
     account_page={"ledger":dict(account or {}),"performance":report}
     validation={"strict_samples":report["trade_count"],"paper_round_trips":report["trade_count"],"comparable_baseline_days":int(comparable_baseline_days),"strategy_conclusion":report["conclusion"],"model_status":"unpublished","research_locked":True}
     return V5ProductReadModel(today,candidate_page,account_page,validation)

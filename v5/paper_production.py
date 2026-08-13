@@ -33,20 +33,23 @@ class PaperProduction:
             events.append(self.engine.execute(order,at=at))
         return events
     def save_baseline(self,confirmation,buy_snapshot,sell_snapshot,*,at):
-        rows=[];candidate_count=len(confirmation.get("candidates",[]))
-        if candidate_count<1:raise ContractViolation("baseline confirmed candidates required")
+        rows=[];candidates=list(confirmation.get("candidates",[]))
+        if not candidates:raise ContractViolation("baseline confirmed candidates required")
+        # Production buys exactly the frozen Top1.  The admission baseline must
+        # mirror that exposure instead of diluting it across all confirmations.
+        candidates=candidates[:1]
         buy_quotes={quote.code:quote for quote in buy_snapshot.quotes};sell_quotes={quote.code:quote for quote in sell_snapshot.quotes}
-        for candidate in confirmation.get("candidates",[]):
+        for candidate in candidates:
             buy=buy_quotes.get(candidate["code"]);sell=sell_quotes.get(candidate["code"])
             if not buy or not sell or buy.ask1<=0 or sell.bid1<=0 or buy.ask1_volume<100 or sell.bid1_volume<100:raise ContractViolation("baseline strict executable books required")
             buy_price=Decimal(str(buy.ask1))*(Decimal(1)+self.engine.slippage);sell_price=Decimal(str(sell.bid1))*(Decimal(1)-self.engine.slippage)
-            target=min(self.ledger.initial/Decimal(candidate_count),self.ledger.initial/Decimal(3));shares=int(((target-self.engine.minimum_commission)/buy_price/Decimal(100)).to_integral_value(rounding=ROUND_DOWN))*100
+            target=self.ledger.initial/Decimal(3);shares=int(((target-self.engine.minimum_commission)/buy_price/Decimal(100)).to_integral_value(rounding=ROUND_DOWN))*100
             shares=min(shares,int(buy.ask1_volume//100)*100,int(sell.bid1_volume//100)*100)
             if shares<=0:raise ContractViolation("baseline executable board lot required")
             buy_notional=(buy_price*shares).quantize(Decimal("0.01"));sell_notional=(sell_price*shares).quantize(Decimal("0.01"));buy_commission=max(self.engine.minimum_commission,(buy_notional*self.engine.commission_rate).quantize(Decimal("0.01")));sell_commission=max(self.engine.minimum_commission,(sell_notional*self.engine.commission_rate).quantize(Decimal("0.01")));tax=(sell_notional*self.engine.stamp_tax).quantize(Decimal("0.01"));invested=buy_notional+buy_commission;proceeds=sell_notional-sell_commission-tax
             rows.append({"code":candidate["code"],"shares":shares,"buy_price":float(buy_price),"sell_price":float(sell_price),"buy_commission":float(buy_commission),"sell_commission":float(sell_commission),"stamp_tax":float(tax),"invested":float(invested),"proceeds":float(proceeds),"net_return":float(proceeds/invested-1)})
         ending=self.ledger.initial-sum((Decimal(str(row["invested"])) for row in rows),Decimal(0))+sum((Decimal(str(row["proceeds"])) for row in rows),Decimal(0))
-        value={"schema_version":"v5-baseline-round-trip-v1","trade_date":confirmation["trade_date"],"sell_trade_date":at.date().isoformat(),"confirmation_id":confirmation["confirmation_id"],"buy_snapshot_id":buy_snapshot.snapshot_id,"sell_snapshot_id":sell_snapshot.snapshot_id,"baseline_name":"equal_weight_confirmed_next_open","initial_cash":float(self.ledger.initial),"constituents":rows,"net_return":float(ending/self.ledger.initial-1)}
+        value={"schema_version":"v5-baseline-round-trip-v1","trade_date":confirmation["trade_date"],"sell_trade_date":at.date().isoformat(),"confirmation_id":confirmation["confirmation_id"],"buy_snapshot_id":buy_snapshot.snapshot_id,"sell_snapshot_id":sell_snapshot.snapshot_id,"baseline_name":"top1_execution_equivalent_next_open","selection_rule":"confirmation_rank_1","initial_cash":float(self.ledger.initial),"constituents":rows,"net_return":float(ending/self.ledger.initial-1)}
         value["baseline_id"]="base1-"+hashlib.sha256(json.dumps(value,sort_keys=True,separators=(",",":" )).encode()).hexdigest()[:24];path=self.root/"paper"/"baselines"/f"{value['baseline_id']}.json";path.parent.mkdir(parents=True,exist_ok=True);raw=json.dumps(value,ensure_ascii=False,sort_keys=True,separators=(",",":"));tmp=path.with_suffix(f".{os.getpid()}.tmp");tmp.write_text(raw,encoding="utf-8")
         try:os.link(tmp,path)
         except FileExistsError:

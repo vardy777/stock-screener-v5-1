@@ -43,10 +43,11 @@ class V5ReadOnlySources:
                 market_state=validated.to_dict()
         from .paper import PaperLedger
         ledger=PaperLedger(self.root/"paper");trips=ledger.round_trips(as_of=as_of)
-        baseline_rows=[]
+        baselines={}
         for path in (self.root/"paper"/"baselines").glob("*.json") if (self.root/"paper"/"baselines").exists() else []:
             row=json.loads(path.read_text(encoding="utf-8"))
-            if row.get("net_return") is not None and (as_of is None or row.get("sell_trade_date","")<=as_of.date().isoformat()):baseline_rows.append(float(row["net_return"]))
-        performance=report_strict_paper(trips,baseline_returns=baseline_rows,baseline_name="equal_weight_confirmed_next_open")
+            if row.get("baseline_name")=="top1_execution_equivalent_next_open" and row.get("net_return") is not None and (as_of is None or row.get("sell_trade_date","")<=as_of.date().isoformat()):baselines[row["confirmation_id"]]=float(row["net_return"])
+        paired=[row for row in trips if row.get("decision_id") in baselines];baseline_rows=[baselines[row["decision_id"]] for row in paired]
+        performance=report_strict_paper(trips,baseline_returns=baseline_rows,comparison_returns=[row["net_return"] for row in paired],baseline_name="top1_execution_equivalent_next_open")
         account=ledger.state(as_of=as_of)
-        return build(acquisition=acquisition,morning=morning,confirmation=confirmation,market_state=market_state,performance=performance,account=account,comparable_baseline_days=len(baseline_rows))
+        return build(acquisition=acquisition,morning=morning,confirmation=confirmation,market_state=market_state,performance=performance,account=account,comparable_baseline_days=len(paired))
