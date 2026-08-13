@@ -131,7 +131,7 @@ $dashboardTrigger = New-ScheduledTaskTrigger -AtLogOn -User $identity
 $dashboardSettings = New-ScheduledTaskSettingsSet `
     -AllowStartIfOnBatteries `
     -DontStopIfGoingOnBatteries `
-    -ExecutionTimeLimit (New-TimeSpan -Minutes 5) `
+    -ExecutionTimeLimit ([TimeSpan]::Zero) `
     -MultipleInstances IgnoreNew
 Register-ScheduledTask `
     -TaskName "AStock-V4-Dashboard-Logon" `

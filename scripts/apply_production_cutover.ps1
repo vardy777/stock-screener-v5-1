@@ -17,6 +17,7 @@ foreach ($required in @($python,$adapter,$authorization,(Join-Path $backup "mani
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent().Name
 $taskPrincipal = New-ScheduledTaskPrincipal -UserId $identity -LogonType S4U -RunLevel Limited
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -WakeToRun -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 45) -MultipleInstances IgnoreNew
+$dashboardSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew
 $oldNames = @("AStock-V4-Buy-1450","AStock-V4-Dashboard-Logon","AStock-V4-Health-Close-1453","AStock-V4-Health-Sell-0936","AStock-V4-Maintenance-1510","AStock-V4-Push-Confirm-145020","AStock-V4-Push-Morning-0925","AStock-V4-Sell-0930","AStock-V4-Signal-1449")
 $specs = @(
  @("AStock-V4-Morning-Decision-0925","morning_decision","09:25:00"), @("AStock-V4-Morning-Push-092520","morning_push","09:25:20"),
@@ -36,7 +37,7 @@ try {
     $dashboardRunner = Join-Path $root "phase1\scripts\run_p5_dashboard.ps1"
     $dashboardAction = New-ScheduledTaskAction -Execute "powershell.exe" -Argument ('-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{0}"' -f $dashboardRunner) -WorkingDirectory $root
     $dashboardTrigger = New-ScheduledTaskTrigger -AtLogOn -User $identity
-    Register-ScheduledTask -TaskName "AStock-V4-Dashboard-Logon" -Action $dashboardAction -Trigger $dashboardTrigger -Settings $settings -Principal $taskPrincipal -Description "V4 P5 read-only dashboard" -Force | Out-Null
+    Register-ScheduledTask -TaskName "AStock-V4-Dashboard-Logon" -Action $dashboardAction -Trigger $dashboardTrigger -Settings $dashboardSettings -Principal $taskPrincipal -Description "V4 P5 read-only dashboard" -Force | Out-Null
     $oldProcess = Get-NetTCPConnection -LocalPort 8898 -State Listen -ErrorAction SilentlyContinue
     if ($oldProcess) { Stop-Process -Id $oldProcess.OwningProcess -Force }
     & $dashboardRunner

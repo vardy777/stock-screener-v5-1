@@ -15,6 +15,8 @@ $legacyRows = foreach ($name in $legacy) {
   $task=Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
   [pscustomobject]@{task_name=$name; disabled=[bool]($task -and [string]$task.State -eq "Disabled")}
 }
-$passed=(@($rows | Where-Object {-not $_.exists -or $_.state -eq "Disabled" -or -not $_.adapter_bound}).Count -eq 0) -and (@($legacyRows | Where-Object {-not $_.disabled}).Count -eq 0)
-[pscustomobject]@{schema_version="production-task-static-audit-v1";passed=$passed;active_tasks=$rows;legacy_tasks=$legacyRows;read_only=$true} | ConvertTo-Json -Depth 5
+$dashboard=Get-ScheduledTask -TaskName "AStock-V4-Dashboard-Logon" -ErrorAction SilentlyContinue
+$dashboardSupervised=[bool]($dashboard -and $dashboard.State -ne "Disabled" -and $dashboard.Settings.ExecutionTimeLimit -eq "PT0S")
+$passed=(@($rows | Where-Object {-not $_.exists -or $_.state -eq "Disabled" -or -not $_.adapter_bound}).Count -eq 0) -and (@($legacyRows | Where-Object {-not $_.disabled}).Count -eq 0) -and $dashboardSupervised
+[pscustomobject]@{schema_version="production-task-static-audit-v2";passed=$passed;active_tasks=$rows;legacy_tasks=$legacyRows;dashboard_supervised_unlimited=$dashboardSupervised;read_only=$true} | ConvertTo-Json -Depth 5
 if(-not $passed){exit 1}

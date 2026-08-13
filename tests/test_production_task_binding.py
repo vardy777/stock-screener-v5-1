@@ -32,5 +32,8 @@ class ProductionTaskBindingTests(unittest.TestCase):
         self.assertIn("Select-Object -ExpandProperty OwningProcess -Unique",text)
         self.assertIn("param([switch]$Restart)",text)
         self.assertIn("if (-not $Restart) { exit 0 }",text)
+        root=Path(__file__).resolve().parents[1]
+        self.assertIn("[TimeSpan]::Zero",(root/"scripts"/"apply_production_cutover.ps1").read_text(encoding="utf-8"))
+        self.assertIn("[TimeSpan]::Zero",(root/"phase1"/"scripts"/"register_v4_snapshot_tasks.ps1").read_text(encoding="utf-8"))
 
 if __name__=="__main__": unittest.main()
