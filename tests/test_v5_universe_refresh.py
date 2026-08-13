@@ -16,3 +16,8 @@ def test_native_universe_refresh_rejects_large_shrinkage_or_churn():
  with TemporaryDirectory() as d:
   root=Path(d);UniverseV1.build(trade_date="2026-08-14",created_at=NOW-timedelta(days=3),codes=["000001","000002","600000"],sources=["prior"]).save(root)
   with pytest.raises(ContractViolation,match="anomaly gate"):refresh(root,now=NOW,fetch_json=provider(["000001"]))
+def test_native_universe_refresh_fails_closed_on_budget_or_incomplete_pagination():
+ ticks=iter((0,2))
+ with pytest.raises(TimeoutError,match="overall budget"):refresh(Path("unused"),now=NOW,fetch_json=provider(["000001"]),overall_budget_seconds=1,monotonic=lambda:next(ticks))
+ partial=lambda *_:{"rc":0,"data":{"diff":[],"total":10}}
+ with pytest.raises(ContractViolation,match="pagination incomplete"):refresh(Path("unused"),now=NOW,fetch_json=partial)

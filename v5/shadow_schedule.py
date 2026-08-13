@@ -4,6 +4,7 @@ from dataclasses import dataclass,asdict
 from datetime import datetime,timedelta
 import hashlib,json
 from pathlib import Path
+import os
 from .core import CHINA_TZ,ContractViolation
 
 @dataclass(frozen=True)
@@ -18,7 +19,16 @@ class ShadowScheduler:
     def record(self,task,trade_date,outcome,at,details=None):
         if task not in {x.name for x in TASKS}:raise ContractViolation("unknown shadow task")
         row={"schema_version":"v5-shadow-run-v1","task":task,"trade_date":trade_date,"outcome":outcome,"recorded_at":at.astimezone(CHINA_TZ).isoformat(),"details":details or {}};row["run_id"]="run1-"+hashlib.sha256(json.dumps(row,sort_keys=True,separators=(",",":")).encode()).hexdigest()[:24]
-        path=self.root/"runs"/trade_date/f"{row['run_id']}.json";path.parent.mkdir(parents=True,exist_ok=True);path.write_text(json.dumps(row,ensure_ascii=False,sort_keys=True,separators=(",",":")),encoding="utf-8");return row
+        path=self.root/"runs"/trade_date/f"{row['run_id']}.json";path.parent.mkdir(parents=True,exist_ok=True);raw=json.dumps(row,ensure_ascii=False,sort_keys=True,separators=(",",":"))
+        if path.exists():
+            if path.read_text(encoding="utf-8")!=raw:raise ContractViolation("immutable shadow run collision")
+            return row
+        tmp=path.with_suffix(f".{os.getpid()}.tmp");tmp.write_text(raw,encoding="utf-8")
+        try:os.link(tmp,path)
+        except FileExistsError:
+            if path.read_text(encoding="utf-8")!=raw:raise ContractViolation("immutable shadow run collision")
+        finally:tmp.unlink(missing_ok=True)
+        return row
     def recovery_report(self,trade_date,now,*,excluded_tasks=()):
         excluded=set(excluded_tasks);unknown=excluded-{x.name for x in TASKS}
         if unknown:raise ContractViolation("unknown excluded shadow task")

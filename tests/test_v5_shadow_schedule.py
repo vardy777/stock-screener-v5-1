@@ -1,5 +1,6 @@
 from datetime import datetime
 from tempfile import TemporaryDirectory
+from pathlib import Path
 from v5.core import CHINA_TZ
 from v5.shadow_schedule import ShadowScheduler,TASKS
 def test_schedule_is_complete_disabled_and_has_no_external_side_effects():
@@ -15,3 +16,6 @@ def test_missing_due_tasks_and_dependencies_are_reported():
 def test_recovery_scope_can_explicitly_exclude_unowned_paper_tasks():
     with TemporaryDirectory() as d:
         scheduler=ShadowScheduler(d);now=datetime(2026,8,13,15,0,tzinfo=CHINA_TZ);report=scheduler.recovery_report("2026-08-13",now,excluded_tasks=("paper_sell","paper_buy"));assert report["excluded_tasks"]==["paper_buy","paper_sell"] and not ({"paper_buy","paper_sell"}&{x["task"] for x in report["missing_due_tasks"]})
+def test_run_artifact_is_idempotent_and_immutable():
+    with TemporaryDirectory() as d:
+        scheduler=ShadowScheduler(d);now=datetime(2026,8,13,9,25,tzinfo=CHINA_TZ);first=scheduler.record("morning_pool","2026-08-13","SUCCESS",now,{"x":1});second=scheduler.record("morning_pool","2026-08-13","SUCCESS",now,{"x":1});assert first==second and len(list((Path(d)/"runs/2026-08-13").glob("*.json")))==1
