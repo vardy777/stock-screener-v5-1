@@ -142,6 +142,9 @@ class P5ReadOnlySources:
         operations.setdefault("task_receipts", p4_receipts.get("receipts", p4_receipts.get("results", [])))
         if "heartbeat" not in operations:
             heartbeat=optional["p4_heartbeat"][0]
+            heartbeat_day=str(heartbeat.get("recorded_at",heartbeat.get("observed_at","")))[:10]
+            if heartbeat and heartbeat_day != generated_at.date().isoformat():
+                heartbeat={}
             if not heartbeat:
                 is_open=TradingCalendar().is_open(generated_at.date())
                 status=("IDLE_NON_TRADING_DAY" if is_open is False else
@@ -162,7 +165,9 @@ class P5ReadOnlySources:
                 "plan_id":authorization.get("authorization_id","")}
         evidence.setdefault("live_windows", optional["live_window_acceptance"][0])
         evidence.setdefault("strict_admission", optional["strict_model_admission"][0])
-        evidence.setdefault("daily_operations", optional["daily_operations"][0])
+        daily=optional["daily_operations"][0]
+        if daily.get("trade_date") != generated_at.date().isoformat(): daily={}
+        evidence.setdefault("daily_operations", daily)
         label_meta=optional["strict_execution_labels"][0]
         evidence.setdefault("strict_pairs", int(label_meta.get("paired_rows",0) or 0))
         evidence.setdefault("execution_result_count", len(p3_results.get("results", [])))

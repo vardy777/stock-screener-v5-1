@@ -53,17 +53,21 @@ class DashboardReadModelBuilder:
         morning, confirmation, market = dict(morning or {}), dict(confirmation or {}), dict(market or {})
         fund_flow, ledger, evidence = dict(fund_flow or {}), dict(ledger or {}), dict(evidence or {})
         issues = [dict(x) for x in source_issues]
-        if not morning: issues.append(self._issue("ERROR", "MORNING_POOL_MISSING", "09:25母池缺失"))
-        if not confirmation: issues.append(self._issue("ERROR", "CONFIRMATION_MISSING", "14:50最终决策缺失"))
+        local_time=generated_at.timetz().replace(tzinfo=None)
+        if not morning and local_time >= datetime.strptime("09:30","%H:%M").time():
+            issues.append(self._issue("ERROR", "MORNING_POOL_MISSING", "09:25母池缺失"))
+        if not confirmation and local_time >= datetime.strptime("14:52","%H:%M").time():
+            issues.append(self._issue("ERROR", "CONFIRMATION_MISSING", "14:50最终决策缺失"))
         if morning and not morning.get("pool_id"): issues.append(self._issue("ERROR", "MORNING_ENTITY_ID_MISSING", "09:25母池是旧格式或缺少实体ID"))
         if confirmation and not confirmation.get("decision_id"): issues.append(self._issue("ERROR", "DECISION_ENTITY_ID_MISSING", "14:50决策是旧格式或缺少实体ID"))
         if market.get("data_valid") is not True: issues.append(self._issue("ERROR", "MARKET_DATA_INVALID", "市场数据无效或过期"))
         if fund_flow.get("status") not in {"current", "valid"}: issues.append(self._issue("WARNING", "FUND_FLOW_STALE", "资金流数据陈旧或不可用"))
-        timeline = self._timeline(morning, confirmation, ledger, task_receipts)
         candidates = self._candidates(morning, confirmation)
         market_view = self._market(market)
         sentiment = self._sentiment(market)
         freshness = self._freshness(generated_at, morning, confirmation, market, fund_flow)
+        timeline = self._timeline(morning, confirmation, ledger, task_receipts,
+                                  entity_current=freshness["journal_current"])
         if not freshness["market_current"]:
             sentiment={**sentiment,"advance_ratio":None,"breadth_label":"无法判断","valid":False}
         if market and not freshness["market_current"]:
@@ -95,7 +99,7 @@ class DashboardReadModelBuilder:
     @staticmethod
     def _issue(severity, code, message): return {"severity":severity,"reason_code":code,"message":message}
 
-    def _timeline(self, morning, confirmation, ledger, receipts):
+    def _timeline(self, morning, confirmation, ledger, receipts, *, entity_current=True):
         task_status = {str(r.get("task_name")):str(r.get("status")) for r in receipts}
         def state(task, *, done=False):
             value=task_status.get(task,"")
@@ -103,12 +107,14 @@ class DashboardReadModelBuilder:
             if value=="SUCCEEDED" or done: return "DONE"
             return "PENDING"
         fills = ledger.get("fills", [])
-        morning_state=("INVALID_ENTITY" if morning and not morning.get("pool_id") else state("morning_decision",done=bool(morning.get("pool_id"))))
-        confirmation_state=("INVALID_ENTITY" if confirmation and not confirmation.get("decision_id") else state("confirmation_decision",done=bool(confirmation.get("decision_id"))))
+        morning_state=("INVALID_ENTITY" if morning and not morning.get("pool_id") else
+                       state("morning_decision",done=entity_current and bool(morning.get("pool_id"))))
+        confirmation_state=("INVALID_ENTITY" if confirmation and not confirmation.get("decision_id") else
+                            state("confirmation_decision",done=entity_current and bool(confirmation.get("decision_id"))))
         return [
-            {"key":"morning","label":"09:25 母池","status":morning_state,"entity_id":morning.get("pool_id","")},
-            {"key":"feature","label":"14:49 特征冻结","status":state("feature_freeze"),"entity_id":confirmation.get("lineage",{}).get("feature_context_id","")},
-            {"key":"confirmation","label":"14:50 最终确认","status":confirmation_state,"entity_id":confirmation.get("decision_id","")},
+            {"key":"morning","label":"09:25 母池","status":morning_state,"entity_id":morning.get("pool_id","") if entity_current else ""},
+            {"key":"feature","label":"14:49 特征冻结","status":state("feature_freeze"),"entity_id":confirmation.get("lineage",{}).get("feature_context_id","") if entity_current else ""},
+            {"key":"confirmation","label":"14:50 最终确认","status":confirmation_state,"entity_id":confirmation.get("decision_id","") if entity_current else ""},
             {"key":"buy","label":"14:50 模拟买入","status":state("paper_buy",done=any(x.get("side")=="BUY" for x in fills)),"entity_id":next((x.get("fill_id","") for x in fills if x.get("side")=="BUY"),"")},
             {"key":"sell","label":"次日09:30 模拟卖出","status":"DONE" if any(x.get("side")=="SELL" for x in fills) else "PENDING","entity_id":next((x.get("fill_id","") for x in fills if x.get("side")=="SELL"),"")},
         ]

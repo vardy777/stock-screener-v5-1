@@ -7,11 +7,15 @@ $stdout = Join-Path $logDir "p5-dashboard.stdout.log"
 $stderr = Join-Path $logDir "p5-dashboard.stderr.log"
 $existing = Get-NetTCPConnection -LocalPort 8898 -State Listen -ErrorAction SilentlyContinue
 if ($existing) { exit 0 }
-Start-Process -FilePath $python -ArgumentList '-X','utf8','-m','v4.p5_dashboard','--port','8898','--data-dir','v4/data' -WorkingDirectory $projectRoot -WindowStyle Hidden -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+# Keep the task process as the dashboard owner. A detached Start-Process child
+# survives Stop-ScheduledTask and cannot be upgraded or recovered atomically.
+$process = Start-Process -FilePath $python -ArgumentList '-X','utf8','-m','v4.p5_dashboard','--port','8898','--data-dir','v4/data' -WorkingDirectory $projectRoot -WindowStyle Hidden -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru
 for ($attempt = 0; $attempt -lt 30; $attempt++) {
     if (Get-NetTCPConnection -LocalPort 8898 -State Listen -ErrorAction SilentlyContinue) {
-        exit 0
+        $process.WaitForExit()
+        exit $process.ExitCode
     }
     Start-Sleep -Seconds 1
 }
+if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
 exit 12

@@ -23,7 +23,8 @@ class P5OfflineDashboardTests(unittest.TestCase):
         model=builder.build(generated_at=datetime(2026,8,8,tzinfo=CHINA_TZ),production_status="research_locked")
         self.assertEqual(model.data_status,"DEGRADED")
         codes={x["reason_code"] for x in model.issues}
-        self.assertTrue({"MORNING_POOL_MISSING","CONFIRMATION_MISSING","MARKET_DATA_INVALID","HEARTBEAT_STALE"}.issubset(codes))
+        self.assertTrue({"MARKET_DATA_INVALID","HEARTBEAT_STALE"}.issubset(codes))
+        self.assertNotIn("MORNING_POOL_MISSING",codes); self.assertNotIn("CONFIRMATION_MISSING",codes)
         self.assertIsNone(model.account["win_rate"])
 
     def test_html_has_required_control_center_sections_and_no_mutation_controls(self):
@@ -120,6 +121,14 @@ class P5OfflineDashboardTests(unittest.TestCase):
             market={"data_valid":True,"as_of":"2026-08-08T14:50:00+08:00","fresh_quote_coverage":1,"rise_count":5000},heartbeat={"status":"ALIVE"})
         self.assertEqual(model.sentiment["breadth_label"],"无法判断")
         self.assertFalse(model.freshness["market_current"])
+
+    def test_historical_entities_do_not_complete_today_timeline(self):
+        model=DashboardReadModelBuilder().build(generated_at=datetime(2026,8,9,8,tzinfo=CHINA_TZ),production_status="research_locked",
+            morning={"pool_id":"old","trade_date":"2026-08-08"},confirmation={"decision_id":"old-d","trade_date":"2026-08-08"},
+            market={"data_valid":True,"as_of":"2026-08-08T14:50:00+08:00"},heartbeat={"status":"AWAITING_FIRST_WINDOW"})
+        states={x["key"]:x["status"] for x in model.timeline}
+        self.assertEqual(states["morning"],"PENDING"); self.assertEqual(states["confirmation"],"PENDING")
+        self.assertNotIn("CONFIRMATION_MISSING",{x["reason_code"] for x in model.issues})
 
     def test_mobile_layout_collapses_to_single_column(self):
         page=render(frozen_demo_model())
