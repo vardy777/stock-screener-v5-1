@@ -11,6 +11,7 @@ def test_production_adapter_uses_only_final_v5_confirmation_and_reconciles():
   p=PaperProduction(d);confirmation={"outcome":"BUY_CANDIDATE","confirmation_id":"v5cd1-test","trade_date":"2026-08-14","candidates":[{"code":"000001"}]};buy=p.buy(confirmation,snapshot(NOW,"buy",10.2),at=NOW,eligible_sell_date="2026-08-17");assert buy.outcome=="FILLED"
   sell_at=datetime(2026,8,17,9,30,tzinfo=CHINA_TZ);events=p.sell_all(snapshot(sell_at,"sell",10.4),at=sell_at);assert events[0].outcome=="FILLED" and p.ledger.reconcile()["passed"]
   baseline=p.save_baseline({**confirmation,"candidates":[{"code":"000001"}]},snapshot(NOW,"buy",10.2),snapshot(sell_at,"sell",10.4),at=sell_at);assert baseline["baseline_name"]=="equal_weight_confirmed_next_open" and baseline["net_return"] is not None and list((p.root/"paper/baselines").glob("*.json"))
+  row=baseline["constituents"][0];assert row["shares"]%100==0 and row["buy_commission"]>=5 and row["sell_commission"]>=5 and row["stamp_tax"]>0 and baseline["net_return"]<row["sell_price"]/row["buy_price"]-1
 
 def test_paper_buy_is_capped_by_frozen_ask_depth_and_sell_requires_full_bid_depth():
  with TemporaryDirectory() as d:
