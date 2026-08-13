@@ -34,4 +34,9 @@ def maintenance(root,day,now):
     for path in root.rglob("*.json"):
         try:raw=path.read_bytes();json.loads(raw.decode("utf-8"));files.append({"path":str(path.relative_to(root)),"sha256":hashlib.sha256(raw).hexdigest(),"bytes":len(raw)})
         except Exception as exc:bad.append({"path":str(path.relative_to(root)),"error":type(exc).__name__})
-    report={"schema_version":"v5-maintenance-v1","trade_date":day,"recorded_at":now.astimezone(CHINA_TZ).isoformat(),"file_count":len(files),"files":files,"invalid_files":bad,"passed":not bad};out=root/"maintenance"/day/"manifest.json";out.parent.mkdir(parents=True,exist_ok=True);tmp=out.with_suffix(f".{os.getpid()}.tmp");tmp.write_text(json.dumps(report,ensure_ascii=False,sort_keys=True,separators=(",",":")),encoding="utf-8");os.replace(tmp,out);return report
+    report={"schema_version":"v5-maintenance-v1","trade_date":day,"recorded_at":now.astimezone(CHINA_TZ).isoformat(),"file_count":len(files),"files":files,"invalid_files":bad,"passed":not bad};unsigned=json.dumps(report,ensure_ascii=False,sort_keys=True,separators=(",",":"));report["manifest_id"]="maint1-"+hashlib.sha256(unsigned.encode()).hexdigest()[:24];raw=json.dumps(report,ensure_ascii=False,sort_keys=True,separators=(",",":"));out=root/"maintenance"/day/f"{report['manifest_id']}.json";out.parent.mkdir(parents=True,exist_ok=True);tmp=out.with_suffix(f".{os.getpid()}.tmp");tmp.write_text(raw,encoding="utf-8")
+    try:os.link(tmp,out)
+    except FileExistsError:
+        if out.read_text(encoding="utf-8")!=raw:raise RuntimeError("maintenance immutable collision")
+    finally:tmp.unlink(missing_ok=True)
+    return report

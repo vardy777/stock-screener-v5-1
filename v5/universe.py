@@ -2,7 +2,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
-import hashlib,json
+import hashlib,json,os
 from pathlib import Path
 from typing import Iterable
 from .core import CHINA_TZ,ContractViolation
@@ -26,7 +26,12 @@ class UniverseV1:
     def save(self,root):
         path=Path(root)/"universes"/self.trade_date/f"{self.universe_id}.json";path.parent.mkdir(parents=True,exist_ok=True);raw=json.dumps(self.to_dict(),ensure_ascii=False,sort_keys=True,separators=(",",":"))
         if path.exists() and path.read_text(encoding="utf-8")!=raw:raise ContractViolation("universe immutable collision")
-        if not path.exists():path.write_text(raw,encoding="utf-8")
+        if not path.exists():
+            tmp=path.with_suffix(f".{os.getpid()}.tmp");tmp.write_text(raw,encoding="utf-8")
+            try:os.link(tmp,path)
+            except FileExistsError:
+                if path.read_text(encoding="utf-8")!=raw:raise ContractViolation("universe immutable collision")
+            finally:tmp.unlink(missing_ok=True)
         return path
     @classmethod
     def from_mapping(cls,value):return cls(value["trade_date"],value["created_at"],tuple(value["codes"]),tuple(value["sources"]))
