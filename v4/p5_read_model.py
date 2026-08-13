@@ -80,7 +80,7 @@ class DashboardReadModelBuilder:
         evidence_view.update(self._acceptance(evidence))
         operations = self._operations(task_receipts, heartbeat, alerts, ownership, cutover)
         summary = self._summary(operations, market_view, confirmation, freshness, candidates)
-        if operations["heartbeat_status"] not in {"ALIVE","IDLE_NON_TRADING_DAY","AWAITING_FIRST_WINDOW"}:
+        if operations["heartbeat_status"] not in {"ALIVE","IDLE_NON_TRADING_DAY","AWAITING_FIRST_WINDOW","IDLE_BETWEEN_WINDOWS"}:
             issues.append(self._issue("CRITICAL", "HEARTBEAT_STALE", "调度心跳过期"))
         if evidence_view["model_status"] != "published": issues.append(self._issue("WARNING", "MODEL_UNPUBLISHED", "生产预期模型尚未发布"))
         if confirmation and confirmation.get("outcome") in {"BLOCKED", "OUTCOME_UNKNOWN"}:
@@ -228,7 +228,10 @@ class DashboardReadModelBuilder:
         elif heartbeat=="IDLE_NON_TRADING_DAY":
             phase,title,action="休市","等待下一个交易日 09:25","无需操作"
         elif not freshness.get("market_current"):
-            phase,title,action="数据等待","当前没有可信的当日行情","不要依据历史数据判断"
+            same_day=freshness.get("market_trade_date")==freshness.get("today")
+            phase="数据受限"
+            title=("今日行情覆盖不足" if same_day else "当前没有可信的当日行情")
+            action=("保持空仓，不使用覆盖不足的行情选股" if same_day else "不要依据历史数据判断")
         else:
             outcome=confirmation.get("outcome","")
             phase="尾盘确认" if confirmation else "早盘观察"
@@ -236,7 +239,8 @@ class DashboardReadModelBuilder:
             action="仅观察，等待14:50确认" if not confirmation else ("记录模拟交易，不代表实盘建议" if outcome=="BUY" else "保持空仓")
         reasons=[]
         if not freshness.get("journal_current"): reasons.append("候选不是当日数据")
-        if not freshness.get("market_current"): reasons.append("市场行情无效或已过期")
+        if not freshness.get("market_current"):
+            reasons.append("全市场新鲜覆盖率未达到95%" if freshness.get("market_trade_date")==freshness.get("today") else "市场行情无效或已过期")
         elif market.get("data_valid") is not True: reasons.append("全市场新鲜覆盖率未达到95%")
         reasons.extend(str(x) for x in confirmation.get("reason_codes",[])[:3])
         return {"phase":phase,"title":title,"action":action,"reasons":reasons,

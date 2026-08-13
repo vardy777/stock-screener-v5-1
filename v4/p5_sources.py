@@ -149,6 +149,10 @@ class P5ReadOnlySources:
             heartbeat_day=str(heartbeat.get("recorded_at",heartbeat.get("observed_at","")))[:10]
             if heartbeat and heartbeat_day != generated_at.date().isoformat():
                 heartbeat={}
+            elif heartbeat and heartbeat.get("status")=="ALIVE":
+                clock=generated_at.timetz().replace(tzinfo=None)
+                if datetime.strptime("09:35","%H:%M").time() < clock < datetime.strptime("14:49","%H:%M").time():
+                    heartbeat={**heartbeat,"status":"IDLE_BETWEEN_WINDOWS","derived":True}
             if not heartbeat:
                 is_open=TradingCalendar().is_open(generated_at.date())
                 status=("IDLE_NON_TRADING_DAY" if is_open is False else
