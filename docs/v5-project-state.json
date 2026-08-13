@@ -9,6 +9,8 @@
   "strict_samples_available": 0,
   "production_cutover_allowed": false,
   "broker_orders_enabled": false,
-  "tests_passed": 253,
+  "real_source_ready": false,
+  "live_shadow_accepted": false,
+  "tests_passed": 254,
   "next_acceptance": ["authorized second real-time market-data source", "real 09:24:30/14:48 warm-up shadow capture", "V5-to-P3/P4/P5 cutover preparation only"]
 }

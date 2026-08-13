@@ -3,8 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Iterable,Protocol
-from v4.execution import CHINA_TZ
-from v4.market_contracts import MarketSnapshotV1
+from .core import CHINA_TZ,is_market_snapshot
 from .contracts import AcquisitionSessionV1
 
 # These describe collection truth for the entire universe.  Per-symbol
@@ -17,10 +16,10 @@ def acquisition_accepted(snapshot:MarketSnapshotV1)->bool:
 
 class SnapshotSource(Protocol):
     name:str
-    def capture(self,codes:list[str],*,stage:str,now:datetime)->MarketSnapshotV1: ...
+    def capture(self,codes:list[str],*,stage:str,now:datetime): ...
 @dataclass(frozen=True)
 class AcquisitionResult:
-    session:AcquisitionSessionV1; snapshot:MarketSnapshotV1|None
+    session:AcquisitionSessionV1; snapshot:object|None
 class MultiSourceAcquirer:
     def __init__(self,sources:Iterable[SnapshotSource]):
         self.sources=tuple(sources)
@@ -33,6 +32,7 @@ class MultiSourceAcquirer:
         for source in self.sources:
             try:
                 snapshot=source.capture(universe,stage=stage,now=now)
+                if not is_market_snapshot(snapshot):raise TypeError("source did not return a versioned market snapshot")
                 valid=(snapshot.trade_date==now.date().isoformat() and snapshot.quality.expected_codes==len(universe) and acquisition_accepted(snapshot))
                 attempts.append({"source":source.name,"snapshot_id":snapshot.snapshot_id,"accepted":valid,"coverage":snapshot.quality.coverage,"age_seconds":snapshot.quality.maximum_quote_age_seconds,"batch_seconds":snapshot.quality.batch_duration_seconds,"reasons":list(snapshot.quality.reasons)})
                 if valid:selected=snapshot;break

@@ -64,5 +64,14 @@ class V5DataAndFunnelTests(unittest.TestCase):
         self.assertEqual(report.cohort,"paper_round_trips");self.assertEqual(report.trade_count,2);self.assertEqual(report.conclusion,"INSUFFICIENT_EVIDENCE");self.assertEqual(report.win_rate,.5)
     def test_product_read_model_is_decision_first_and_honest_when_data_missing(self):
         model=build_product();self.assertIn("不交易",model.today["action"]);self.assertEqual(model.candidates["empty_reason"],"行情质量未通过");self.assertTrue(model.validation["research_locked"])
-        page=render(model);self.assertIn("今日决策",page);self.assertIn("候选详情",page);self.assertIn("模拟账户",page);self.assertIn("策略验证",page);self.assertNotIn("<button",page)
+        for view,text in (("today","今天的结论"),("candidates","候选详情"),("account","初始资金"),("validation","尚不能证明策略有效")):
+            page=render(model,view);self.assertIn(text,page);self.assertIn("今日决策",page);self.assertIn("策略验证",page);self.assertNotIn("<button",page)
+
+    def test_v5_runtime_has_no_direct_v4_imports(self):
+        root=Path(__file__).resolve().parents[1]/"v5"
+        violations=[]
+        for path in root.glob("*.py"):
+            text=path.read_text(encoding="utf-8")
+            if "from v4" in text or "import v4" in text:violations.append(path.name)
+        self.assertEqual(violations,[])
 if __name__=="__main__":unittest.main()

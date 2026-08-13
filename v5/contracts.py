@@ -5,8 +5,7 @@ from datetime import datetime
 import hashlib,json
 from types import MappingProxyType
 from typing import Any, Mapping
-from v4.execution import CHINA_TZ
-from v4.market_contracts import ContractViolation, MarketSnapshotV1
+from .core import CHINA_TZ,ContractViolation,is_market_snapshot
 
 def _aware(value: Any, field: str) -> str:
     try: value=value if isinstance(value,datetime) else datetime.fromisoformat(str(value))
@@ -51,8 +50,9 @@ class CandidateFunnelV1:
     def __post_init__(self):
         object.__setattr__(self,"stages",_freeze(self.stages));object.__setattr__(self,"candidates",_freeze(self.candidates))
     @classmethod
-    def build(cls,*,snapshot:MarketSnapshotV1,market_state_id,stage,accepted,policy_version,stages,candidates):
+    def build(cls,*,snapshot,market_state_id,stage,accepted,policy_version,stages,candidates):
         if stage not in {"morning","confirmation"}: raise ContractViolation("funnel stage: unsupported value")
+        if not is_market_snapshot(snapshot):raise ContractViolation("funnel snapshot: versioned market snapshot required")
         if not snapshot.snapshot_id.startswith("ms1-") or not str(market_state_id).startswith("mstate1-"): raise ContractViolation("funnel lineage: snapshot and market state IDs required")
         if not policy_version or not stages: raise ContractViolation("funnel policy/stages: required")
         codes=[str(row.get("code","")) for row in candidates]

@@ -2,7 +2,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable
-from v4.market_contracts import MarketSnapshotV1
 from .contracts import CandidateFunnelV1
 from .data_production import acquisition_accepted
 @dataclass(frozen=True)
@@ -10,7 +9,7 @@ class FunnelPolicyV1:
     min_amount:float=5_000_000.0;max_candidates:int=20;version:str="v5-funnel-policy-v1"
 class CandidateFunnel:
     def __init__(self,policy:FunnelPolicyV1|None=None):self.policy=policy or FunnelPolicyV1()
-    def run(self,snapshot:MarketSnapshotV1,*,market_state_id:str,market_valid:bool,stage:str,allowed_codes:Iterable[str]|None=None)->CandidateFunnelV1:
+    def run(self,snapshot,*,market_state_id:str,market_valid:bool,stage:str,allowed_codes:Iterable[str]|None=None)->CandidateFunnelV1:
         allowed=None if allowed_codes is None else {str(x).zfill(6) for x in allowed_codes};raw=list(snapshot.quotes)
         stages=[{"name":"universe","input_count":len(raw),"passed_count":len(raw),"rejected":{}}]
         tradeable=[];rejected={}

@@ -4,8 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import hashlib,json
 from typing import Any
-from v4.execution import CHINA_TZ
-from v4.market_contracts import ContractViolation
+from .core import CHINA_TZ,ContractViolation
 from .contracts import CandidateFunnelV1
 
 def _time(value:Any,field:str)->str:
