@@ -1,0 +1,29 @@
+"""Disabled-by-default V5 shadow task graph. No notifications or V4 writes."""
+from __future__ import annotations
+from dataclasses import dataclass,asdict
+from datetime import datetime,timedelta
+import hashlib,json
+from pathlib import Path
+from .core import CHINA_TZ,ContractViolation
+
+@dataclass(frozen=True)
+class TaskV1:
+    name:str;time:str;depends_on:tuple[str,...];entrypoint:str;external_notifications:bool=False;broker_orders:bool=False;v4_writes:bool=False
+TASKS=(TaskV1("morning_warmup","09:24:30",(),"v5.jobs morning_warmup"),TaskV1("morning_pool","09:25:00",("morning_warmup",),"v5.jobs morning_pool"),TaskV1("signal_warmup","14:48:00",(),"v5.jobs signal_warmup"),TaskV1("feature_freeze","14:49:00",("signal_warmup",),"v5.jobs feature_freeze"),TaskV1("confirmation","14:50:00",("morning_pool","feature_freeze"),"v5.jobs confirmation"),TaskV1("paper_buy","14:50:20",("confirmation",),"v5.jobs paper_buy"),TaskV1("paper_sell","09:30:10",(),"v5.jobs paper_sell"),TaskV1("health_check","14:53:00",("confirmation","paper_buy"),"v5.jobs health_check"),TaskV1("maintenance","15:10:00",("health_check",),"v5.jobs maintenance"))
+class ShadowScheduler:
+    def __init__(self,root,*,enabled=False):self.root=Path(root);self.enabled=enabled
+    def inventory(self):return {"schema_version":"v5-shadow-schedule-v1","enabled":self.enabled,"notifications_enabled":False,"broker_orders_enabled":False,"v4_writes_enabled":False,"tasks":[asdict(x) for x in TASKS]}
+    def validate(self):
+        names={x.name for x in TASKS};checks={"unique_names":len(names)==len(TASKS),"dependencies_exist":all(set(x.depends_on)<=names for x in TASKS),"no_external_notifications":not any(x.external_notifications for x in TASKS),"no_broker_orders":not any(x.broker_orders for x in TASKS),"no_v4_writes":not any(x.v4_writes for x in TASKS),"disabled_by_default":self.enabled is False};return {"passed":all(checks.values()),"checks":checks}
+    def record(self,task,trade_date,outcome,at,details=None):
+        if task not in {x.name for x in TASKS}:raise ContractViolation("unknown shadow task")
+        row={"schema_version":"v5-shadow-run-v1","task":task,"trade_date":trade_date,"outcome":outcome,"recorded_at":at.astimezone(CHINA_TZ).isoformat(),"details":details or {}};row["run_id"]="run1-"+hashlib.sha256(json.dumps(row,sort_keys=True,separators=(",",":")).encode()).hexdigest()[:24]
+        path=self.root/"runs"/trade_date/f"{row['run_id']}.json";path.parent.mkdir(parents=True,exist_ok=True);path.write_text(json.dumps(row,ensure_ascii=False,sort_keys=True,separators=(",",":")),encoding="utf-8");return row
+    def recovery_report(self,trade_date,now):
+        rows=[]
+        for path in (self.root/"runs"/trade_date).glob("*.json") if (self.root/"runs"/trade_date).exists() else []:rows.append(json.loads(path.read_text(encoding="utf-8")))
+        completed={x["task"] for x in rows if x["outcome"]=="SUCCESS"};due=[]
+        for task in TASKS:
+            scheduled=datetime.fromisoformat(f"{trade_date}T{task.time}+08:00")
+            if scheduled<=now.astimezone(CHINA_TZ) and task.name not in completed:due.append({"task":task.name,"scheduled_at":scheduled.isoformat(),"blocked_by":[x for x in task.depends_on if x not in completed]})
+        return {"schema_version":"v5-shadow-recovery-v1","trade_date":trade_date,"missing_due_tasks":due,"status":"RECOVERY_REQUIRED" if due else "CLEAN"}

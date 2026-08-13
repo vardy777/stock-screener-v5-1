@@ -18,7 +18,8 @@ def build(*,acquisition:AcquisitionSessionV1|None=None,morning:MorningPoolV5|Non
     elif confirmation and confirmation.outcome=="BUY_CANDIDATE":action="尾盘候选已确认：仅可按冻结盘口进入本地模拟"
     elif confirmation:action="保持空仓：尾盘确认没有候选"
     else:action="等待14:50确认；早盘候选不是买入信号"
-    today={"action":action,"data_quality":"accepted" if accepted else "unavailable","coverage":(acquisition.source_attempts[-1].get("coverage") if acquisition else None),"morning_pool_id":morning.pool_id if morning else "","confirmation_id":confirmation.confirmation_id if confirmation else "","candidate_count":len(candidates)}
+    attempt=acquisition.source_attempts[-1] if acquisition else {}
+    today={"action":action,"data_quality":"accepted" if accepted else "unavailable","coverage":attempt.get("coverage"),"data_as_of":acquisition.requested_at if acquisition else None,"snapshot_id":acquisition.selected_snapshot_id if acquisition else "","source":attempt.get("source",""),"morning_pool_id":morning.pool_id if morning else "","confirmation_id":confirmation.confirmation_id if confirmation else "","candidate_count":len(candidates)}
     candidate_page={"items":candidates,"changes":[dict(x) for x in confirmation.changes] if confirmation else [],"empty_reason":None if candidates else ("行情质量未通过" if not accepted else "没有标的通过当前漏斗")}
     report=performance.to_dict() if performance else {"cohort":"paper_round_trips","trade_count":0,"conclusion":"INSUFFICIENT_EVIDENCE"}
     account_page={"ledger":dict(account or {}),"performance":report}

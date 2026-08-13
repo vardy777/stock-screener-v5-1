@@ -4,8 +4,8 @@
   "status": "shadow_development",
   "production_status": "research_locked",
   "v4_integration": "read_only",
-  "active_stage": "V5-A",
-  "stages": {"V5-A":"offline_completed_live_pending","V5-B":"offline_completed_live_pending","V5-C":"offline_contract_completed","V5-D":"offline_contract_completed","V5-E":"pending"},
+  "active_stage": "LIVE_SHADOW_ACCEPTANCE",
+  "stages": {"V5-A":"offline_completed_live_pending","V5-B":"offline_completed_live_pending","V5-C":"offline_completed_live_pending","V5-D":"offline_completed_live_pending","V5-E":"pending"},
   "strict_samples_available": 0,
   "production_cutover_allowed": false,
   "broker_orders_enabled": false,
@@ -13,6 +13,7 @@
   "second_source_network_probe": "initial_http_200_then_remote_disconnect",
   "real_source_ready": false,
   "live_shadow_accepted": false,
-  "tests_passed": 256,
-  "next_acceptance": ["authorized second real-time market-data source", "real 09:24:30/14:48 warm-up shadow capture", "V5-to-P3/P4/P5 cutover preparation only"]
+  "offline_deliverables": {"source_consensus":true,"versioned_universe":true,"native_paper_ledger":true,"explainable_funnel_v2":true,"disabled_shadow_schedule":true,"frozen_end_to_end_replay":true,"dashboard_entity_projection":true},
+  "tests_passed": 266,
+  "next_acceptance": ["real dual-source 09:24:30/14:48 warm-up shadow capture", "real 09:25/14:49/14:50/next-09:30 entity lineage", "V5-to-P3/P4/P5 cutover remains separately gated"]
 }

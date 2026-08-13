@@ -98,3 +98,12 @@
 - V4运行时迁出V3，实现独立行情、账户、推送、看板和调度；
 - 看板直接使用 `python -m v4.dashboard`；
 - 加入V4禁止导入V3的自动测试。
+# V5 offline product closure - 2026-08-13
+
+- Added content-addressed V5 point-in-time universe facts and strict two-source consensus without coverage merging.
+- Added V5-native immutable market snapshots and an independent Eastmoney adapter.
+- Added V5-native event-sourced paper ledger with fees, slippage, one-third cap, T+1, immutable rejections, idempotency and reconciliation.
+- Upgraded the candidate funnel to frozen explainable factors, risk filters and contribution lineage; scores remain research ranks, not probabilities.
+- Added a disabled-by-default nine-task shadow schedule with no notifications, broker orders or V4 writes.
+- Added deterministic frozen end-to-end replay through next-session sell and insufficient-evidence performance projection.
+- Extended the V5 dashboard projection with data time/source/snapshot lineage and per-candidate risks.

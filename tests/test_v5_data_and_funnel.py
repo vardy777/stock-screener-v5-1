@@ -4,7 +4,8 @@ from types import SimpleNamespace
 from v5.core import CHINA_TZ
 from v5.market_snapshot import MarketSnapshotV1,QuoteV1
 from v5.eastmoney_source import EastmoneyRealtimeSource
-from v5.data_production import MultiSourceAcquirer
+from v5.data_production import MultiSourceAcquirer,ConsensusAcquirer
+from v5.universe import UniverseV1
 from v5.funnel import CandidateFunnel,FunnelPolicyV1
 from v5.storage import V5FactStore
 from v5.decision_flow import MorningPoolV5,ConfirmationV5
@@ -25,6 +26,24 @@ class Source:
         return self.value
 
 class V5DataAndFunnelTests(unittest.TestCase):
+    def test_universe_is_content_addressed_and_board_filtered(self):
+        universe=UniverseV1.build(trade_date="2026-08-13",created_at=NOW,codes=["000001","600000","900901","430001"],sources=["daily_archive"])
+        self.assertEqual(universe.codes,("000001","600000"));self.assertTrue(universe.universe_id.startswith("univ1-"))
+        with TemporaryDirectory() as directory:self.assertEqual(universe.save(directory),universe.save(directory))
+
+    def test_consensus_requires_both_complete_sources_and_matching_prices(self):
+        universe=UniverseV1.build(trade_date="2026-08-13",created_at=NOW,codes=["000001","000002"],sources=["test"])
+        left=snapshot([quote("000001"),quote("000002")]);right=snapshot([quote("000001"),quote("000002")])
+        result=ConsensusAcquirer(Source("sina",left),Source("eastmoney",right)).acquire(universe,stage="signal",now=NOW)
+        self.assertTrue(result.accepted);self.assertEqual(result.report["match_ratio"],1)
+        conflict=snapshot([quote("000001",last_price=11),quote("000002")])
+        rejected=ConsensusAcquirer(Source("sina",left),Source("eastmoney",conflict)).acquire(universe,stage="signal",now=NOW)
+        self.assertFalse(rejected.accepted);self.assertEqual(rejected.report["price_conflicts"],1)
+
+    def test_consensus_never_merges_two_incomplete_sources_to_inflate_coverage(self):
+        universe=UniverseV1.build(trade_date="2026-08-13",created_at=NOW,codes=["000001","000002"],sources=["test"])
+        result=ConsensusAcquirer(Source("one",snapshot([quote("000001")],2)),Source("two",snapshot([quote("000002")],2))).acquire(universe,stage="signal",now=NOW)
+        self.assertFalse(result.accepted);self.assertIsNone(result.primary)
     def test_eastmoney_source_maps_only_requested_codes_and_preserves_provider_time(self):
         epoch=int((NOW-timedelta(seconds=1)).timestamp())
         payload={"rc":0,"data":{"diff":[{"f12":"000001","f14":"平安银行","f2":10.2,"f5":1000,"f6":8000000,"f15":10.3,"f16":10.0,"f17":10.1,"f18":10.0,"f31":10.19,"f32":10.21,"f33":100,"f34":120,"f124":epoch},{"f12":"600000","f14":"浦发银行","f2":9.8,"f5":500,"f6":4000000,"f15":9.9,"f16":9.7,"f17":9.8,"f18":9.75,"f31":9.79,"f32":9.81,"f33":20,"f34":30,"f124":epoch}]}}
