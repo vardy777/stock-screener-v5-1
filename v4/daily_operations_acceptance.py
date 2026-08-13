@@ -5,7 +5,7 @@ never manufacture a missing entity or reinterpret a failed task as success.
 """
 from __future__ import annotations
 from datetime import date
-import json,re,subprocess
+import json,locale,re,subprocess
 from pathlib import Path
 from .candidate_journal import CandidateJournal
 from .task_output_contract import TaskOutputV1,audit_output_chain
@@ -14,10 +14,17 @@ REQUIRED=("morning_decision","morning_push","feature_freeze","confirmation_decis
           "confirmation_push","paper_buy","health_check","maintenance")
 
 def windows_time_status() -> dict:
+    # Windows console utilities emit the active ANSI/OEM code page rather than
+    # UTF-8 on localized hosts.  Decode explicitly and fail closed on command
+    # status, while retaining replacement characters only in diagnostic text.
+    encoding=locale.getpreferredencoding(False) or "utf-8"
+    def run(command, timeout):
+        return subprocess.run(command,capture_output=True,text=True,encoding=encoding,
+                              errors="replace",timeout=timeout)
     try:
-        service=subprocess.run(["sc.exe","query","W32Time"],capture_output=True,text=True,timeout=10)
-        status=subprocess.run(["w32tm.exe","/query","/status"],capture_output=True,text=True,timeout=10)
-        strip=subprocess.run(["w32tm.exe","/stripchart","/computer:ntp.aliyun.com","/dataonly","/samples:3"],capture_output=True,text=True,timeout=20)
+        service=run(["sc.exe","query","W32Time"],10)
+        status=run(["w32tm.exe","/query","/status"],10)
+        strip=run(["w32tm.exe","/stripchart","/computer:ntp.aliyun.com","/dataonly","/samples:3"],20)
     except (OSError,subprocess.SubprocessError) as exc:
         return {"passed":False,"reason":"TIME_QUERY_FAILED","detail":str(exc)}
     running=service.returncode==0 and "RUNNING" in service.stdout

@@ -21,7 +21,7 @@ class DecisionChainService:
 
     def publish_confirmation(
         self, trade_date: str, candidates: Iterable[dict], market_state: dict, *,
-        decided_at=None, persist_diagnostics: bool = True,
+        decided_at=None, persist_diagnostics: bool = True, feature_context_id: str = "",
     ) -> dict:
         linked = self.journal.link_confirmation_candidates(trade_date, candidates)
         reference_time = (
@@ -31,7 +31,8 @@ class DecisionChainService:
             linked, market_state, reference_time=reference_time,
             persist_diagnostics=persist_diagnostics,
         )
-        self.journal.save_confirmation(trade_date, evaluated, market_state, decided_at=decided_at)
+        self.journal.save_confirmation(trade_date, evaluated, market_state, decided_at=decided_at,
+                                       feature_context_id=feature_context_id)
         return self.journal.confirmation(trade_date)
 
     def publish_missing_morning(self, trade_date: str, market_state: dict) -> dict:

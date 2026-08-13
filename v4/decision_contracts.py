@@ -241,9 +241,13 @@ class ConfirmationDecisionV1:
         object.__setattr__(self, "lineage", _freeze(self.lineage))
 
     @classmethod
-    def build(cls, morning: MorningPoolV1, decided_at: Any, candidates, market_state):
+    def build(cls, morning: MorningPoolV1, decided_at: Any, candidates, market_state, *, feature_context_id=""):
         rows = _candidate_rows(candidates)
         lineage = _lineage(rows, market_state, confirmation=True)
+        if feature_context_id:
+            if not str(feature_context_id).startswith("fc1-"):
+                raise DecisionContractViolation("lineage.feature_context_id: invalid")
+            lineage["feature_context_id"] = str(feature_context_id)
         outside = [item["code"] for item in rows if item["code"] not in morning.candidate_codes]
         if outside:
             raise DecisionContractViolation(

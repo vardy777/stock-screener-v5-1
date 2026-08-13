@@ -2,9 +2,19 @@ import tempfile,unittest
 import hashlib,json
 from pathlib import Path
 from unittest.mock import patch
-from v4.daily_operations_acceptance import build
+from v4.daily_operations_acceptance import build,windows_time_status
 
 class DailyOperationsAcceptanceTests(unittest.TestCase):
+    def test_windows_time_commands_use_explicit_local_encoding(self):
+        completed=lambda stdout: type("Result",(),{"returncode":0,"stdout":stdout})()
+        with patch("v4.daily_operations_acceptance.locale.getpreferredencoding",return_value="cp936"), \
+             patch("v4.daily_operations_acceptance.subprocess.run",side_effect=[
+                 completed("STATE : 4 RUNNING"),completed("Source: ntp.aliyun.com"),
+                 completed("+0.001s\n-0.002s\n+0.003s")]) as runner:
+            report=windows_time_status()
+        self.assertTrue(report["passed"])
+        self.assertTrue(all(call.kwargs["encoding"]=="cp936" and call.kwargs["errors"]=="replace" for call in runner.call_args_list))
+
     def test_missing_real_session_evidence_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory, patch("v4.daily_operations_acceptance.windows_time_status",return_value={"passed":False}):
             report=build(Path(directory),"2026-08-12")

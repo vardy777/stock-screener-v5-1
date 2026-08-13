@@ -90,7 +90,7 @@ class CandidateJournal:
             rows.append(linked)
         return rows
 
-    def save_confirmation(self, trade_date: str, candidates: Iterable[dict], market_state: dict, *, decided_at=None) -> dict:
+    def save_confirmation(self, trade_date: str, candidates: Iterable[dict], market_state: dict, *, decided_at=None, feature_context_id="") -> dict:
         with exclusive_file_lock(self.directory/f".{trade_date}.lock"):
             payload = self.load(trade_date)
             if not payload.get("morning"): raise ValueError("missing current-session 09:25 mother pool")
@@ -112,7 +112,8 @@ class CandidateJournal:
                 lineage=dict(morning_data.get("lineage", {})),
                 schema_version=morning_data.get("schema_version", "morning-pool-v1"),
             )
-            entity = ConfirmationDecisionV1.build(morning, decided_at or self._now(), rows, market_state)
+            entity = ConfirmationDecisionV1.build(morning, decided_at or self._now(), rows, market_state,
+                                                  feature_context_id=feature_context_id)
             existing = payload.get("confirmation", {})
             if existing:
                 if existing.get("decision_id") == entity.decision_id: return payload

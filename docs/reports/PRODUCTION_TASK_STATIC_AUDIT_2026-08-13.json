@@ -1,0 +1,92 @@
+﻿{
+    "schema_version":  "production-task-static-audit-v2",
+    "passed":  true,
+    "active_tasks":  [
+                         {
+                             "task_name":  "AStock-V4-Morning-Decision-0925",
+                             "exists":  true,
+                             "state":  "Ready",
+                             "adapter_bound":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Morning-Push-092520",
+                             "exists":  true,
+                             "state":  "Ready",
+                             "adapter_bound":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Paper-Sell-093020",
+                             "exists":  true,
+                             "state":  "Ready",
+                             "adapter_bound":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Feature-1449",
+                             "exists":  true,
+                             "state":  "Ready",
+                             "adapter_bound":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Confirmation-Decision-145020",
+                             "exists":  true,
+                             "state":  "Ready",
+                             "adapter_bound":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Confirmation-Push-145030",
+                             "exists":  true,
+                             "state":  "Ready",
+                             "adapter_bound":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Paper-Buy-145040",
+                             "exists":  true,
+                             "state":  "Ready",
+                             "adapter_bound":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Health-1453",
+                             "exists":  true,
+                             "state":  "Ready",
+                             "adapter_bound":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Maintenance-1510",
+                             "exists":  true,
+                             "state":  "Ready",
+                             "adapter_bound":  true
+                         }
+                     ],
+    "legacy_tasks":  [
+                         {
+                             "task_name":  "AStock-V4-Push-Morning-0925",
+                             "disabled":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Push-Confirm-145020",
+                             "disabled":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Sell-0930",
+                             "disabled":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Buy-1450",
+                             "disabled":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Signal-1449",
+                             "disabled":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Health-Sell-0936",
+                             "disabled":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Health-Close-1453",
+                             "disabled":  true
+                         }
+                     ],
+    "dashboard_supervised_unlimited":  true,
+    "read_only":  true
+}

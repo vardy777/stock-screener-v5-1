@@ -1,232 +1,252 @@
 {
-  "schema_version": "project-state-v1",
-  "project": "a-share-overnight-v4",
-  "display_name": "A股隔夜研究与模拟系统 V4",
-  "updated_at": "2026-08-12T23:40:00+08:00",
-  "active_phase": "P6",
-  "active_phase_name": "严格研究数据积累与真实窗口验收",
-  "production_status": "research_locked",
-  "p1_validation": {
-    "engineering_status": "offline_completed",
-    "offline_acceptance_status": "passed_unique_gateway_including_production_leaves",
-    "live_window_status": "morning_passed_signal_failed_unsynced_host_clock_confirmation_recovered_sell_fill_pending",
-    "required_windows": ["09:25 morning", "14:49 signal", "14:50 strict and paper-only", "next-session 09:30 sell"]
-  },
-  "p2_validation": {
-    "engineering_status": "offline_completed",
-    "offline_acceptance_status": "passed_157_tests_strict",
-    "live_window_status": "morning_passed_confirmation_empty_recovered_afternoon_push_accepted_but_late",
-    "historical_replay_status": "immutable_snapshots_and_feature_context_replay_passed",
-    "historical_fact": "2026-08-03..05 candidate journals missing; 2026-08-06..07 legacy schema retained read-only"
-  },
-  "p3_validation": {
-    "engineering_status": "production_cutover_applied_live_validation_pending",
-    "checkpoint": "p3_single_writer_initialized_and_scheduled",
-    "offline_tests": 33,
-    "operating_mode": "local_research_paper_production",
-    "scheduling_enabled": true,
-    "daily_paper_production_connected": true,
-    "completion_allowed": false,
-    "preemption_rule": "pause_p3_and_repair_p1_p2_on_any_live_window_failure"
-  },
-  "p4_validation": {
-    "engineering_status": "production_cutover_applied_live_validation_pending",
-    "checkpoint": "nine_p4_tasks_registered_old_tasks_disabled_retry_heartbeat_and_v4_leaves_hardened",
-    "offline_tests": 28,
-    "operating_mode": "local_production_scheduler",
-    "windows_tasks_registered_by_p4": true,
-    "real_pushplus_called": true,
-    "production_entrypoints_connected": true,
-    "completion_allowed": false,
-    "preemption_rule": "pause_p4_and_repair_p1_p2_on_any_live_window_failure"
-  },
-  "p5_validation": {
-    "engineering_status": "production_cutover_applied_live_observation_pending",
-    "checkpoint": "p5_three_view_beginner_research_ops_dashboard_with_strict_freshness",
-    "offline_tests": 17,
-    "operating_mode": "production_read_only",
-    "existing_8898_connected": true,
-    "mutation_endpoints_enabled": false,
-    "production_cutover_allowed": true
-  },
-  "p6_validation": {
-    "engineering_status": "offline_contracts_accepted_strict_data_pending",
-    "strict_dataset_audit": "fail_closed",
-    "walk_forward_stress_audit": "fail_closed_same_dataset_frozen_policy",
-    "strict_samples_available": 0,
-    "production_evaluation_allowed": false
-  },
-  "p7_validation": {
-    "engineering_status": "offline_release_audit_accepted_gate_pending",
-    "published_model_available": false,
-    "report_lineage_required": true,
-    "production_publication_allowed": false
-  },
-  "p8_validation": {
-    "engineering_status": "v3_retirement_applied_v2_pending",
-    "production_data_backup_performed": true,
-    "production_restore_performed": true,
-    "historical_archive_performed": true,
-    "v3_runtime_tree_retired": true,
-    "v3_backup_id": "backup1-62f929791e6c7f5ed652e437",
-    "v3_restore_verification": "passed_81_files",
-    "production_backup_report": "docs/reports/V4_PRODUCTION_BACKUP_RESTORE_2026-08-12.json",
-    "production_restore_verification": "passed_219_files_across_3_isolated_bundles"
-  },
-  "cutover_preparation": {
-    "engineering_status": "cutover_applied_live_evidence_pending",
-    "live_window_acceptance_available": true,
-    "task_inventory_read_only": true,
-    "writer_inventory_required": true,
-    "rollback_plan_available": true,
-    "unified_offline_acceptance_available": true,
-    "unified_offline_acceptance_status": "passed_248_tests_then_cutover_applied",
-    "legacy_2026_08_07_window_projection": "failed_as_expected_not_valid_live_evidence",
-    "apply_allowed": false,
-    "tasks_modified": true,
-    "account_migrated": false,
-    "dashboard_switched": true,
-    "cutover_applied": true,
-    "authorization_id": "auth-4730c4b64a054a9e9866eca3293e3adc",
-    "backup_path": "backups/cutover-20260809-1115"
-  },
-  "runtime_owner": "v4",
-  "dashboard": {
-    "url": "http://127.0.0.1:8898/",
-    "entrypoint": "python -m v4.p5_dashboard --port 8898 --data-dir v4/data"
-  },
-  "schedule": {
-    "baseline_date": "2026-08-08",
-    "engineering_beta_target": "2026-08-24",
-    "engineering_acceptance_target": "2026-08-28",
-    "stability_observation_target": "2026-09-25",
-    "initial_strategy_assessment_estimate": "40-60 complete round trips, frequency-dependent",
-    "production_model_target": "gate-driven, no promised date",
-    "plan": "docs/PROJECT_PLAN.md"
-  },
-  "required_notifications": [
-    "09:25 morning observation pool",
-    "14:50 confirmation"
-  ],
-  "paper_contract": {
-    "initial_capital_cny": 100000,
-    "maximum_symbol_fraction": 0.3333333333333333,
-    "buy_window": "14:50:00-14:51:59",
-    "sell_window": "next open session 09:30:00-09:35:00",
-    "maximum_new_positions_per_signal": 1,
-    "broker_orders_enabled": false
-  },
-  "latest_observed_session": {
-    "trade_date": "2026-08-12",
-    "morning_candidates": 5,
-    "confirmation_candidates": 0,
-    "paper_bought": 0,
-    "paper_buy_outcome": "blocked_confirmation_decision_failed",
-    "top1_rule_score": null,
-    "morning_push_success": true,
-    "confirmation_push_success": false
-  },
-  "quality": {
-    "tests_passed": 241,
-    "tests_failed": 0,
-    "v4_imports_v3": false
-  },
-  "known_issues": [
-    {
-      "id": "P2-LIVE-003",
-      "severity": "P0",
-      "title": "14:50整批快照被单只涨停无卖一拖垮",
-      "phase": "P1/P2/P3",
-      "status": "fixed_offline_2026_08_12_live_retest_pending"
-    },
-    {
-      "id": "P5-LIVE-002",
-      "severity": "P0",
-      "title": "看板未准确投影当日P4失败",
-      "phase": "P5",
-      "status": "fixed_offline_2026_08_12_live_observation_pending"
-    },
-    {
-      "id": "P2-001",
-      "severity": "P0",
-      "title": "候选日志保存了门禁重评前的阻断理由",
-      "phase": "P2",
-      "status": "closed"
-    },
-    {
-      "id": "P2-002",
-      "severity": "P0",
-      "title": "全市场分数与小母池重排分数口径不同，固定80分阈值不稳定",
-      "phase": "P2",
-      "status": "closed"
-    },
-    {
-      "id": "P4-001",
-      "severity": "P1",
-      "title": "模拟买卖调度依赖8898看板进程常驻",
-      "phase": "P4",
-      "status": "closed_by_p4_cutover_2026-08-09"
-    },
-    {
-      "id": "P4-002",
-      "severity": "P1",
-      "title": "独立paper买卖Windows任务未注册，重注册被当前进程权限拒绝",
-      "phase": "P3/P4",
-      "status": "closed_with_elevated_cutover_2026-08-09"
-    },
-    {
-      "id": "P5-001",
-      "severity": "P1",
-      "title": "看板单文件职责过多且状态由多个JSON现场拼装",
-      "phase": "P5",
-      "status": "closed_by_p5_cutover_2026-08-09_utf8_presentation_repaired_2026-08-12"
-    },
-    {
-      "id": "P1-LIVE-001",
-      "severity": "P0",
-      "title": "全市场快照投影重复计算内容哈希导致真实窗口超时",
-      "phase": "P1/P4",
-      "status": "fixed_and_morning_live_verified_2026_08_11"
-    },
-    {
-      "id": "P6-LIVE-001",
-      "severity": "P0",
-      "title": "上一交易日冻结上下文刷新受单股票K线HTTP 456限制，当前覆盖仅2.59%",
-      "phase": "P6",
-      "status": "fixed_context_ready_live_1449_validation_pending"
-    },
-    {
-      "id": "P1-LIVE-002",
-      "severity": "P0",
-      "title": "Windows 时间服务未同步导致供应商时间领先本机约2秒，严格因果行被隔离",
-      "phase": "P1/P4",
-      "status": "fixed_ntp_offset_verified_2026_08_12_live_window_retest_pending"
-    },
-    {
-      "id": "P6-LIVE-002",
-      "severity": "P0",
-      "title": "2026-08-12上下文恢复请求触发腾讯临时限流，当前生产上下文需重建",
-      "phase": "P6",
-      "status": "closed_context_ready_2026_08_11_1630_maintenance_succeeded"
-    }
-  ],
-  "next_tasks": [
-    "Windows Time已同步且NTP偏差门禁通过；下一真实14:49窗口复验严格覆盖",
-    "2026-08-13上下文预检通过；验证09:25候选与两次PushPlus完整回执",
-    "持续积累无偏严格样本；达到门槛后才运行P6全市场Walk-Forward和压力测试",
-    "P3/P4/P5已切换；下一交易日观察真实实体、任务回执和8898投影",
-    "P1/P2真实窗口失败时立即暂停P3/P4/P5/P6/P7/P8并优先修复",
-    "P4已增加统一任务时间窗门禁；2026-08-13验证错过任务不产生跨窗口市场实体"
-  ],
-  "phase_status": {
-    "P0": "completed",
-    "P1": "offline_completed_live_pending",
-    "P2": "offline_completed_live_pending",
-    "P3": "in_progress",
-    "P4": "in_progress",
-    "P5": "in_progress",
-    "P6": "in_progress",
-    "P7": "offline_contract_completed_gate_pending",
-    "P8": "offline_contract_completed_production_actions_pending"
-  }
+    "schema_version":  "project-state-v1",
+    "project":  "a-share-overnight-v4",
+    "display_name":  "A股隔夜研究与模拟系统 V4",
+    "updated_at":  "2026-08-13T18:30:00+08:00",
+    "active_phase":  "P6",
+    "active_phase_name":  "严格研究数据积累与真实窗口验收",
+    "production_status":  "research_locked",
+    "p1_validation":  {
+                          "engineering_status":  "offline_completed",
+                          "offline_acceptance_status":  "passed_unique_gateway_including_production_leaves",
+                          "live_window_status":  "2026-08-13 signal_passed_time_sync_passed_sell_fill_pending",
+                          "required_windows":  [
+                                                   "09:25 morning",
+                                                   "14:49 signal",
+                                                   "14:50 strict and paper-only",
+                                                   "next-session 09:30 sell"
+                                               ]
+                      },
+    "p2_validation":  {
+                          "engineering_status":  "offline_completed",
+                          "offline_acceptance_status":  "passed_157_tests_strict",
+                          "live_window_status":  "2026-08-13 both_pushes_accepted_empty_pool_confirmation_feature_lineage_failed_fixed_for_next_session",
+                          "historical_replay_status":  "immutable_snapshots_and_feature_context_replay_passed",
+                          "historical_fact":  "2026-08-03..05 candidate journals missing; 2026-08-06..07 legacy schema retained read-only"
+                      },
+    "p3_validation":  {
+                          "engineering_status":  "production_cutover_applied_live_validation_pending",
+                          "checkpoint":  "p3_single_writer_initialized_and_scheduled",
+                          "offline_tests":  33,
+                          "operating_mode":  "local_research_paper_production",
+                          "scheduling_enabled":  true,
+                          "daily_paper_production_connected":  true,
+                          "completion_allowed":  false,
+                          "preemption_rule":  "pause_p3_and_repair_p1_p2_on_any_live_window_failure"
+                      },
+    "p4_validation":  {
+                          "engineering_status":  "production_cutover_applied_live_validation_pending",
+                          "checkpoint":  "2026-08-13 eight_tasks_succeeded_maintenance_terminated_no_artifact_live_retest_required",
+                          "offline_tests":  28,
+                          "operating_mode":  "local_production_scheduler",
+                          "windows_tasks_registered_by_p4":  true,
+                          "real_pushplus_called":  true,
+                          "production_entrypoints_connected":  true,
+                          "completion_allowed":  false,
+                          "preemption_rule":  "pause_p4_and_repair_p1_p2_on_any_live_window_failure"
+                      },
+    "p5_validation":  {
+                          "engineering_status":  "production_cutover_applied_live_observation_pending",
+                          "checkpoint":  "p5_three_view_beginner_research_ops_dashboard_with_strict_freshness",
+                          "offline_tests":  17,
+                          "operating_mode":  "production_read_only",
+                          "existing_8898_connected":  true,
+                          "mutation_endpoints_enabled":  false,
+                          "production_cutover_allowed":  true
+                      },
+    "p6_validation":  {
+                          "engineering_status":  "offline_contracts_accepted_strict_data_pending",
+                          "strict_dataset_audit":  "fail_closed",
+                          "walk_forward_stress_audit":  "fail_closed_same_dataset_frozen_policy",
+                          "strict_samples_available":  0,
+                          "production_evaluation_allowed":  false
+                      },
+    "p7_validation":  {
+                          "engineering_status":  "offline_release_audit_accepted_gate_pending",
+                          "published_model_available":  false,
+                          "report_lineage_required":  true,
+                          "production_publication_allowed":  false
+                      },
+    "p8_validation":  {
+                          "engineering_status":  "v3_retirement_applied_v2_pending",
+                          "production_data_backup_performed":  true,
+                          "production_restore_performed":  true,
+                          "historical_archive_performed":  true,
+                          "v3_runtime_tree_retired":  true,
+                          "v3_backup_id":  "backup1-62f929791e6c7f5ed652e437",
+                          "v3_restore_verification":  "passed_81_files",
+                          "production_backup_report":  "docs/reports/V4_PRODUCTION_BACKUP_RESTORE_2026-08-12.json",
+                          "production_restore_verification":  "passed_219_files_across_3_isolated_bundles"
+                      },
+    "cutover_preparation":  {
+                                "engineering_status":  "cutover_applied_live_evidence_pending",
+                                "live_window_acceptance_available":  true,
+                                "task_inventory_read_only":  true,
+                                "writer_inventory_required":  true,
+                                "rollback_plan_available":  true,
+                                "unified_offline_acceptance_available":  true,
+                                "unified_offline_acceptance_status":  "passed_248_tests_then_cutover_applied",
+                                "legacy_2026_08_07_window_projection":  "failed_as_expected_not_valid_live_evidence",
+                                "apply_allowed":  false,
+                                "tasks_modified":  true,
+                                "account_migrated":  false,
+                                "dashboard_switched":  true,
+                                "cutover_applied":  true,
+                                "authorization_id":  "auth-4730c4b64a054a9e9866eca3293e3adc",
+                                "backup_path":  "backups/cutover-20260809-1115"
+                            },
+    "runtime_owner":  "v4",
+    "dashboard":  {
+                      "url":  "http://127.0.0.1:8898/",
+                      "entrypoint":  "python -m v4.p5_dashboard --port 8898 --data-dir v4/data"
+                  },
+    "schedule":  {
+                     "baseline_date":  "2026-08-08",
+                     "engineering_beta_target":  "2026-08-24",
+                     "engineering_acceptance_target":  "2026-08-28",
+                     "stability_observation_target":  "2026-09-25",
+                     "initial_strategy_assessment_estimate":  "40-60 complete round trips, frequency-dependent",
+                     "production_model_target":  "gate-driven, no promised date",
+                     "plan":  "docs/PROJECT_PLAN.md"
+                 },
+    "required_notifications":  [
+                                   "09:25 morning observation pool",
+                                   "14:50 confirmation"
+                               ],
+    "paper_contract":  {
+                           "initial_capital_cny":  100000,
+                           "maximum_symbol_fraction":  0.3333333333333333,
+                           "buy_window":  "14:50:00-14:51:59",
+                           "sell_window":  "next open session 09:30:00-09:35:00",
+                           "maximum_new_positions_per_signal":  1,
+                           "broker_orders_enabled":  false
+                       },
+    "latest_observed_session":  {
+                                    "trade_date":  "2026-08-13",
+                                    "morning_candidates":  0,
+                                    "confirmation_candidates":  0,
+                                    "paper_bought":  0,
+                                    "paper_buy_outcome":  "empty_morning_pool_due_78_8_percent_fresh_coverage",
+                                    "morning_push_success":  true,
+                                    "confirmation_push_success":  true,
+                                    "daily_operations_acceptance":  "failed_maintenance_missing_and_confirmation_feature_lineage_missing",
+                                    "strict_samples_available":  0
+                                },
+    "quality":  {
+                    "tests_passed":  245,
+                    "tests_failed":  0,
+                    "v4_imports_v3":  false
+                },
+    "known_issues":  [
+                         {
+                             "id":  "P2-LIVE-003",
+                             "severity":  "P0",
+                             "title":  "14:50整批快照被单只涨停无卖一拖垮",
+                             "phase":  "P1/P2/P3",
+                             "status":  "fixed_offline_2026_08_12_live_retest_pending"
+                         },
+                         {
+                             "id":  "P5-LIVE-002",
+                             "severity":  "P0",
+                             "title":  "看板未准确投影当日P4失败",
+                             "phase":  "P5",
+                             "status":  "fixed_offline_2026_08_12_live_observation_pending"
+                         },
+                         {
+                             "id":  "P2-001",
+                             "severity":  "P0",
+                             "title":  "候选日志保存了门禁重评前的阻断理由",
+                             "phase":  "P2",
+                             "status":  "closed"
+                         },
+                         {
+                             "id":  "P2-002",
+                             "severity":  "P0",
+                             "title":  "全市场分数与小母池重排分数口径不同，固定80分阈值不稳定",
+                             "phase":  "P2",
+                             "status":  "closed"
+                         },
+                         {
+                             "id":  "P4-001",
+                             "severity":  "P1",
+                             "title":  "模拟买卖调度依赖8898看板进程常驻",
+                             "phase":  "P4",
+                             "status":  "closed_by_p4_cutover_2026-08-09"
+                         },
+                         {
+                             "id":  "P4-002",
+                             "severity":  "P1",
+                             "title":  "独立paper买卖Windows任务未注册，重注册被当前进程权限拒绝",
+                             "phase":  "P3/P4",
+                             "status":  "closed_with_elevated_cutover_2026-08-09"
+                         },
+                         {
+                             "id":  "P5-001",
+                             "severity":  "P1",
+                             "title":  "看板单文件职责过多且状态由多个JSON现场拼装",
+                             "phase":  "P5",
+                             "status":  "closed_by_p5_cutover_2026-08-09_utf8_presentation_repaired_2026-08-12"
+                         },
+                         {
+                             "id":  "P1-LIVE-001",
+                             "severity":  "P0",
+                             "title":  "全市场快照投影重复计算内容哈希导致真实窗口超时",
+                             "phase":  "P1/P4",
+                             "status":  "fixed_and_morning_live_verified_2026_08_11"
+                         },
+                         {
+                             "id":  "P6-LIVE-001",
+                             "severity":  "P0",
+                             "title":  "上一交易日冻结上下文刷新受单股票K线HTTP 456限制，当前覆盖仅2.59%",
+                             "phase":  "P6",
+                             "status":  "fixed_context_ready_live_1449_validation_pending"
+                         },
+                         {
+                             "id":  "P1-LIVE-002",
+                             "severity":  "P0",
+                             "title":  "Windows 时间服务未同步导致供应商时间领先本机约2秒，严格因果行被隔离",
+                             "phase":  "P1/P4",
+                             "status":  "fixed_ntp_offset_verified_2026_08_12_live_window_retest_pending"
+                         },
+                         {
+                             "id":  "P6-LIVE-002",
+                             "severity":  "P0",
+                             "title":  "2026-08-12上下文恢复请求触发腾讯临时限流，当前生产上下文需重建",
+                             "phase":  "P6",
+                             "status":  "closed_context_ready_2026_08_11_1630_maintenance_succeeded"
+                         },
+                         {
+                             "id":  "P4-LIVE-004",
+                             "severity":  "P0",
+                             "title":  "2026-08-13 15:10 maintenance terminated without immutable process artifact",
+                             "phase":  "P4/P6",
+                             "status":  "open_live_retest_required"
+                         },
+                         {
+                             "id":  "P2-LIVE-004",
+                             "severity":  "P0",
+                             "title":  "empty morning pool confirmation omitted FeatureContextV1 lineage",
+                             "phase":  "P2/P4",
+                             "status":  "fixed_offline_2026_08_13_live_retest_pending"
+                         }
+                     ],
+    "next_tasks":  [
+                       "Windows Time已同步且NTP偏差门禁通过；下一真实14:49窗口复验严格覆盖",
+                       "2026-08-13上下文预检通过；验证09:25候选与两次PushPlus完整回执",
+                       "持续积累无偏严格样本；达到门槛后才运行P6全市场Walk-Forward和压力测试",
+                       "P3/P4/P5已切换；下一交易日观察真实实体、任务回执和8898投影",
+                       "P1/P2真实窗口失败时立即暂停P3/P4/P5/P6/P7/P8并优先修复",
+                       "P4已增加统一任务时间窗门禁；2026-08-13验证错过任务不产生跨窗口市场实体"
+                   ],
+    "phase_status":  {
+                         "P0":  "completed",
+                         "P1":  "offline_completed_live_pending",
+                         "P2":  "offline_completed_live_pending",
+                         "P3":  "in_progress",
+                         "P4":  "in_progress",
+                         "P5":  "in_progress",
+                         "P6":  "in_progress",
+                         "P7":  "offline_contract_completed_gate_pending",
+                         "P8":  "offline_contract_completed_production_actions_pending"
+                     }
 }

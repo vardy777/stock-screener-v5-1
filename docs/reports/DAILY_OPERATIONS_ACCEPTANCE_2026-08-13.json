@@ -1,0 +1,167 @@
+{
+  "schema_version": "daily-operations-acceptance-v1",
+  "trade_date": "2026-08-13",
+  "passed": false,
+  "checks": {
+    "all_tasks_present": false,
+    "all_tasks_succeeded": false,
+    "output_lineage": false,
+    "morning_entity": true,
+    "confirmation_entity": true,
+    "pushplus_200_accepted": true,
+    "windows_time": true
+  },
+  "missing_tasks": [
+    "maintenance"
+  ],
+  "invalid_tasks": [],
+  "failed_tasks": [],
+  "push_checks": [
+    {
+      "message_key": "v4-morning:2026-08-13",
+      "passed": true,
+      "notification_id": "notification1-be376e19362e585f661d8967",
+      "response_code": 200,
+      "outcome": "ACCEPTED",
+      "parent_entity_id": "mp-865b216b4466bc707050bd14"
+    },
+    {
+      "message_key": "v4-afternoon:2026-08-13",
+      "passed": true,
+      "notification_id": "notification1-4578261e836306613e855f7c",
+      "response_code": 200,
+      "outcome": "ACCEPTED",
+      "parent_entity_id": "cd-2a69bc568a8ae820da506af0"
+    }
+  ],
+  "time_sync": {
+    "passed": true,
+    "service_running": true,
+    "synchronized": true,
+    "offset_verified": true,
+    "maximum_absolute_offset_seconds": 0.2142152,
+    "service_output": "\nSERVICE_NAME: W32Time \n        TYPE               : 30  WIN32  \n        STATE              : 4  RUNNING \n                                (STOPPABLE, NOT_PAUSABLE, ACCEPTS_SHUTDOWN)\n        WIN32_EXIT_CODE    : 0  (0x0)\n        SERVICE_EXIT_CODE  : 0  (0x0)\n        CHECKPOINT         : 0x0\n        WAIT_HINT          : 0x0\n",
+    "status_output": "Leap ָʾ��: 0(�޾���)\n���: 3 (������ - ��(S)NTP ͬ��)\n����: -23 (ÿ�̶� 119.209ns)\n���ӳ�: 0.0255850s\n����ɢ: 7.9929849s\n���� ID: 0xCB6B0658 (Դ IP:  203.107.6.88)\n�ϴγɹ�ͬ��ʱ��: 2026/8/13 17:14:28\nԴ: ntp.aliyun.com,0x9 \n��ѯ���: 10 (1024s)\n\n",
+    "stripchart_output": "���ڸ��� ntp.aliyun.com [203.107.6.88:123]��\n�����ռ� 3 ʾ����\n��ǰʱ���� 2026/8/13 18:25:37��\n18:25:37, +00.2093791s\n18:25:39, +00.2142152s\n18:25:41, +00.2115276s\n",
+    "reason": "OK"
+  },
+  "output_chain": {
+    "schema_version": "task-output-audit-v1",
+    "passed": false,
+    "issues": [
+      "MISSING_INPUT_LINEAGE:confirmation_decision:feature_freeze"
+    ],
+    "outputs": [
+      {
+        "output_id": "tout-a998ed9c84df5335e8831b54",
+        "task_name": "morning_decision",
+        "trade_date": "2026-08-13",
+        "status": "SUCCEEDED",
+        "reason_code": "OK",
+        "recorded_at": "2026-08-13T09:25:01+08:00",
+        "entity_kind": "MorningPoolV1",
+        "entity_id": "mp-865b216b4466bc707050bd14",
+        "entity_sha256": "29852f8ce4845401803aff5b1ffe9bf13b8042a1268709057b84b3cab55051aa",
+        "input_ids": [],
+        "attempt": 1,
+        "schema_version": "task-output-v1"
+      },
+      {
+        "output_id": "tout-eae4f442c3564a30509a3af4",
+        "task_name": "morning_push",
+        "trade_date": "2026-08-13",
+        "status": "SUCCEEDED",
+        "reason_code": "OK",
+        "recorded_at": "2026-08-13T09:25:21+08:00",
+        "entity_kind": "NotificationReceiptV1",
+        "entity_id": "notification1-be376e19362e585f661d8967",
+        "entity_sha256": "a40011b00a2f7820c9fedb3523f8df12f5410b9f39b45270b1ca9d71332318dc",
+        "input_ids": [
+          "mp-865b216b4466bc707050bd14"
+        ],
+        "attempt": 1,
+        "schema_version": "task-output-v1"
+      },
+      {
+        "output_id": "tout-6ea1cb45abcd83f11698a2bb",
+        "task_name": "feature_freeze",
+        "trade_date": "2026-08-13",
+        "status": "SUCCEEDED",
+        "reason_code": "OK",
+        "recorded_at": "2026-08-13T14:49:02+08:00",
+        "entity_kind": "FeatureContextV1",
+        "entity_id": "fc1-5dd4f6ec321c19d0bf52830552dd4b7acf2322721540a4b035aeb36f271d708f",
+        "entity_sha256": "db508dec8a359ed27a018b89766715d25eea8183dddac5da2af6dac1346cddd7",
+        "input_ids": [],
+        "attempt": 1,
+        "schema_version": "task-output-v1"
+      },
+      {
+        "output_id": "tout-43b31a7534236732fbb3bb7e",
+        "task_name": "confirmation_decision",
+        "trade_date": "2026-08-13",
+        "status": "SUCCEEDED",
+        "reason_code": "OK",
+        "recorded_at": "2026-08-13T14:50:21+08:00",
+        "entity_kind": "ConfirmationDecisionV1",
+        "entity_id": "cd-2a69bc568a8ae820da506af0",
+        "entity_sha256": "6a6840a6100242d38d695995c6143240729019746439595a53c0c9b591c23de7",
+        "input_ids": [
+          "mp-865b216b4466bc707050bd14",
+          ""
+        ],
+        "attempt": 1,
+        "schema_version": "task-output-v1"
+      },
+      {
+        "output_id": "tout-a4aa0afa6c1a72f679f3d6de",
+        "task_name": "confirmation_push",
+        "trade_date": "2026-08-13",
+        "status": "SUCCEEDED",
+        "reason_code": "OK",
+        "recorded_at": "2026-08-13T14:50:30+08:00",
+        "entity_kind": "NotificationReceiptV1",
+        "entity_id": "notification1-4578261e836306613e855f7c",
+        "entity_sha256": "08fd4fe3852b31d681b95e48c2824960e6584b774e8aeffbed27b250205cfb2e",
+        "input_ids": [
+          "cd-2a69bc568a8ae820da506af0"
+        ],
+        "attempt": 1,
+        "schema_version": "task-output-v1"
+      },
+      {
+        "output_id": "tout-0d0180236df27b1e1d40cb4d",
+        "task_name": "paper_buy",
+        "trade_date": "2026-08-13",
+        "status": "SUCCEEDED",
+        "reason_code": "OK",
+        "recorded_at": "2026-08-13T14:50:41+08:00",
+        "entity_kind": "PaperExecutionBatchV1",
+        "entity_id": "pebatch1-893f2d62d2a5e7e506a4e728",
+        "entity_sha256": "f5061b7259e3c1d3543d90a0f0b191e62d04d48bf9e6260878ef44804bceb2b7",
+        "input_ids": [
+          "cd-2a69bc568a8ae820da506af0"
+        ],
+        "attempt": 1,
+        "schema_version": "task-output-v1"
+      },
+      {
+        "output_id": "tout-c92a594ab8cb63ca0aea8857",
+        "task_name": "health_check",
+        "trade_date": "2026-08-13",
+        "status": "SUCCEEDED",
+        "reason_code": "OK",
+        "recorded_at": "2026-08-13T14:53:01+08:00",
+        "entity_kind": "HealthReportV1",
+        "entity_id": "health1-cccaa1c4698757ae12d92e69",
+        "entity_sha256": "cccaa1c4698757ae12d92e694a9535158b9ae36b5e8e9652642f07fe1ab6a612",
+        "input_ids": [
+          "cd-2a69bc568a8ae820da506af0"
+        ],
+        "attempt": 1,
+        "schema_version": "task-output-v1"
+      }
+    ]
+  },
+  "read_only": true
+}

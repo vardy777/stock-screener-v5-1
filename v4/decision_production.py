@@ -12,6 +12,7 @@ from .execution import TradingClock
 from .market import analyze_market, empty_market_state
 from .market_gateway import MarketDataGateway
 from .runtime import V4Runtime
+from .replay_contracts import FeatureContextV1
 
 
 class P2DecisionProducer:
@@ -27,6 +28,10 @@ class P2DecisionProducer:
         current = TradingClock.now(); day = current.date().isoformat()
         morning_rows = []; allowed_codes = None
         if stage == "confirmation":
+            context_path = Path(__file__).resolve().parents[1] / "v4" / "data" / "replay_context" / f"{day}.json"
+            feature_context = FeatureContextV1.load(context_path)
+            if feature_context.trade_date != day:
+                raise RuntimeError("FEATURE_CONTEXT_TRADE_DATE_MISMATCH")
             morning_rows = self.journal.morning_candidates(day)
             if not self.journal.has_morning(day):
                 return DecisionChainService(self.journal, None).publish_missing_morning(day, empty_market_state())
@@ -39,7 +44,8 @@ class P2DecisionProducer:
                 market_state = dict(morning_entity.get("market_state", {}))
                 if not market_state:
                     raise RuntimeError("MORNING_MARKET_STATE_MISSING")
-                return self.journal.save_confirmation(day, [], market_state)
+                return self.journal.save_confirmation(day, [], market_state,
+                                                      feature_context_id=feature_context.context_id)
             codes = sorted(allowed_codes)
         else:
             root = Path(__file__).resolve().parents[1]
@@ -81,4 +87,5 @@ class P2DecisionProducer:
             decision_stage=stage, reference_time=reference_time)
         service = DecisionChainService(self.journal, self.runtime)
         return (service.publish_morning(day, candidates, market_state) if stage == "morning"
-                else service.publish_confirmation(day, candidates, market_state))
+                else service.publish_confirmation(day, candidates, market_state,
+                                                  feature_context_id=feature_context.context_id))
