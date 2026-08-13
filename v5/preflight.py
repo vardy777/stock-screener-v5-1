@@ -32,4 +32,10 @@ def run(root,day=None,*,refresh_attempts=3,sleeper=None):
   except Exception as exc:checks[name+"_transport"]=False;details[name+"_error"]=type(exc).__name__
  report={"schema_version":"v5-readiness-preflight-v2","recorded_at":now.isoformat(),"trade_date":day,"diagnostic_only":True,"strict_evidence":False,"universe_preparation":True,"checks":checks,"details":details,"passed":all(checks.values())};path=root/"preflight"/now.date().isoformat()/f"{now.strftime('%H%M%S')}.json";path.parent.mkdir(parents=True,exist_ok=True);path.write_text(json.dumps(report,ensure_ascii=False,sort_keys=True,separators=(",",":")),encoding="utf-8");return report
 if __name__=="__main__":
- report=run(Path(__file__).resolve().parent/"data");print(json.dumps(report,ensure_ascii=False,indent=2));raise SystemExit(0 if report["passed"] else 3)
+ data=Path(__file__).resolve().parent/"data";report=run(data);print(json.dumps(report,ensure_ascii=False,indent=2))
+ if not report["passed"]:
+  try:
+   from .alerts import send_failure
+   failed=", ".join(name for name,ok in report["checks"].items() if not ok);send_failure(data,report["trade_date"],"preflight",failed,Path(__file__).resolve().parent/".env")
+  except Exception as exc:print(json.dumps({"alert_error":f"{type(exc).__name__}: {exc}"},ensure_ascii=False))
+ raise SystemExit(0 if report["passed"] else 3)

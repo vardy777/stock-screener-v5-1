@@ -19,3 +19,4 @@ def test_recovery_scope_can_explicitly_exclude_unowned_paper_tasks():
 def test_run_artifact_is_idempotent_and_immutable():
     with TemporaryDirectory() as d:
         scheduler=ShadowScheduler(d);now=datetime(2026,8,13,9,25,tzinfo=CHINA_TZ);first=scheduler.record("morning_pool","2026-08-13","SUCCESS",now,{"x":1});second=scheduler.record("morning_pool","2026-08-13","SUCCESS",now,{"x":1});assert first==second and len(list((Path(d)/"runs/2026-08-13").glob("*.json")))==1
+        assert scheduler.successful_tasks("2026-08-13")=={"morning_pool"}

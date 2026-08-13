@@ -9,16 +9,18 @@ from .paper import PaperLedger
 from .ownership import load as load_ownership
 from .fact_reader import latest
 from .lineage_acceptance import audit as lineage_audit
+from .jobs import load_universe
 
-def _latest(root,kind,day):
-    try:return latest(root,kind,day)
+def _latest(root,kind,day,*,as_of=None):
+    try:return latest(root,kind,day,as_of=as_of)
     except Exception:return None
 def health(root,day,now):
-    root=Path(root);morning=_latest(root,"morning_pools",day);confirmation=_latest(root,"confirmations",day);notifications=root/"notifications"/day
+    root=Path(root);morning=_latest(root,"morning_pools",day,as_of=now);confirmation=_latest(root,"confirmations",day,as_of=now);notifications=root/"notifications"/day
     ownership=load_ownership(root/"ownership.json");v5_owns_paper=ownership["paper_writer"]=="v5" and ownership.get("authorized") is True
-    universe_exists=any((root/"universes"/day).glob("*.json")) if (root/"universes"/day).exists() else False
-    lineage=lineage_audit(root,day)
-    checks={"universe_exists":universe_exists,"morning_fact_exists":morning is not None,"confirmation_fact_exists":confirmation is not None,"morning_notification_accepted":False,"confirmation_notification_accepted":False,"lineage_accepted":lineage["passed"],"paper_ledger_reconciled":PaperLedger(root/"paper").reconcile()["passed"],"paper_writer_exclusive":ownership["paper_writer"] in {"v4","v5"}}
+    try:universe=load_universe(root,day,as_of=now,require_native=True);native_universe_exists=bool(universe.codes)
+    except Exception:native_universe_exists=False
+    lineage=lineage_audit(root,day,as_of=now)
+    checks={"native_universe_exists":native_universe_exists,"morning_fact_exists":morning is not None,"confirmation_fact_exists":confirmation is not None,"morning_notification_accepted":False,"confirmation_notification_accepted":False,"lineage_accepted":lineage["passed"],"paper_ledger_reconciled":PaperLedger(root/"paper").reconcile()["passed"],"paper_writer_exclusive":ownership["paper_writer"] in {"v4","v5"}}
     for stage in ("morning","confirmation"):
         path=notifications/f"{stage}.json"
         checks[f"{stage}_notification_accepted"]=path.exists() and json.loads(path.read_text(encoding="utf-8")).get("outcome")=="ACCEPTED"

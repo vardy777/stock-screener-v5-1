@@ -29,6 +29,12 @@ class ShadowScheduler:
             if path.read_text(encoding="utf-8")!=raw:raise ContractViolation("immutable shadow run collision")
         finally:tmp.unlink(missing_ok=True)
         return row
+    def successful_tasks(self,trade_date):
+        directory=self.root/"runs"/trade_date;rows=[]
+        for path in directory.glob("*.json") if directory.exists() else []:
+            try:rows.append(json.loads(path.read_text(encoding="utf-8")))
+            except Exception:continue
+        return {row["task"] for row in rows if row.get("outcome")=="SUCCESS"}
     def recovery_report(self,trade_date,now,*,excluded_tasks=()):
         excluded=set(excluded_tasks);unknown=excluded-{x.name for x in TASKS}
         if unknown:raise ContractViolation("unknown excluded shadow task")

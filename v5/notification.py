@@ -8,16 +8,17 @@ from urllib.request import Request,urlopen
 from .core import CHINA_TZ,ContractViolation
 from .fact_reader import latest
 
-def _latest(root,kind,day):
-    return latest(root,kind,day)
-def _acquisition(root,day,stage):
-    return latest(root,"acquisition",day,predicate=lambda row:row.get("stage")==stage)
-def build_payload(root,trade_date,stage):
-    acquisition=_acquisition(root,trade_date,"morning" if stage=="morning" else "signal")
+def _latest(root,kind,day,*,as_of=None):
+    return latest(root,kind,day,as_of=as_of)
+def _acquisition(root,day,stage,*,as_of=None):
+    return latest(root,"acquisition",day,predicate=lambda row:row.get("stage")==stage,as_of=as_of)
+def build_payload(root,trade_date,stage,*,as_of=None):
+    acquisition=_acquisition(root,trade_date,"morning" if stage=="morning" else "signal",as_of=as_of)
     if acquisition.get("accepted") is not True:raise ContractViolation("V5 acquisition not accepted")
-    if stage=="morning":entity=_latest(root,"morning_pools",trade_date);parent=entity["pool_id"];title=f"V5早盘观察 {trade_date}";action="早盘候选只观察，不买入；等待14:49冻结和14:50同母池确认"
-    elif stage=="confirmation":entity=_latest(root,"confirmations",trade_date);parent=entity["confirmation_id"];title=f"V5尾盘确认 {trade_date}";action=("存在尾盘确认候选，仅进入本地严格模拟，不发送券商订单" if entity.get("candidates") else "没有候选通过尾盘确认，保持空仓")
+    if stage=="morning":entity=_latest(root,"morning_pools",trade_date,as_of=as_of);parent=entity["pool_id"];title=f"V5早盘观察 {trade_date}";action="早盘候选只观察，不买入；等待14:49冻结和14:50同母池确认"
+    elif stage=="confirmation":entity=_latest(root,"confirmations",trade_date,as_of=as_of);parent=entity["confirmation_id"];title=f"V5尾盘确认 {trade_date}";action=("存在尾盘确认候选，仅进入本地严格模拟，不发送券商订单" if entity.get("candidates") else "没有候选通过尾盘确认，保持空仓")
     else:raise ContractViolation("unsupported V5 notification stage")
+    if acquisition.get("selected_snapshot_id")!=entity.get("snapshot_id"):raise ContractViolation("V5 notification snapshot lineage mismatch")
     candidates=entity.get("candidates",[]);rows=[]
     for row in candidates[:5 if stage=="morning" else 3]:
         entry=(f"冻结卖一参考 ¥{float(row['ask1']):.2f}；仅按14:50窗口本地模拟" if stage=="confirmation" and row.get("ask1") else "早盘观察，不展示买价")
@@ -28,8 +29,8 @@ def _token(env_path):
     for line in Path(env_path).read_text(encoding="utf-8").splitlines():
         if line.startswith("PUSHPLUS_TOKEN="):return line.split("=",1)[1].strip()
     raise ContractViolation("PushPlus token missing")
-def send(root,trade_date,stage,env_path,transport=None):
-    payload=build_payload(root,trade_date,stage);receipt_path=Path(root)/"notifications"/trade_date/f"{stage}.json"
+def send(root,trade_date,stage,env_path,transport=None,*,as_of=None):
+    payload=build_payload(root,trade_date,stage,as_of=as_of);receipt_path=Path(root)/"notifications"/trade_date/f"{stage}.json"
     if receipt_path.exists():
         prior=json.loads(receipt_path.read_text(encoding="utf-8"))
         if prior.get("outcome")=="ACCEPTED" and prior.get("payload_sha256")==payload["payload_sha256"]:return prior
