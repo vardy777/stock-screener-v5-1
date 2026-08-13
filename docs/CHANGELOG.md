@@ -108,3 +108,4 @@
 - Added deterministic frozen end-to-end replay through next-session sell and insufficient-evidence performance projection.
 - Extended the V5 dashboard projection with data time/source/snapshot lineage and per-candidate risks.
 - Retired V4 notification execution at the scheduled adapter boundary and registered one-shot V5-only PushPlus tasks for 2026-08-14. V5 notifications project the same final V5 pool/confirmation facts as the dashboard, persist parent entity IDs and payload hashes, and fail closed when V5 facts are missing or invalid.
+- Added a V5-native Sina adapter, one-time universe seed boundary, V5 fact-production jobs, a paper-production adapter and a read-only independence audit. Registered V5 fact jobs before the two V5 notification jobs for the 2026-08-14 shadow window; paper production remains unregistered to prevent dual writes.

@@ -26,3 +26,10 @@ class UniverseV1:
         if path.exists() and path.read_text(encoding="utf-8")!=raw:raise ContractViolation("universe immutable collision")
         if not path.exists():path.write_text(raw,encoding="utf-8")
         return path
+    @classmethod
+    def from_mapping(cls,value):return cls(value["trade_date"],value["created_at"],tuple(value["codes"]),tuple(value["sources"]))
+
+def import_archive_seed(daily_dir,*,trade_date,created_at):
+    """Explicit one-time migration boundary; runtime consumes saved V5 facts."""
+    codes=[path.stem for path in Path(daily_dir).glob("*.csv")]
+    return UniverseV1.build(trade_date=trade_date,created_at=created_at,codes=codes,sources=["legacy_daily_archive_seed_migration"])
