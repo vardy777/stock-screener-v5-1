@@ -45,6 +45,9 @@ def build(root,day,*,now=None):
     ledger=PaperLedger(root/"paper")
     report={"schema_version":"v5-live-acceptance-summary-v2","trade_date":day,"observed_at":current.isoformat(),"research_locked":True,"broker_orders":False,"readiness":{"attempts":len(readiness),"latest_passed":readiness[-1].get("passed") if readiness else None,"latest":readiness[-1] if readiness else None,"validation_errors":readiness_errors},"tasks":task_summary,"run_validation_errors":run_errors,"morning_acquisition":morning,"signal_acquisition":signal,"notifications":accepted_receipts,"paper":{"reconciled":ledger.reconcile()["passed"],"recovery":ledger.recovery_report()["status"],"round_trips":len(ledger.round_trips())}}
     report["lineage"]=lineage_audit(root,day,as_of=current) if morning and signal else {"passed":False,"reason":"WINDOW_CHAIN_INCOMPLETE"}
+    lineage_checks=report["lineage"].get("checks",{})
+    for stage in ("morning","confirmation"):
+        accepted_receipts[stage]=bool(accepted_receipts[stage] and lineage_checks.get(f"{stage}_receipt_accepted") is True and lineage_checks.get(f"{stage}_receipt_lineage_matches") is True and lineage_checks.get(f"{stage}_payload_parent_matches") is True)
     required=("morning_pool","morning_push","feature_freeze","confirmation","confirmation_push","health_check","maintenance")
     report["complete"]=bool(not readiness_errors and not run_errors and report["readiness"]["latest_passed"] is True and all(task_summary.get(task,{}).get("latest_outcome")=="SUCCESS" for task in required) and all(accepted_receipts.values()) and report["lineage"].get("passed") is True)
     return report

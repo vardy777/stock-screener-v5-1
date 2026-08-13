@@ -20,6 +20,11 @@ def test_live_acceptance_rejects_tampered_readiness_report(tmp_path):
     directory=tmp_path/"preflight/2026-08-14";directory.mkdir(parents=True);(directory/"preflight1-forged.json").write_text(json.dumps({"trade_date":"2026-08-14","passed":True,"diagnostic_only":True,"strict_evidence":False,"report_id":"preflight1-forged"}),encoding="utf-8")
     report=build(tmp_path,"2026-08-14",now=datetime(2026,8,14,15,20,tzinfo=CHINA_TZ));assert report["readiness"]["validation_errors"] and report["readiness"]["latest_passed"] is None and not report["complete"]
 
+def test_top_level_notification_truth_requires_full_lineage_not_only_http_200(tmp_path):
+    day="2026-08-14";directory=tmp_path/"notifications"/day;directory.mkdir(parents=True)
+    for stage in ("morning","confirmation"):(directory/f"{stage}.json").write_text(json.dumps({"outcome":"ACCEPTED","response_code":200,"parent_entity_id":"forged","payload_sha256":"forged"}),encoding="utf-8")
+    report=build(tmp_path,day,now=datetime(2026,8,14,15,20,tzinfo=CHINA_TZ));assert report["notifications"]=={"morning":False,"confirmation":False} and not report["complete"]
+
 def test_live_acceptance_save_is_content_addressed_and_idempotent(tmp_path):
     report=build(tmp_path,"2026-08-14",now=datetime(2026,8,14,15,20,tzinfo=CHINA_TZ));first=save(tmp_path,report);second=save(tmp_path,report)
     assert first["report_id"]==second["report_id"] and len(list((tmp_path/"live_acceptance/2026-08-14").glob("*.json")))==1
