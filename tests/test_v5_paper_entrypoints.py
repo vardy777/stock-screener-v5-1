@@ -29,3 +29,8 @@ def test_authorized_sell_with_no_positions_or_baseline_is_explicit_noop():
     with TemporaryDirectory() as d:
         root=Path(d);(root/"ownership.json").write_text(json.dumps({"schema_version":"v5-ownership-v1","paper_writer":"v5","scheduler":"v5","dashboard":"v5","notifications":"v5","authorized":True}),encoding="utf-8")
         result=paper_sell(root,now=datetime(2026,8,17,9,30,10,tzinfo=CHINA_TZ));assert result["outcome"]=="NO_POSITIONS_OR_BASELINE" and result["events"]==[] and result["baselines"]==[]
+
+def test_task_runner_marks_unfilled_paper_sell_failed_after_preserving_result():
+    with TemporaryDirectory() as d,patch("v5.task_runner.paper_sell",return_value={"outcome":"UNFILLED","events":[{"reason":"INSUFFICIENT_BID_DEPTH"}]}) as seller:
+        root=Path(d);result=run(root,"paper_sell",now=datetime(2026,8,17,9,30,10,tzinfo=CHINA_TZ),clock_checker=lambda:{"passed":True,"reason":"OK"})
+        assert result["passed"] is False and "paper sell incomplete: UNFILLED" in result["run"]["details"]["error"] and seller.called

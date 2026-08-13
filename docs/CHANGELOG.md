@@ -114,6 +114,7 @@
 - Made dashboard fact corruption and lineage failures explicit product states: readers no longer collapse invalid JSON/contracts into "no data", and both HTML and API return a cache-disabled HTTP 503 validation response without stack details or stale-decision fallback.
 - Changed V5 readiness evidence from a mutable wall-clock filename to atomic content-addressed reports under the requested trade date. Identical retries are idempotent and distinct attempts cannot overwrite one another.
 - Removed the last mutable market-decision artifacts: source-consensus reports are content-addressed, and the single 14:49 freeze pointer is create-once with collision rejection. Dashboard source/coverage now come from the attempt whose snapshot ID was actually selected, while retaining both complete provider identities for transparency.
+- Made next-open execution outcome authoritative at the scheduler boundary: `UNFILLED` and `PARTIALLY_FILLED` now persist their paper events but fail the task and trigger operational handling; only a complete fill or a genuine no-position/no-baseline no-op records SUCCESS.
 - Added content-addressed V5 point-in-time universe facts and strict two-source consensus without coverage merging.
 - Added V5-native immutable market snapshots and an independent Eastmoney adapter.
 - Added V5-native event-sourced paper ledger with fees, slippage, one-third cap, T+1, immutable rejections, idempotency and reconciliation.

@@ -54,7 +54,9 @@ def run(root,task,*,now=None,failure_alert_env=None,clock_checker=None):
         elif task=="confirmation":details=confirm_frozen(root,now=now)
         elif task=="confirmation_push":details=send(root,day,"confirmation",root.parent/".env",as_of=now)
         elif task=="paper_buy":details=paper_buy(root,now=now)
-        elif task=="paper_sell":details=paper_sell(root,now=now)
+        elif task=="paper_sell":
+            details=paper_sell(root,now=now)
+            if details.get("outcome") not in {"FILLED","NO_POSITIONS_OR_BASELINE"}:raise RuntimeError(f"V5 paper sell incomplete: {details.get('outcome')}")
         elif task=="health_check":details=health(root,day,now);outcome="SUCCESS" if details["passed"] else "FAILED"
         elif task=="maintenance":details=maintenance(root,day,now);outcome="SUCCESS" if details["passed"] else "FAILED"
         else:raise ValueError("unsupported V5 task")
