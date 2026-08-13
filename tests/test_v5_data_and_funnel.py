@@ -1,0 +1,68 @@
+import unittest
+from datetime import datetime,timedelta
+from types import SimpleNamespace
+from v4.execution import CHINA_TZ
+from v4.market_contracts import MarketSnapshotV1,QuoteV1
+from v5.data_production import MultiSourceAcquirer
+from v5.funnel import CandidateFunnel,FunnelPolicyV1
+from v5.storage import V5FactStore
+from v5.decision_flow import MorningPoolV5,ConfirmationV5
+from v5.performance import report_strict_paper
+from v5.product_read_model import build as build_product
+from v5.dashboard import render
+from tempfile import TemporaryDirectory
+from pathlib import Path
+
+NOW=datetime(2026,8,13,14,49,30,tzinfo=CHINA_TZ)
+def quote(code,**changes):
+    row={"code":code,"name":"测试","trade_date":"2026-08-13","exchange_time":(NOW-timedelta(seconds=1)).isoformat(),"provider_time":(NOW-timedelta(seconds=1)).isoformat(),"received_at":NOW.isoformat(),"last_price":10.2,"previous_close":10.0,"bid1":10.19,"bid1_volume":10000,"ask1":10.21,"ask1_volume":10000,"volume":100000,"amount":8_000_000,"halted":False,"limit_up":False,"limit_down":False,"provider":"test"};row.update(changes);return QuoteV1.from_mapping(row)
+def snapshot(rows,expected=2):return MarketSnapshotV1.build(trade_date="2026-08-13",session="signal",batch_started_at=NOW-timedelta(seconds=2),batch_completed_at=NOW,quotes=rows,expected_codes=expected,require_order_book=False)
+class Source:
+    def __init__(self,name,value):self.name=name;self.value=value
+    def capture(self,*args,**kwargs):
+        if isinstance(self.value,Exception):raise self.value
+        return self.value
+
+class V5DataAndFunnelTests(unittest.TestCase):
+    def test_second_source_is_selected_only_when_strict_snapshot_is_accepted(self):
+        bad=snapshot([quote("000001")],2);good=snapshot([quote("000001"),quote("000002")],2)
+        result=MultiSourceAcquirer([Source("primary",bad),Source("backup",good)]).acquire(["000001","000002"],stage="signal",now=NOW)
+        self.assertTrue(result.session.accepted);self.assertEqual(result.snapshot.snapshot_id,good.snapshot_id);self.assertEqual(len(result.session.source_attempts),2)
+        self.assertFalse(result.session.source_attempts[0]["accepted"])
+    def test_failed_sources_remain_auditable_and_never_lower_coverage_gate(self):
+        bad=snapshot([quote("000001")],2)
+        result=MultiSourceAcquirer([Source("broken",RuntimeError("down")),Source("thin",bad)]).acquire(["000001","000002"],stage="morning",now=NOW)
+        self.assertFalse(result.session.accepted);self.assertIsNone(result.snapshot);self.assertEqual(result.session.source_attempts[0]["source"],"broken")
+    def test_funnel_records_rejections_and_confirmation_is_mother_pool_subset(self):
+        rows=[quote("000001"),quote("000002",amount=1),quote("000003",limit_up=True),quote("000004",last_price=10.5)]
+        snap=snapshot(rows,4);funnel=CandidateFunnel(FunnelPolicyV1(min_amount=5_000_000,max_candidates=5))
+        morning=funnel.run(snap,market_state_id="mstate1-test",market_valid=True,stage="morning")
+        self.assertEqual([x["code"] for x in morning.candidates],["000004","000001"])
+        self.assertEqual(morning.stages[1]["rejected"]["limit_locked"],1);self.assertEqual(morning.stages[2]["rejected"]["insufficient_amount"],1)
+        confirm=funnel.run(snap,market_state_id="mstate1-test",market_valid=True,stage="confirmation",allowed_codes=["000001"])
+        self.assertEqual([x["code"] for x in confirm.candidates],["000001"])
+        self.assertEqual(confirm.stages[3]["rejected"]["outside_morning_pool"],1)
+    def test_invalid_market_fails_closed_with_explained_empty_funnel(self):
+        funnel=CandidateFunnel();result=funnel.run(snapshot([quote("000001"),quote("000002")]),market_state_id="mstate1-test",market_valid=False,stage="morning")
+        self.assertFalse(result.accepted);self.assertEqual(result.candidates,());self.assertEqual(result.stages[3]["rejected"]["market_data_invalid"],2)
+    def test_v5_facts_are_content_addressed_immutable(self):
+        good=snapshot([quote("000001"),quote("000002")]);acq=MultiSourceAcquirer([Source("one",good)]).acquire(["000001","000002"],stage="signal",now=NOW)
+        funnel=CandidateFunnel().run(good,market_state_id="mstate1-test",market_valid=True,stage="morning")
+        with TemporaryDirectory() as directory:
+            store=V5FactStore(Path(directory));first=store.save_session(acq.session);self.assertEqual(first,store.save_session(acq.session));second=store.save_funnel(funnel)
+            self.assertTrue(first.exists());self.assertTrue(second.exists())
+    def test_same_day_confirmation_has_mother_pool_subset_and_change_facts(self):
+        morning_snap=snapshot([quote("000001"),quote("000002",last_price=10.1)])
+        confirm_snap=snapshot([quote("000001",last_price=10.3),quote("000002",last_price=10.2)])
+        funnel=CandidateFunnel();morning=funnel.run(morning_snap,market_state_id="mstate1-morning",market_valid=True,stage="morning")
+        pool=MorningPoolV5.from_funnel(morning,created_at=NOW)
+        confirm=funnel.run(confirm_snap,market_state_id="mstate1-confirm",market_valid=True,stage="confirmation",allowed_codes=["000001"])
+        decision=ConfirmationV5.from_funnel(pool,confirm,decided_at=NOW)
+        self.assertEqual(decision.morning_pool_id,pool.pool_id);self.assertEqual([x["code"] for x in decision.candidates],["000001"]);self.assertEqual(decision.changes[0]["morning_rank"],1)
+    def test_performance_is_paper_only_and_fails_closed_for_small_sample(self):
+        report=report_strict_paper([{"net_return":.01,"net_pnl":100},{"net_return":-.02,"net_pnl":-200}],baseline_returns=[0,.001],minimum_trades=40)
+        self.assertEqual(report.cohort,"paper_round_trips");self.assertEqual(report.trade_count,2);self.assertEqual(report.conclusion,"INSUFFICIENT_EVIDENCE");self.assertEqual(report.win_rate,.5)
+    def test_product_read_model_is_decision_first_and_honest_when_data_missing(self):
+        model=build_product();self.assertIn("不交易",model.today["action"]);self.assertEqual(model.candidates["empty_reason"],"行情质量未通过");self.assertTrue(model.validation["research_locked"])
+        page=render(model);self.assertIn("今日决策",page);self.assertIn("候选详情",page);self.assertIn("模拟账户",page);self.assertIn("策略验证",page);self.assertNotIn("<button",page)
+if __name__=="__main__":unittest.main()

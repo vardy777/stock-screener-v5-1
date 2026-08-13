@@ -1,0 +1,14 @@
+{
+  "schema_version": "v5-project-state-v1",
+  "project": "a-share-overnight-v5",
+  "status": "shadow_development",
+  "production_status": "research_locked",
+  "v4_integration": "read_only",
+  "active_stage": "V5-A",
+  "stages": {"V5-A":"offline_completed_live_pending","V5-B":"offline_completed_live_pending","V5-C":"offline_contract_completed","V5-D":"offline_contract_completed","V5-E":"pending"},
+  "strict_samples_available": 0,
+  "production_cutover_allowed": false,
+  "broker_orders_enabled": false,
+  "tests_passed": 253,
+  "next_acceptance": ["authorized second real-time market-data source", "real 09:24:30/14:48 warm-up shadow capture", "V5-to-P3/P4/P5 cutover preparation only"]
+}
