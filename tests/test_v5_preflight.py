@@ -5,7 +5,7 @@ from v5.core import CHINA_TZ
 from v5.preflight import run
 import v5.preflight
 def test_preflight_is_explicitly_diagnostic_prepares_universe_and_never_strict_evidence():
- text=(Path(__file__).resolve().parents[1]/"v5/preflight.py").read_text(encoding="utf-8");assert '"diagnostic_only":True' in text and '"strict_evidence":False' in text and 'refresh_universe(root,now=now)' in text and "PaperLedger" not in text and 'SystemExit(0 if report["passed"] else 3)' in text and 'send_failure' in text
+ text=(Path(__file__).resolve().parents[1]/"v5/preflight.py").read_text(encoding="utf-8");assert '"diagnostic_only":True' in text and '"strict_evidence":False' in text and 'refresh_universe(root,now=now)' in text and "PaperLedger" not in text and 'SystemExit(0 if report["passed"] else 3)' in text and 'send_failure' in text and '"--trade-date"' in text and 'run(data,args.trade_date)' in text
 
 def test_preflight_retries_native_universe_refresh_before_failing(tmp_path):
  calls=[];now=datetime(2026,8,14,8,30,tzinfo=CHINA_TZ)

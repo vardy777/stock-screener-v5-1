@@ -39,7 +39,12 @@ def run(root,day=None,*,refresh_attempts=3,sleeper=None,clock_checker=None):
    except Exception as exc:checks[name+"_transport"]=False;details[name+"_error"]=type(exc).__name__
  report={"schema_version":"v5-readiness-preflight-v2","recorded_at":now.isoformat(),"trade_date":day,"mode":"TRADING_DAY_PREPARATION" if trading_day else "MARKET_CLOSED_DIAGNOSTIC","diagnostic_only":True,"strict_evidence":False,"universe_preparation":trading_day,"checks":checks,"details":details,"passed":all(checks.values())};path=root/"preflight"/now.date().isoformat()/f"{now.strftime('%H%M%S')}.json";path.parent.mkdir(parents=True,exist_ok=True);path.write_text(json.dumps(report,ensure_ascii=False,sort_keys=True,separators=(",",":")),encoding="utf-8");return report
 if __name__=="__main__":
- data=Path(__file__).resolve().parent/"data";report=run(data);print(json.dumps(report,ensure_ascii=False,indent=2))
+ import argparse
+ parser=argparse.ArgumentParser(description="Diagnostic-only V5 readiness preflight")
+ parser.add_argument("--trade-date",dest="trade_date")
+ parser.add_argument("--data-dir",default=str(Path(__file__).resolve().parent/"data"))
+ args=parser.parse_args()
+ data=Path(args.data_dir);report=run(data,args.trade_date);print(json.dumps(report,ensure_ascii=False,indent=2))
  if not report["passed"] and report["mode"]=="TRADING_DAY_PREPARATION":
   try:
    from .alerts import send_failure
