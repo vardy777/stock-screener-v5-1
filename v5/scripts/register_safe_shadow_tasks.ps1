@@ -9,11 +9,15 @@ $specs=@(
  @("Morning-Facts","morning_pool","09:24:30"),@("Morning-Push","morning_push","09:25:20"),@("Feature-Freeze","feature_freeze","14:49:00"),@("Confirmation","confirmation","14:50:00"),@("Confirmation-Push","confirmation_push","14:50:30"),@("Health","health_check","14:53:00"),@("Maintenance","maintenance","15:10:00")
 )
 $date=$TradeDate.ToString("yyyy-MM-dd");$suffix=$TradeDate.ToString("yyyyMMdd")
+$readinessName="AStock-V5-Readiness-$suffix"
+$readinessAction=New-ScheduledTaskAction -Execute $python -Argument ('-X utf8 -m v5.preflight --trade-date {0}' -f $date) -WorkingDirectory $root
+$readinessTrigger=New-ScheduledTaskTrigger -Once -At ([datetime]::Parse("$date 08:30:00"))
+Register-ScheduledTask -TaskName $readinessName -Action $readinessAction -Trigger $readinessTrigger -Settings $settings -Principal $principal -Description "V5 native universe readiness; diagnostic and fail-closed; no notification, paper or broker writes" -Force | Out-Null
 foreach($spec in $specs){
  $name="AStock-V5-$($spec[0])-$suffix";$action=New-ScheduledTaskAction -Execute $python -Argument ('-X utf8 "{0}" {1}' -f $script,$spec[1]) -WorkingDirectory $root;$trigger=New-ScheduledTaskTrigger -Once -At ([datetime]::Parse("$date $($spec[2])"))
  Register-ScheduledTask -TaskName $name -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description ("V5 safe shadow; no broker/paper writes: "+$spec[1]) -Force | Out-Null
 }
-$preflight=Get-ScheduledTask -TaskName "AStock-V5-Weekend-Preflight" -ErrorAction Stop
+$readiness=Get-ScheduledTask -TaskName $readinessName -ErrorAction Stop
 $installed=@($specs|ForEach-Object{Get-ScheduledTask -TaskName ("AStock-V5-$($_[0])-$suffix") -ErrorAction Stop})
-if($installed.Count -ne 7 -or $preflight.State -eq "Disabled"){throw "V5 safe shadow registration incomplete"}
-$installed|Select-Object TaskName,State,@{n="Arguments";e={$_.Actions.Arguments}}
+if($installed.Count -ne 7 -or $readiness.State -eq "Disabled" -or $readiness.Actions.Arguments -notlike "*--trade-date $date*"){throw "V5 safe shadow registration incomplete"}
+@($readiness)+$installed|Select-Object TaskName,State,@{n="Arguments";e={$_.Actions.Arguments}}

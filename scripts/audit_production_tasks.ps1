@@ -20,10 +20,10 @@ $dashboardSupervised=[bool]($dashboard -and $dashboard.State -ne "Disabled" -and
 $v5Dashboard=Get-ScheduledTask -TaskName "AStock-V5-Dashboard-Logon" -ErrorAction SilentlyContinue
 $v5DashboardSupervised=[bool]($v5Dashboard -and $v5Dashboard.State -ne "Disabled" -and $v5Dashboard.Actions.Arguments -like '*v5\scripts\run_v5_dashboard.ps1*' -and $v5Dashboard.Settings.ExecutionTimeLimit -eq "PT0S" -and $v5Dashboard.Settings.RestartCount -ge 1)
 $v5Tasks=@(Get-ScheduledTask -TaskName "AStock-V5-*" -ErrorAction SilentlyContinue)
-$requiredV5=@("morning_pool","morning_push","feature_freeze","confirmation","confirmation_push","health_check","maintenance")
+$requiredV5=@("readiness","morning_pool","morning_push","feature_freeze","confirmation","confirmation_push","health_check","maintenance")
 $v5Rows=foreach($task in $v5Tasks){
  $action=$task.Actions|Select-Object -First 1;$argument=[string]$action.Arguments
- $kind=if($argument -match 'v5_task.py"?\s+([a-z_]+)'){$Matches[1]}elseif($argument -match '-m v5\.preflight'){"preflight"}else{"unknown"}
+ $kind=if($argument -match 'v5_task.py"?\s+([a-z_]+)'){$Matches[1]}elseif($argument -match '-m v5\.preflight\s+--trade-date\s+(\d{4}-\d{2}-\d{2})'){"readiness"}elseif($argument -match '-m v5\.preflight'){"preflight"}else{"unknown"}
  [pscustomobject]@{task_name=$task.TaskName;state=[string]$task.State;kind=$kind;v5_bound=[bool]($argument -match 'v5[\\/]scripts[\\/]v5_task.py|-m v5\.preflight');paper_or_broker=[bool]($argument -match 'paper_buy|paper_sell|broker');allow_battery=[bool](-not $task.Settings.DisallowStartIfOnBatteries);wake_to_run=[bool]$task.Settings.WakeToRun}
 }
 $targetDate=(Get-Date).Date.AddDays(1)
@@ -31,7 +31,8 @@ while($targetDate.DayOfWeek -in @([DayOfWeek]::Saturday,[DayOfWeek]::Sunday)){$t
 $targetSuffix=$targetDate.ToString("yyyyMMdd")
 $targetRows=@($v5Rows|Where-Object{$_.task_name -like "*-$targetSuffix"})
 $availableKinds=@($targetRows|Where-Object{$_.state -ne "Disabled" -and $_.v5_bound}|ForEach-Object{$_.kind})
-$v5ShadowReady=(@($requiredV5|Where-Object{$_ -notin $availableKinds}).Count -eq 0) -and (@($availableKinds|Group-Object|Where-Object{$_.Count -ne 1}).Count -eq 0) -and (@($targetRows|Where-Object{$_.paper_or_broker}).Count -eq 0) -and (@($targetRows|Where-Object{$_.kind -ne "unknown" -and (-not $_.allow_battery -or -not $_.wake_to_run)}).Count -eq 0)
+$readinessDateCorrect=@($targetRows|Where-Object{$_.kind -eq "readiness" -and $_.task_name -eq "AStock-V5-Readiness-$targetSuffix"}).Count -eq 1
+$v5ShadowReady=(@($requiredV5|Where-Object{$_ -notin $availableKinds}).Count -eq 0) -and (@($availableKinds|Group-Object|Where-Object{$_.Count -ne 1}).Count -eq 0) -and $readinessDateCorrect -and (@($targetRows|Where-Object{$_.paper_or_broker}).Count -eq 0) -and (@($targetRows|Where-Object{$_.kind -ne "unknown" -and (-not $_.allow_battery -or -not $_.wake_to_run)}).Count -eq 0)
 $passed=(@($rows | Where-Object {-not $_.exists -or $_.state -eq "Disabled" -or -not $_.adapter_bound}).Count -eq 0) -and (@($legacyRows | Where-Object {-not $_.disabled}).Count -eq 0) -and $dashboardSupervised -and $v5DashboardSupervised -and $v5ShadowReady
 [pscustomobject]@{schema_version="production-task-static-audit-v3";passed=$passed;transition_v4_tasks=$rows;legacy_tasks=$legacyRows;v5_target_date=$targetDate.ToString("yyyy-MM-dd");v5_shadow_tasks=$targetRows;v5_shadow_ready=$v5ShadowReady;v5_paper_writer_enabled=$false;v4_dashboard_supervised=$dashboardSupervised;v5_dashboard_supervised=$v5DashboardSupervised;read_only=$true} | ConvertTo-Json -Depth 5
 if(-not $passed){exit 1}
