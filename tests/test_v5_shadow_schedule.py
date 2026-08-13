@@ -8,7 +8,7 @@ def test_schedule_is_complete_disabled_and_has_no_external_side_effects():
         inventory=scheduler.inventory();assert len(inventory["tasks"])==9;assert not inventory["notifications_enabled"] and not inventory["v4_writes_enabled"]
 def test_missing_due_tasks_and_dependencies_are_reported():
     with TemporaryDirectory() as d:
-        scheduler=ShadowScheduler(d);now=datetime(2026,8,13,14,50,30,tzinfo=CHINA_TZ)
-        scheduler.record("morning_warmup","2026-08-13","SUCCESS",now);report=scheduler.recovery_report("2026-08-13",now)
-        names={x["task"] for x in report["missing_due_tasks"]};assert "morning_pool" in names and "confirmation" in names and "paper_buy" in names
-        confirmation=next(x for x in report["missing_due_tasks"] if x["task"]=="confirmation");assert "morning_pool" in confirmation["blocked_by"]
+        scheduler=ShadowScheduler(d);now=datetime(2026,8,13,14,51,0,tzinfo=CHINA_TZ)
+        scheduler.record("morning_pool","2026-08-13","SUCCESS",now);report=scheduler.recovery_report("2026-08-13",now)
+        names={x["task"] for x in report["missing_due_tasks"]};assert "morning_push" in names and "confirmation" in names and "paper_buy" in names
+        confirmation=next(x for x in report["missing_due_tasks"] if x["task"]=="confirmation");assert "morning_pool" not in confirmation["blocked_by"] and "feature_freeze" in confirmation["blocked_by"]
