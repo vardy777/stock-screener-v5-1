@@ -34,3 +34,10 @@ def test_task_runner_marks_unfilled_paper_sell_failed_after_preserving_result():
     with TemporaryDirectory() as d,patch("v5.task_runner.paper_sell",return_value={"outcome":"UNFILLED","events":[{"reason":"INSUFFICIENT_BID_DEPTH"}]}) as seller:
         root=Path(d);result=run(root,"paper_sell",now=datetime(2026,8,17,9,30,10,tzinfo=CHINA_TZ),clock_checker=lambda:{"passed":True,"reason":"OK"})
         assert result["passed"] is False and "paper sell incomplete: UNFILLED" in result["run"]["details"]["error"] and seller.called
+
+def test_task_runner_marks_rejected_paper_buy_failed():
+    with TemporaryDirectory() as d,patch("v5.task_runner.paper_buy",return_value={"outcome":"REJECTED","reason":"INSUFFICIENT_CASH"}) as buyer:
+        root=Path(d);from v5.shadow_schedule import ShadowScheduler
+        ShadowScheduler(root).record("confirmation","2026-08-14","SUCCESS",NOW,{})
+        result=run(root,"paper_buy",now=NOW)
+        assert result["passed"] is False and "paper buy rejected: INSUFFICIENT_CASH" in result["run"]["details"]["error"] and buyer.called
