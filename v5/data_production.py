@@ -13,6 +13,11 @@ from .universe import UniverseV1
 # by the funnel, otherwise one unusable stock closes the whole market.
 GLOBAL_STRICT_REASONS={"empty","duplicate_code","incomplete_coverage","batch_delay","provider_clock_skew","cross_trade_date"}
 
+def _provider_lineage_matches(snapshot:object,source_name:str)->bool:
+    """A source identity is only independent when every quote carries it."""
+    quotes=getattr(snapshot,"quotes",())
+    return bool(quotes) and all(getattr(quote,"provider","")==source_name for quote in quotes)
+
 def acquisition_accepted(snapshot:MarketSnapshotV1)->bool:
     return not any(reason in GLOBAL_STRICT_REASONS for reason in snapshot.quality.reasons)
 
@@ -35,8 +40,9 @@ class MultiSourceAcquirer:
             try:
                 snapshot=source.capture(universe,stage=stage,now=now)
                 if not is_market_snapshot(snapshot):raise TypeError("source did not return a versioned market snapshot")
-                valid=(snapshot.trade_date==now.date().isoformat() and snapshot.quality.expected_codes==len(universe) and acquisition_accepted(snapshot))
-                attempts.append({"source":source.name,"snapshot_id":snapshot.snapshot_id,"accepted":valid,"coverage":snapshot.quality.coverage,"age_seconds":snapshot.quality.maximum_quote_age_seconds,"batch_seconds":snapshot.quality.batch_duration_seconds,"reasons":list(snapshot.quality.reasons)})
+                provider_valid=_provider_lineage_matches(snapshot,source.name)
+                valid=(snapshot.trade_date==now.date().isoformat() and snapshot.quality.expected_codes==len(universe) and acquisition_accepted(snapshot) and provider_valid)
+                attempts.append({"source":source.name,"snapshot_id":snapshot.snapshot_id,"accepted":valid,"coverage":snapshot.quality.coverage,"age_seconds":snapshot.quality.maximum_quote_age_seconds,"batch_seconds":snapshot.quality.batch_duration_seconds,"provider_lineage_valid":provider_valid,"reasons":list(snapshot.quality.reasons)})
                 if valid:selected=snapshot;break
             except Exception as exc:attempts.append({"source":source.name,"accepted":False,"error":f"{type(exc).__name__}: {exc}"})
         session=AcquisitionSessionV1.build(trade_date=now.date().isoformat(),stage=stage,requested_at=now,expected_codes=len(universe),selected_snapshot_id=selected.snapshot_id if selected else "",accepted=selected is not None,source_attempts=attempts)
@@ -56,8 +62,8 @@ class ConsensusAcquirer:
         attempts=[];snapshots=[]
         def capture(source):
             try:
-                snap=source.capture(list(universe.codes),stage=stage,now=now);complete=is_market_snapshot(snap) and snap.trade_date==universe.trade_date and snap.quality.coverage>=.95 and acquisition_accepted(snap)
-                return {"source":source.name,"snapshot_id":getattr(snap,"snapshot_id",""),"coverage":getattr(getattr(snap,"quality",None),"coverage",0),"complete":complete},snap if complete else None
+                snap=source.capture(list(universe.codes),stage=stage,now=now);provider_valid=is_market_snapshot(snap) and _provider_lineage_matches(snap,source.name);complete=is_market_snapshot(snap) and snap.trade_date==universe.trade_date and snap.quality.coverage>=.95 and acquisition_accepted(snap) and provider_valid
+                return {"source":source.name,"snapshot_id":getattr(snap,"snapshot_id",""),"coverage":getattr(getattr(snap,"quality",None),"coverage",0),"provider_lineage_valid":provider_valid,"complete":complete},snap if complete else None
             except Exception as exc:return {"source":source.name,"complete":False,"error":f"{type(exc).__name__}: {exc}"},None
         with ThreadPoolExecutor(max_workers=2,thread_name_prefix="v5-source") as executor:
             results=[future.result() for future in [executor.submit(capture,source) for source in (self.first,self.second)]]

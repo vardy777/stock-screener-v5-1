@@ -37,10 +37,10 @@ class V5DataAndFunnelTests(unittest.TestCase):
 
     def test_consensus_requires_both_complete_sources_and_matching_prices(self):
         universe=UniverseV1.build(trade_date="2026-08-13",created_at=NOW,codes=["000001","000002"],sources=["test"])
-        left=snapshot([quote("000001"),quote("000002")]);right=snapshot([quote("000001"),quote("000002")])
+        left=snapshot([quote("000001",provider="sina"),quote("000002",provider="sina")]);right=snapshot([quote("000001",provider="eastmoney"),quote("000002",provider="eastmoney")])
         result=ConsensusAcquirer(Source("sina",left),Source("eastmoney",right)).acquire(universe,stage="signal",now=NOW)
         self.assertTrue(result.accepted);self.assertEqual(result.report["match_ratio"],1)
-        conflict=snapshot([quote("000001",last_price=11),quote("000002")])
+        conflict=snapshot([quote("000001",last_price=11,provider="eastmoney"),quote("000002",provider="eastmoney")])
         rejected=ConsensusAcquirer(Source("sina",left),Source("eastmoney",conflict)).acquire(universe,stage="signal",now=NOW)
         self.assertFalse(rejected.accepted);self.assertEqual(rejected.report["price_conflicts"],1)
 
@@ -49,18 +49,25 @@ class V5DataAndFunnelTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"distinct source identities"):
             ConsensusAcquirer(Source("same",good),Source("same",good))
 
+    def test_consensus_rejects_snapshot_with_forged_source_label(self):
+        universe=UniverseV1.build(trade_date="2026-08-13",created_at=NOW,codes=["000001","000002"],sources=["test"])
+        left=snapshot([quote("000001",provider="sina"),quote("000002",provider="sina")])
+        forged=snapshot([quote("000001",provider="sina"),quote("000002",provider="sina")])
+        result=ConsensusAcquirer(Source("sina",left),Source("eastmoney",forged)).acquire(universe,stage="signal",now=NOW)
+        self.assertFalse(result.accepted);self.assertFalse(result.report["attempts"][1]["provider_lineage_valid"])
+
     def test_consensus_conflict_union_is_not_double_counted_and_latest_strict_snapshot_is_primary(self):
-        universe=UniverseV1.build(trade_date="2026-08-13",created_at=NOW,codes=["000001","000002"],sources=["test"]);left=snapshot([quote("000001"),quote("000002")]);later_at=NOW+timedelta(seconds=1);later=MarketSnapshotV1.build(trade_date="2026-08-13",session="signal",batch_started_at=NOW-timedelta(seconds=1),batch_completed_at=later_at,quotes=[quote("000001"),quote("000002")],expected_codes=2);result=ConsensusAcquirer(Source("sina",left),Source("eastmoney",later)).acquire(universe,stage="signal",now=NOW);assert result.accepted and result.primary.snapshot_id==later.snapshot_id and result.report["selected_snapshot_id"]==later.snapshot_id
+        universe=UniverseV1.build(trade_date="2026-08-13",created_at=NOW,codes=["000001","000002"],sources=["test"]);left=snapshot([quote("000001",provider="sina"),quote("000002",provider="sina")]);later_at=NOW+timedelta(seconds=1);later=MarketSnapshotV1.build(trade_date="2026-08-13",session="signal",batch_started_at=NOW-timedelta(seconds=1),batch_completed_at=later_at,quotes=[quote("000001",provider="eastmoney"),quote("000002",provider="eastmoney")],expected_codes=2);result=ConsensusAcquirer(Source("sina",left),Source("eastmoney",later)).acquire(universe,stage="signal",now=NOW);assert result.accepted and result.primary.snapshot_id==later.snapshot_id and result.report["selected_snapshot_id"]==later.snapshot_id
 
     def test_consensus_never_merges_two_incomplete_sources_to_inflate_coverage(self):
         universe=UniverseV1.build(trade_date="2026-08-13",created_at=NOW,codes=["000001","000002"],sources=["test"])
-        result=ConsensusAcquirer(Source("one",snapshot([quote("000001")],2)),Source("two",snapshot([quote("000002")],2))).acquire(universe,stage="signal",now=NOW)
+        result=ConsensusAcquirer(Source("one",snapshot([quote("000001",provider="one")],2)),Source("two",snapshot([quote("000002",provider="two")],2))).acquire(universe,stage="signal",now=NOW)
         self.assertFalse(result.accepted);self.assertIsNone(result.primary)
     def test_consensus_captures_independent_sources_concurrently_and_keeps_order(self):
-        universe=UniverseV1.build(trade_date="2026-08-13",created_at=NOW,codes=["000001","000002"],sources=["test"]);barrier=threading.Barrier(2);good=snapshot([quote("000001"),quote("000002")])
+        universe=UniverseV1.build(trade_date="2026-08-13",created_at=NOW,codes=["000001","000002"],sources=["test"]);barrier=threading.Barrier(2)
         class ConcurrentSource:
             def __init__(self,name):self.name=name
-            def capture(self,*args,**kwargs):barrier.wait(timeout=1);return good
+            def capture(self,*args,**kwargs):barrier.wait(timeout=1);return snapshot([quote("000001",provider=self.name),quote("000002",provider=self.name)])
         result=ConsensusAcquirer(ConcurrentSource("first"),ConcurrentSource("second")).acquire(universe,stage="signal",now=NOW)
         self.assertTrue(result.accepted);self.assertEqual([x["source"] for x in result.report["attempts"]],["first","second"])
     def test_eastmoney_source_maps_only_requested_codes_and_preserves_provider_time(self):
@@ -99,12 +106,12 @@ class V5DataAndFunnelTests(unittest.TestCase):
         source=EastmoneyRealtimeSource(fetch_json=lambda *_:{"rc":0,"data":{"total":2,"diff":[row]}},clock=lambda:NOW,overall_budget_seconds=100)
         with self.assertRaisesRegex(RuntimeError,"repeated page"):source.capture(["000001","000002"],stage="signal",now=NOW)
     def test_second_source_is_selected_only_when_strict_snapshot_is_accepted(self):
-        bad=snapshot([quote("000001")],2);good=snapshot([quote("000001"),quote("000002")],2)
+        bad=snapshot([quote("000001",provider="primary")],2);good=snapshot([quote("000001",provider="backup"),quote("000002",provider="backup")],2)
         result=MultiSourceAcquirer([Source("primary",bad),Source("backup",good)]).acquire(["000001","000002"],stage="signal",now=NOW)
         self.assertTrue(result.session.accepted);self.assertEqual(result.snapshot.snapshot_id,good.snapshot_id);self.assertEqual(len(result.session.source_attempts),2)
         self.assertFalse(result.session.source_attempts[0]["accepted"])
     def test_failed_sources_remain_auditable_and_never_lower_coverage_gate(self):
-        bad=snapshot([quote("000001")],2)
+        bad=snapshot([quote("000001",provider="thin")],2)
         result=MultiSourceAcquirer([Source("broken",RuntimeError("down")),Source("thin",bad)]).acquire(["000001","000002"],stage="morning",now=NOW)
         self.assertFalse(result.session.accepted);self.assertIsNone(result.snapshot);self.assertEqual(result.session.source_attempts[0]["source"],"broken")
     def test_funnel_records_rejections_and_confirmation_is_mother_pool_subset(self):

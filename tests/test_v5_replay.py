@@ -13,7 +13,10 @@ class Source:
     def __init__(self,name,value):self.name=name;self.value=value
     def capture(self,*a,**k):
         if isinstance(self.value,Exception):raise self.value
-        return self.value
+        rows=[]
+        for item in self.value.quotes:
+            row=item.to_dict();row["provider"]=self.name;rows.append(QuoteV1.from_mapping(row))
+        return MarketSnapshotV1.build(trade_date=self.value.trade_date,session=self.value.session,batch_started_at=self.value.batch_started_at,batch_completed_at=self.value.batch_completed_at,quotes=rows,expected_codes=self.value.quality.expected_codes)
 def test_frozen_end_to_end_replay_is_complete_idempotent_and_insufficient_evidence():
     universe=UniverseV1.build(trade_date="2026-08-13",created_at=NOW,codes=["000001"],sources=["frozen"]);morning=snap(10.1,NOW,"morning");confirm_at=NOW.replace(hour=14,minute=50);confirm=snap(10.2,confirm_at,"buy");sell_at=NOW+timedelta(days=1,seconds=5);sell_at=sell_at.replace(hour=9,minute=30);sell=snap(10.4,sell_at,"sell")
     with TemporaryDirectory() as d:
