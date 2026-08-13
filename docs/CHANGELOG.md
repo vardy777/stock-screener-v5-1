@@ -125,6 +125,7 @@
 - Corrected Sina limit-band parsing for STAR Market `688/689` securities to the 20% band (like ChiNext) instead of the main-board 10% band, preventing false limit-lock classifications after expanding the universe.
 - Fixed the daily universe anomaly baseline to select the latest causal entity by timezone-aware `created_at`, not by a content-hash filename; future rehearsal facts and random same-day older retries cannot become the comparison baseline.
 - Added bounded Windows Task Scheduler recovery (three retries, two minutes apart) to each dated V5 shadow task, including 08:30 readiness. Strict-window entrypoints still reject late retries, so recovery cannot fabricate missed-window evidence; static production audit now requires the retry contract.
+- Added a read-only daily V5 live-acceptance summary/CLI that joins readiness, immutable task outcomes, both HTTP 200 notification receipts, acquisition stages, full lineage, paper reconciliation/recovery and strict round-trip count. It exits nonzero until the actual window chain is complete and never creates evidence itself.
 - Added content-addressed V5 point-in-time universe facts and strict two-source consensus without coverage merging.
 - Added V5-native immutable market snapshots and an independent Eastmoney adapter.
 - Added V5-native event-sourced paper ledger with fees, slippage, one-third cap, T+1, immutable rejections, idempotency and reconciliation.
