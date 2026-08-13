@@ -9,9 +9,25 @@ from .notification import send
 from .operations import health,maintenance
 from .shadow_schedule import ShadowScheduler
 
+WINDOWS={
+    "morning_pool":((9,24,20),(9,25,19)),
+    "morning_push":((9,25,0),(9,29,59)),
+    "feature_freeze":((14,48,30),(14,49,59)),
+    "confirmation":((14,50,0),(14,51,59)),
+    "confirmation_push":((14,50,0),(14,52,59)),
+    "health_check":((14,53,0),(15,9,59)),
+    "maintenance":((15,10,0),(23,59,59)),
+}
+
+def inside_window(task,now):
+    if task not in WINDOWS:return False
+    start,end=WINDOWS[task];clock=(now.hour,now.minute,now.second)
+    return start<=clock<=end
+
 def run(root,task,*,now=None):
     root=Path(root);now=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=now.date().isoformat();scheduler=ShadowScheduler(root);outcome="SUCCESS";details={}
     try:
+        if not inside_window(task,now):raise ValueError(f"V5 task outside allowed window: {task} at {now.isoformat()}")
         if task=="morning_pool":details=produce(root,"morning",now=now)
         elif task=="morning_push":details=send(root,day,"morning",root.parent/".env")
         elif task=="feature_freeze":details=freeze(root,now=now)

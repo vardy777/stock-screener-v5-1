@@ -15,7 +15,7 @@ def run(root,day=None):
   try:r=refresh_universe(root,now=now);checks["universe_refresh"]=True;details["universe_refresh_id"]=r["universe_id"];details["universe_refresh_count"]=r["count"]
   except Exception as exc:checks["universe_refresh"]=False;details["universe_refresh_error"]=f"{type(exc).__name__}: {exc}"
  else:checks["universe_refresh"]=True;details["universe_refresh_skipped"]="non_trading_preflight_date"
- try:u=load_universe(root,day);checks["universe"]=len(u.codes)>=4000;details["universe_count"]=len(u.codes)
+ try:u=load_universe(root,day,as_of=now,require_native=(day==now.date().isoformat() and now.weekday()<5));checks["universe"]=len(u.codes)>=4000;details["universe_count"]=len(u.codes);details["universe_sources"]=list(u.sources)
  except Exception as exc:checks["universe"]=False;details["universe_error"]=type(exc).__name__;u=None
  checks["schedule_contract"]=ShadowScheduler(root).validate()["passed"]
  # One known liquid symbol proves transport/parser availability only; it is
