@@ -20,3 +20,6 @@ def test_failed_gate_never_sends_and_accepted_receipt_is_idempotent():
         receipt=send(root,day,"morning",env,transport=lambda:(calls.append(1) or {"code":200}));assert receipt["outcome"]=="ACCEPTED" and len(calls)==1;assert send(root,day,"morning",env,transport=lambda:calls.append(2))["outcome"]=="ACCEPTED" and len(calls)==1
         (root/"acquisition"/day/"z.json").write_text(json.dumps({"accepted":False}),encoding="utf-8")
         with pytest.raises(ContractViolation):build_payload(root,day,"confirmation")
+def test_v5_notification_entrypoint_never_reads_v4_configuration():
+    text=(Path(__file__).resolve().parents[1]/"v5/scripts/v5_push_job.py").read_text(encoding="utf-8")
+    assert 'ROOT/"v5/.env"' in text and 'ROOT/"v4/.env"' not in text

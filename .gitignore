@@ -9,6 +9,7 @@ backups/
 # Secrets and machine-local agent state
 v3/.env
 v4/.env
+v5/.env
 .hermes/
 
 # Runtime, market-data and generated research artifacts

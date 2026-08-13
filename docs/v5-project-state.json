@@ -1,9 +1,12 @@
 {
   "schema_version": "v5-project-state-v1",
   "project": "a-share-overnight-v5",
+  "canonical_project": true,
+  "development_target": "v5_only",
+  "legacy_policy": "v4_phase1_read_only_migration_and_rollback_only_no_new_business_features",
   "status": "shadow_development",
   "production_status": "research_locked",
-  "v4_integration": "read_only",
+  "v4_integration": "transitional_runtime_dependencies_remain",
   "active_stage": "LIVE_SHADOW_ACCEPTANCE",
   "stages": {"V5-A":"offline_completed_live_pending","V5-B":"offline_completed_live_pending","V5-C":"offline_completed_live_pending","V5-D":"offline_completed_live_pending","V5-E":"pending"},
   "strict_samples_available": 0,
@@ -17,6 +20,18 @@
   "notification_owner": "v5_only_from_2026-08-14",
   "v4_notification_tasks_os_state": "ready_but_code_guarded_retired_access_denied_on_disable",
   "v5_notification_tasks": ["AStock-V5-Morning-Push-20260814", "AStock-V5-Confirmation-Push-20260814"],
-  "tests_passed": 269,
+  "tests_passed": 270,
+  "migration_completion": {
+    "complete": false,
+    "v5_runtime_imports_v4": false,
+    "v5_fact_files_available": false,
+    "v5_owns_market_data_production": false,
+    "v5_owns_decisions": false,
+    "v5_owns_paper_account_production": false,
+    "v5_owns_scheduler": false,
+    "v5_owns_dashboard_8898": false,
+    "v5_owns_notifications": true,
+    "v5_owns_sensitive_configuration": true
+  },
   "next_acceptance": ["real dual-source 09:24:30/14:48 warm-up shadow capture", "real 09:25/14:49/14:50/next-09:30 entity lineage", "V5-to-P3/P4/P5 cutover remains separately gated"]
 }
