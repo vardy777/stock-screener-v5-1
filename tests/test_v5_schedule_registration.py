@@ -4,3 +4,9 @@ def test_safe_shadow_registration_is_admin_gated_and_never_registers_paper_or_br
     text=(ROOT/"v5/scripts/register_safe_shadow_tasks.ps1").read_text(encoding="utf-8")
     assert "Administrator token required" in text and "Register-ScheduledTask" in text and "$installed.Count -ne 8" in text and "08:55:00" in text
     assert "paper_buy" not in text and "paper_sell" not in text and "broker" in text
+
+def test_v5_dashboard_registration_is_persistent_read_only_and_supervised():
+    text=(ROOT/"v5/scripts/register_dashboard_task.ps1").read_text(encoding="utf-8")
+    assert "AStock-V5-Dashboard-Logon" in text and "run_v5_dashboard.ps1" in text
+    assert "ExecutionTimeLimit ([TimeSpan]::Zero)" in text and "RestartCount 3" in text
+    assert "paper" not in text.lower() and "broker" not in text.lower()
