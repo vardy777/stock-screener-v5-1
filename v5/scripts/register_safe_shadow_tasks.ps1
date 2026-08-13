@@ -3,7 +3,7 @@ $ErrorActionPreference="Stop"
 $root=(Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $python=Join-Path $root ".venv\Scripts\python.exe"
 $script=Join-Path $root "v5\scripts\v5_task.py"
-$settings=New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -WakeToRun -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 10) -MultipleInstances IgnoreNew
+$settings=New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -WakeToRun -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 10) -MultipleInstances IgnoreNew -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 2)
 $principal=New-ScheduledTaskPrincipal -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -LogonType Interactive -RunLevel Limited
 $specs=@(
  @("Morning-Facts","morning_pool","09:24:30"),@("Morning-Push","morning_push","09:25:20"),@("Feature-Freeze","feature_freeze","14:49:00"),@("Confirmation","confirmation","14:50:00"),@("Confirmation-Push","confirmation_push","14:50:30"),@("Health","health_check","14:53:00"),@("Maintenance","maintenance","15:10:00")
@@ -19,5 +19,5 @@ foreach($spec in $specs){
 }
 $readiness=Get-ScheduledTask -TaskName $readinessName -ErrorAction Stop
 $installed=@($specs|ForEach-Object{Get-ScheduledTask -TaskName ("AStock-V5-$($_[0])-$suffix") -ErrorAction Stop})
-if($installed.Count -ne 7 -or $readiness.State -eq "Disabled" -or $readiness.Actions.Arguments -notlike "*--trade-date $date*"){throw "V5 safe shadow registration incomplete"}
+if($installed.Count -ne 7 -or $readiness.State -eq "Disabled" -or $readiness.Actions.Arguments -notlike "*--trade-date $date*" -or $readiness.Settings.RestartCount -lt 3){throw "V5 safe shadow registration incomplete"}
 @($readiness)+$installed|Select-Object TaskName,State,@{n="Arguments";e={$_.Actions.Arguments}}
