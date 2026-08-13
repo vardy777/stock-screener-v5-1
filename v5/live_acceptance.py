@@ -21,10 +21,13 @@ def build(root,day,*,now=None):
         try:readiness.append(json.loads(path.read_text(encoding="utf-8")))
         except Exception:continue
     readiness.sort(key=lambda row:(row.get("recorded_at",""),row.get("report_id","")))
-    runs=[]
+    runs=[];run_errors=[]
     for path in (root/"runs"/day).glob("*.json") if (root/"runs"/day).exists() else []:
-        try:runs.append(json.loads(path.read_text(encoding="utf-8")))
-        except Exception:continue
+        try:
+            row=json.loads(path.read_text(encoding="utf-8"));declared=row.get("run_id");unsigned={key:value for key,value in row.items() if key!="run_id"};rebuilt="run1-"+hashlib.sha256(json.dumps(unsigned,sort_keys=True,separators=(",",":")).encode()).hexdigest()[:24]
+            if declared!=rebuilt or path.stem!=declared:raise ValueError("run content-address mismatch")
+            runs.append(row)
+        except Exception as exc:run_errors.append({"file":path.name,"error":type(exc).__name__})
     accepted_receipts={}
     for stage in ("morning","confirmation"):
         path=root/"notifications"/day/f"{stage}.json"
@@ -33,12 +36,14 @@ def build(root,day,*,now=None):
             except Exception:accepted_receipts[stage]=False
         else:accepted_receipts[stage]=False
     morning=_latest(root,"acquisition",day,lambda row:row.get("stage")=="morning");signal=_latest(root,"acquisition",day,lambda row:row.get("stage")=="signal")
-    completed={row.get("task"):row.get("outcome") for row in sorted(runs,key=lambda row:row.get("recorded_at",""))}
+    grouped={}
+    for row in sorted(runs,key=lambda value:(value.get("recorded_at",""),value.get("run_id",""))):grouped.setdefault(row.get("task"),[]).append(row)
+    task_summary={task:{"attempts":len(rows),"ever_succeeded":any(row.get("outcome")=="SUCCESS" for row in rows),"latest_outcome":rows[-1].get("outcome"),"latest_run_id":rows[-1].get("run_id")} for task,rows in grouped.items()}
     ledger=PaperLedger(root/"paper")
-    report={"schema_version":"v5-live-acceptance-summary-v1","trade_date":day,"observed_at":current.isoformat(),"research_locked":True,"broker_orders":False,"readiness":{"attempts":len(readiness),"latest_passed":readiness[-1].get("passed") if readiness else None,"latest":readiness[-1] if readiness else None},"tasks":completed,"morning_acquisition":morning,"signal_acquisition":signal,"notifications":accepted_receipts,"paper":{"reconciled":ledger.reconcile()["passed"],"recovery":ledger.recovery_report()["status"],"round_trips":len(ledger.round_trips())}}
+    report={"schema_version":"v5-live-acceptance-summary-v2","trade_date":day,"observed_at":current.isoformat(),"research_locked":True,"broker_orders":False,"readiness":{"attempts":len(readiness),"latest_passed":readiness[-1].get("passed") if readiness else None,"latest":readiness[-1] if readiness else None},"tasks":task_summary,"run_validation_errors":run_errors,"morning_acquisition":morning,"signal_acquisition":signal,"notifications":accepted_receipts,"paper":{"reconciled":ledger.reconcile()["passed"],"recovery":ledger.recovery_report()["status"],"round_trips":len(ledger.round_trips())}}
     report["lineage"]=lineage_audit(root,day,as_of=current) if morning and signal else {"passed":False,"reason":"WINDOW_CHAIN_INCOMPLETE"}
     required=("morning_pool","morning_push","feature_freeze","confirmation","confirmation_push","health_check","maintenance")
-    report["complete"]=bool(report["readiness"]["latest_passed"] is True and all(completed.get(task)=="SUCCESS" for task in required) and all(accepted_receipts.values()) and report["lineage"].get("passed") is True)
+    report["complete"]=bool(not run_errors and report["readiness"]["latest_passed"] is True and all(task_summary.get(task,{}).get("latest_outcome")=="SUCCESS" for task in required) and all(accepted_receipts.values()) and report["lineage"].get("passed") is True)
     return report
 
 
