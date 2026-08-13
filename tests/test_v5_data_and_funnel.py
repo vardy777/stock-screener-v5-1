@@ -99,6 +99,15 @@ class V5DataAndFunnelTests(unittest.TestCase):
     def test_eastmoney_source_fails_closed_when_overall_budget_is_exhausted(self):
         ticks=iter((0,2));source=EastmoneyRealtimeSource(fetch_json=lambda *_:{},overall_budget_seconds=1,monotonic=lambda:next(ticks),clock=lambda:NOW)
         with self.assertRaisesRegex(TimeoutError,"overall budget"):source.capture(["000001"],stage="signal",now=NOW)
+    def test_eastmoney_realtime_rotates_same_provider_hosts_within_one_budget(self):
+        epoch=int((NOW-timedelta(seconds=1)).timestamp());calls=[]
+        def fetch(url,timeout):
+            calls.append(url)
+            if len(calls)==1:raise ConnectionError("primary unavailable")
+            return {"rc":0,"data":{"total":1,"diff":[{"f12":"000001","f14":"test","f2":10.2,"f5":1000,"f6":8000000,"f15":10.3,"f16":10.0,"f17":10.1,"f18":10.0,"f31":10.19,"f32":10.21,"f33":100,"f34":120,"f124":epoch}]}}
+        source=EastmoneyRealtimeSource(fetch_json=fetch,clock=lambda:NOW,sleeper=lambda _:None,endpoints=("https://one","https://two"))
+        result=source.capture(["000001"],stage="signal",now=NOW)
+        self.assertTrue(result.quality.accepted);self.assertTrue(calls[0].startswith("https://one") and calls[1].startswith("https://two"));self.assertEqual(result.quotes[0].provider,source.name)
     def test_eastmoney_honors_provider_reduced_page_size_beyond_twenty_pages(self):
         epoch=int((NOW-timedelta(seconds=1)).timestamp());codes=[f"{index:06d}" for index in range(1,22)]
         def fetch(url,timeout):

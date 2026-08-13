@@ -12,6 +12,7 @@ from .market_snapshot import MarketSnapshotV1,QuoteV1
 
 FIELDS="f12,f14,f2,f5,f6,f15,f16,f17,f18,f31,f32,f33,f34,f124"
 UNIVERSE_FILTER="m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23"
+ENDPOINTS=("https://push2delay.eastmoney.com","https://push2.eastmoney.com","https://82.push2.eastmoney.com","https://72.push2.eastmoney.com")
 def _real(value):
     if value in (None,"","-"):return None
     try:return float(value)
@@ -24,17 +25,19 @@ def _default_fetch(url,timeout):
 
 class EastmoneyRealtimeSource:
     name="eastmoney_realtime_full_market"
-    def __init__(self,fetch_json=None,timeout=15,clock=None,page_size=500,retries=2,overall_budget_seconds=25,monotonic=None,sleeper=None):self.fetch_json=fetch_json or _default_fetch;self.timeout=timeout;self.clock=clock or (lambda:datetime.now(CHINA_TZ));self.page_size=int(page_size);self.retries=int(retries);self.overall_budget_seconds=float(overall_budget_seconds);self.monotonic=monotonic or time.monotonic;self.sleeper=sleeper or time.sleep
+    def __init__(self,fetch_json=None,timeout=15,clock=None,page_size=500,retries=2,overall_budget_seconds=25,monotonic=None,sleeper=None,endpoints=ENDPOINTS):self.fetch_json=fetch_json or _default_fetch;self.timeout=timeout;self.clock=clock or (lambda:datetime.now(CHINA_TZ));self.page_size=int(page_size);self.retries=int(retries);self.overall_budget_seconds=float(overall_budget_seconds);self.monotonic=monotonic or time.monotonic;self.sleeper=sleeper or time.sleep;self.endpoints=tuple(endpoints)
     def _page(self,page,deadline):
         query=urlencode({"pn":page,"pz":self.page_size,"po":1,"np":1,"fltt":2,"invt":2,"fid":"f3","fs":UNIVERSE_FILTER,"fields":FIELDS})
         last=None
-        for attempt in range(self.retries+1):
+        attempts=max(self.retries+1,len(self.endpoints))
+        for attempt in range(attempts):
             remaining=deadline-self.monotonic()
             if remaining<=0:raise TimeoutError("eastmoney capture exceeded overall budget")
-            try:return self.fetch_json("https://push2.eastmoney.com/api/qt/clist/get?"+query,min(self.timeout,max(.1,remaining)))
+            endpoint=self.endpoints[attempt%len(self.endpoints)]
+            try:return self.fetch_json(endpoint+"/api/qt/clist/get?"+query,min(self.timeout,max(.1,remaining)))
             except (HTTPError,URLError,TimeoutError,ConnectionError,OSError,RuntimeError) as exc:
                 last=exc
-                if attempt<self.retries:
+                if attempt<attempts-1:
                     remaining=deadline-self.monotonic()
                     if remaining<=0:raise TimeoutError("eastmoney capture exceeded overall budget") from exc
                     self.sleeper(min(.25*(attempt+1),remaining))
