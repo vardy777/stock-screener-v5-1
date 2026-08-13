@@ -2,7 +2,7 @@
 
 ## Contract correction
 
-The daily universe directory refresh is preparation, not one of the nine trading-business tasks. It is scheduled at 08:55. The 09:24:30 `morning_pool` job only consumes the frozen same-day V5 universe and captures the two quote sources. This avoids repeating the Eastmoney directory request immediately before the quote request and preserves the 50 seconds available before the 09:25:20 notification.
+The daily universe directory refresh is preparation, not one of the nine trading-business tasks. It is scheduled at 08:30. The 09:24:30 `morning_pool` job only consumes the frozen same-day V5 universe and captures the two quote sources. This avoids repeating the Eastmoney directory request immediately before the quote request and preserves the 50 seconds available before the 09:25:20 notification.
 
 ## Failure-closed guarantees
 
@@ -10,7 +10,7 @@ The daily universe directory refresh is preparation, not one of the nine trading
 - Each request timeout is capped by the remaining overall budget.
 - An empty page before the declared total is reached is rejected as incomplete pagination.
 - Prior-universe count and churn anomaly gates remain mandatory.
-- A missing 08:55 universe fact causes `morning_pool` to fail; it never silently reuses an older trade date.
+- A missing 08:30 universe fact causes `morning_pool` to fail; it never silently reuses an older trade date.
 - Shadow run records use atomic create-once writes and immutable collision checks.
 
 ## Evidence

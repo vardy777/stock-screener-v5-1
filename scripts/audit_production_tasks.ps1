@@ -24,10 +24,10 @@ $requiredV5=@("morning_pool","morning_push","feature_freeze","confirmation","con
 $v5Rows=foreach($task in $v5Tasks){
  $action=$task.Actions|Select-Object -First 1;$argument=[string]$action.Arguments
  $kind=if($argument -match 'v5_task.py"?\s+([a-z_]+)'){$Matches[1]}elseif($argument -match '-m v5\.preflight'){"preflight"}else{"unknown"}
- [pscustomobject]@{task_name=$task.TaskName;state=[string]$task.State;kind=$kind;v5_bound=[bool]($argument -match 'v5[\\/]scripts[\\/]v5_task.py|-m v5\.preflight');paper_or_broker=[bool]($argument -match 'paper_buy|paper_sell|broker')}
+ [pscustomobject]@{task_name=$task.TaskName;state=[string]$task.State;kind=$kind;v5_bound=[bool]($argument -match 'v5[\\/]scripts[\\/]v5_task.py|-m v5\.preflight');paper_or_broker=[bool]($argument -match 'paper_buy|paper_sell|broker');allow_battery=[bool](-not $task.Settings.DisallowStartIfOnBatteries);wake_to_run=[bool]$task.Settings.WakeToRun}
 }
 $availableKinds=@($v5Rows|Where-Object{$_.state -ne "Disabled" -and $_.v5_bound}|ForEach-Object{$_.kind})
-$v5ShadowReady=(@($requiredV5|Where-Object{$_ -notin $availableKinds}).Count -eq 0) -and (@($v5Rows|Where-Object{$_.paper_or_broker}).Count -eq 0)
+$v5ShadowReady=(@($requiredV5|Where-Object{$_ -notin $availableKinds}).Count -eq 0) -and (@($v5Rows|Where-Object{$_.paper_or_broker}).Count -eq 0) -and (@($v5Rows|Where-Object{$_.kind -ne "unknown" -and (-not $_.allow_battery -or -not $_.wake_to_run)}).Count -eq 0)
 $passed=(@($rows | Where-Object {-not $_.exists -or $_.state -eq "Disabled" -or -not $_.adapter_bound}).Count -eq 0) -and (@($legacyRows | Where-Object {-not $_.disabled}).Count -eq 0) -and $dashboardSupervised -and $v5DashboardSupervised -and $v5ShadowReady
 [pscustomobject]@{schema_version="production-task-static-audit-v3";passed=$passed;transition_v4_tasks=$rows;legacy_tasks=$legacyRows;v5_shadow_tasks=$v5Rows;v5_shadow_ready=$v5ShadowReady;v5_paper_writer_enabled=$false;v4_dashboard_supervised=$dashboardSupervised;v5_dashboard_supervised=$v5DashboardSupervised;read_only=$true} | ConvertTo-Json -Depth 5
 if(-not $passed){exit 1}
