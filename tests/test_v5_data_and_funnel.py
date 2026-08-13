@@ -29,8 +29,8 @@ class Source:
 
 class V5DataAndFunnelTests(unittest.TestCase):
     def test_universe_is_content_addressed_and_board_filtered(self):
-        universe=UniverseV1.build(trade_date="2026-08-13",created_at=NOW,codes=["000001","600000","900901","430001"],sources=["daily_archive"])
-        self.assertEqual(universe.codes,("000001","600000"));self.assertTrue(universe.universe_id.startswith("univ1-"))
+        universe=UniverseV1.build(trade_date="2026-08-13",created_at=NOW,codes=["000001","600000","688001","900901","430001"],sources=["daily_archive"])
+        self.assertEqual(universe.codes,("000001","600000","688001"));self.assertTrue(universe.universe_id.startswith("univ1-"));self.assertEqual(universe.to_dict()["market_scope"],"SSE_SZSE_A_INCLUDING_STAR_EXCLUDING_BSE")
         with TemporaryDirectory() as directory:self.assertEqual(universe.save(directory),universe.save(directory))
     def test_universe_identity_includes_date_time_and_source_lineage(self):
         first=UniverseV1.build(trade_date="2026-08-13",created_at=NOW,codes=["000001"],sources=["seed"]);second=UniverseV1.build(trade_date="2026-08-14",created_at=NOW+timedelta(days=1),codes=["000001"],sources=["live"]);self.assertNotEqual(first.universe_id,second.universe_id)

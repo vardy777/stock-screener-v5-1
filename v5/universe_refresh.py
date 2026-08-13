@@ -58,6 +58,9 @@ def refresh(root,*,now=None,fetch_json=None,minimum_prior_ratio=.98,maximum_chur
         checks["minimum_prior_count"]=len(new)>=len(old)*minimum_prior_ratio
         if legacy_seed:
             checks["legacy_seed_retention"]=len(old&new)/max(len(old),1)>=.995;checks["migration_is_expansion_only"]=len(old-new)==0;checks["bounded_churn"]=checks["legacy_seed_retention"] and checks["migration_is_expansion_only"];diagnostics["migration_mode"]="legacy_seed_to_native_directory"
-        else:checks["bounded_churn"]=len(old^new)/max(len(old),1)<=maximum_churn_ratio
+        else:
+            star_scope_upgrade=not any(code.startswith(("688","689")) for code in old) and any(code.startswith(("688","689")) for code in new) and not (old-new)
+            checks["bounded_churn"]=len(old^new)/max(len(old),1)<=maximum_churn_ratio or star_scope_upgrade
+            if star_scope_upgrade:diagnostics["scope_upgrade"]="ADD_STAR_MARKET_RETAIN_ALL_PRIOR_CODES"
     if not all(checks.values()):raise ContractViolation("daily universe anomaly gate rejected refresh")
     universe=UniverseV1.build(trade_date=day,created_at=current,codes=codes,sources=["eastmoney_realtime_market_directory","prior_universe_anomaly_gate"]);path=universe.save(root);return {"universe_id":universe.universe_id,"trade_date":day,"count":len(universe.codes),"checks":checks,"diagnostics":diagnostics,"path":str(path)}

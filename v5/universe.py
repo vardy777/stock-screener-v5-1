@@ -8,7 +8,7 @@ from typing import Iterable
 from .core import CHINA_TZ,ContractViolation
 
 def eligible(code):
-    return code.startswith(("000","001","002","003","30","600","601","603","605"))
+    return code.startswith(("000","001","002","003","30","600","601","603","605","688","689"))
 @dataclass(frozen=True)
 class UniverseV1:
     trade_date:str;created_at:str;codes:tuple[str,...];sources:tuple[str,...];schema_version:str="v5-universe-v1"
@@ -22,7 +22,7 @@ class UniverseV1:
     def universe_id(self):
         payload={"schema_version":self.schema_version,"trade_date":self.trade_date,"created_at":self.created_at,"codes":list(self.codes),"sources":list(self.sources)}
         return "univ1-"+hashlib.sha256(json.dumps(payload,ensure_ascii=False,sort_keys=True,separators=(",",":")).encode()).hexdigest()
-    def to_dict(self):return {"schema_version":self.schema_version,"universe_id":self.universe_id,"trade_date":self.trade_date,"created_at":self.created_at,"codes":list(self.codes),"sources":list(self.sources),"count":len(self.codes)}
+    def to_dict(self):return {"schema_version":self.schema_version,"universe_id":self.universe_id,"trade_date":self.trade_date,"created_at":self.created_at,"codes":list(self.codes),"sources":list(self.sources),"count":len(self.codes),"market_scope":"SSE_SZSE_A_INCLUDING_STAR_EXCLUDING_BSE"}
     def save(self,root):
         path=Path(root)/"universes"/self.trade_date/f"{self.universe_id}.json";path.parent.mkdir(parents=True,exist_ok=True);raw=json.dumps(self.to_dict(),ensure_ascii=False,sort_keys=True,separators=(",",":"))
         if path.exists() and path.read_text(encoding="utf-8")!=raw:raise ContractViolation("universe immutable collision")
