@@ -11,6 +11,6 @@ def test_safe_shadow_registration_is_admin_gated_and_never_registers_paper_or_br
 
 def test_v5_dashboard_registration_is_persistent_read_only_and_supervised():
     text=(ROOT/"v5/scripts/register_dashboard_task.ps1").read_text(encoding="utf-8")
-    assert "AStock-V5-Dashboard-Logon" in text and "run_v5_dashboard.ps1" in text
+    assert "AStock-V5-Dashboard-Logon" in text and "pythonw.exe" in text and "-m v5.dashboard" in text
     assert "ExecutionTimeLimit ([TimeSpan]::Zero)" in text and "RestartCount 3" in text
     assert "paper" not in text.lower() and "broker" not in text.lower()
