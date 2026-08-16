@@ -20,7 +20,9 @@ def test_preflight_retries_native_universe_refresh_before_failing(tmp_path):
  assert report["details"]["universe_refresh_attempts"]==3 and len(calls)==3
 
 def test_preflight_never_contacts_market_sources_when_clock_gate_fails(tmp_path):
- with patch("v5.preflight.refresh_universe") as refresh,patch("v5.preflight.SinaRealtimeSource") as sina,patch("v5.preflight.EastmoneyRealtimeSource") as eastmoney:
+ trading_day=datetime(2026,8,14,8,30,tzinfo=CHINA_TZ)
+ with patch("v5.preflight.datetime") as clock,patch("v5.preflight.refresh_universe") as refresh,patch("v5.preflight.SinaRealtimeSource") as sina,patch("v5.preflight.EastmoneyRealtimeSource") as eastmoney:
+  clock.now.return_value=trading_day
   report=run(tmp_path,clock_checker=lambda:{"passed":False,"reason":"WINDOWS_TIME_OFFSET_TOO_LARGE"})
  assert not report["passed"] and report["details"]["market_checks_skipped"]=="causal_clock_rejected"
  refresh.assert_not_called();sina.assert_not_called();eastmoney.assert_not_called()
