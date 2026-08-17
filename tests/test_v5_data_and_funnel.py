@@ -169,7 +169,7 @@ class V5DataAndFunnelTests(unittest.TestCase):
         unpaired=report_strict_paper([{"net_return":.01,"net_pnl":100} for _ in range(40)],minimum_trades=40)
         self.assertEqual(unpaired.trade_count,40);self.assertEqual(unpaired.comparable_trade_count,0);self.assertEqual(unpaired.conclusion,"INSUFFICIENT_EVIDENCE")
     def test_product_read_model_is_decision_first_and_honest_when_data_missing(self):
-        model=build_product();self.assertIn("不交易",model.today["action"]);self.assertEqual(model.candidates["empty_reason"],"行情质量未通过");self.assertTrue(model.validation["research_locked"])
+        model=build_product();self.assertIn("不交易",model.today["action"]);self.assertEqual(model.candidates["empty_reason"],"行情尚未采集");self.assertTrue(model.validation["research_locked"])
         page=render(model);self.assertIn("今天的结论",page);self.assertIn("今日推荐与执行规则",page);self.assertIn("模拟账户与策略证据",page);self.assertIn("证据不足，不能证明策略有效",page);self.assertNotIn("<button",page);self.assertNotIn("<nav",page)
 
     def test_product_read_model_projects_selected_snapshot_source_not_last_attempt(self):

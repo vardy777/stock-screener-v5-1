@@ -17,6 +17,13 @@ $legacyRows = foreach ($name in $legacy) {
 }
 $dashboard=Get-ScheduledTask -TaskName "AStock-V4-Dashboard-Logon" -ErrorAction SilentlyContinue
 $dashboardSupervised=[bool]($dashboard -and $dashboard.State -ne "Disabled" -and $dashboard.Settings.ExecutionTimeLimit -eq "PT0S")
+$v4RetiredChannels=@("AStock-V4-Morning-Push-092520","AStock-V4-Confirmation-Push-145030","AStock-V4-Health-1453")
+$v4AdapterText=Get-Content (Join-Path $PSScriptRoot "..\v4\scripts\p4_task_adapter.py") -Raw
+$v4NotificationRetired=[bool]($v4AdapterText -match '"morning_push","confirmation_push","health_check"' -and $v4AdapterText -match 'V4_NOTIFICATION_RETIRED_V5_ONLY')
+$v4DashboardRunnerText=Get-Content (Join-Path $PSScriptRoot "..\phase1\scripts\run_p5_dashboard.ps1") -Raw
+$v4DashboardRetired=[bool]($v4DashboardRunnerText -match 'V4_DASHBOARD_RETIRED_V5_ONLY')
+$v4BridgeNames=@("AStock-V4-Morning-Decision-0925","AStock-V4-Paper-Sell-093020","AStock-V4-Feature-1449","AStock-V4-Confirmation-Decision-145020","AStock-V4-Paper-Buy-145040")
+$v4PaperBridgeReady=@($rows|Where-Object{$_.task_name -in $v4BridgeNames -and $_.state -ne "Disabled" -and $_.adapter_bound}).Count -eq $v4BridgeNames.Count
 $v5Dashboard=Get-ScheduledTask -TaskName "AStock-V5-Dashboard-Logon" -ErrorAction SilentlyContinue
 $v5DashboardSupervised=[bool]($v5Dashboard -and $v5Dashboard.State -ne "Disabled" -and $v5Dashboard.Actions.Execute -like '*\.venv\Scripts\pythonw.exe' -and $v5Dashboard.Actions.Arguments -like '*-m v5.dashboard*' -and $v5Dashboard.Settings.ExecutionTimeLimit -eq "PT0S" -and $v5Dashboard.Settings.RestartCount -ge 1)
 $v5Tasks=@(Get-ScheduledTask -TaskName "AStock-V5-*" -ErrorAction SilentlyContinue)
@@ -33,6 +40,6 @@ $targetRows=@($v5Rows|Where-Object{$_.task_name -like "*-$targetSuffix"})
 $availableKinds=@($targetRows|Where-Object{$_.state -ne "Disabled" -and $_.v5_bound}|ForEach-Object{$_.kind})
 $readinessDateCorrect=@($targetRows|Where-Object{$_.kind -eq "readiness" -and $_.task_name -eq "AStock-V5-Readiness-$targetSuffix"}).Count -eq 1
 $v5ShadowReady=(@($requiredV5|Where-Object{$_ -notin $availableKinds}).Count -eq 0) -and (@($availableKinds|Group-Object|Where-Object{$_.Count -ne 1}).Count -eq 0) -and $readinessDateCorrect -and (@($targetRows|Where-Object{$_.paper_or_broker}).Count -eq 0) -and (@($targetRows|Where-Object{$_.kind -ne "unknown" -and (-not $_.allow_battery -or -not $_.wake_to_run -or $_.restart_count -lt 3)}).Count -eq 0)
-$passed=(@($rows | Where-Object {-not $_.exists -or $_.state -eq "Disabled" -or -not $_.adapter_bound}).Count -eq 0) -and (@($legacyRows | Where-Object {-not $_.disabled}).Count -eq 0) -and $dashboardSupervised -and $v5DashboardSupervised -and $v5ShadowReady
-[pscustomobject]@{schema_version="production-task-static-audit-v3";passed=$passed;transition_v4_tasks=$rows;legacy_tasks=$legacyRows;v5_target_date=$targetDate.ToString("yyyy-MM-dd");v5_shadow_tasks=$targetRows;v5_shadow_ready=$v5ShadowReady;v5_paper_writer_enabled=$false;v4_dashboard_supervised=$dashboardSupervised;v5_dashboard_supervised=$v5DashboardSupervised;read_only=$true} | ConvertTo-Json -Depth 5
+$passed=$v4NotificationRetired -and $v4DashboardRetired -and $v4PaperBridgeReady -and (@($legacyRows | Where-Object {-not $_.disabled}).Count -eq 0) -and $v5DashboardSupervised -and $v5ShadowReady
+[pscustomobject]@{schema_version="production-task-static-audit-v4";passed=$passed;transition_v4_tasks=$rows;legacy_tasks=$legacyRows;v4_notification_channels_retired=$v4NotificationRetired;v4_dashboard_retired=$v4DashboardRetired;v4_paper_bridge_ready=$v4PaperBridgeReady;v5_target_date=$targetDate.ToString("yyyy-MM-dd");v5_shadow_tasks=$targetRows;v5_shadow_ready=$v5ShadowReady;v5_paper_writer_enabled=$false;v4_dashboard_supervised=$dashboardSupervised;v5_dashboard_supervised=$v5DashboardSupervised;read_only=$true} | ConvertTo-Json -Depth 5
 if(-not $passed){exit 1}

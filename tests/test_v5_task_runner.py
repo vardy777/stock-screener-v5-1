@@ -10,7 +10,7 @@ def at(hour,minute,second=0):
     return datetime(2026,8,14,hour,minute,second,tzinfo=CHINA_TZ)
 
 def test_strict_market_tasks_have_fail_closed_time_windows():
-    assert inside_window("morning_pool",at(9,24,30))
+    assert inside_window("morning_pool",at(9,25,5))
     assert not inside_window("morning_pool",at(9,30))
     assert inside_window("feature_freeze",at(14,49))
     assert not inside_window("feature_freeze",at(14,50))
@@ -26,7 +26,7 @@ def test_late_start_records_failure_without_calling_market_producer():
 
 def test_in_window_task_executes_and_records_success():
     with TemporaryDirectory() as d,patch("v5.task_runner.produce",return_value={"pool_id":"v5mp1-test"}) as producer:
-        result=run(Path(d),"morning_pool",now=at(9,24,30),clock_checker=lambda:{"passed":True,"reason":"OK"})
+        result=run(Path(d),"morning_pool",now=at(9,25,5),clock_checker=lambda:{"passed":True,"reason":"OK"})
         assert result["passed"] is True
         assert result["run"]["details"]["pool_id"]=="v5mp1-test"
         producer.assert_called_once()
@@ -35,15 +35,16 @@ def test_downstream_task_requires_immutable_upstream_success():
     with TemporaryDirectory() as d,patch("v5.task_runner.send") as sender:
         root=Path(d);result=run(root,"morning_push",now=at(9,25,20))
         assert result["passed"] is False and "dependencies incomplete: morning_pool" in result["run"]["details"]["error"]
+        assert result["run"]["details"]["failure_alert_suppressed"]=="UPSTREAM_ROOT_CAUSE_ALREADY_ALERTED"
         sender.assert_not_called()
-        run(root,"morning_pool",now=at(9,24,30),clock_checker=lambda:{"passed":True,"reason":"OK"})
+        run(root,"morning_pool",now=at(9,25,5),clock_checker=lambda:{"passed":True,"reason":"OK"})
         # The producer is not patched in this branch and therefore fails; a
         # failed upstream record must still not satisfy the dependency.
         result=run(root,"morning_push",now=at(9,25,21));assert result["passed"] is False
 
 def test_market_capture_fails_before_provider_call_when_clock_is_unhealthy():
     with TemporaryDirectory() as d,patch("v5.task_runner.produce") as producer:
-        result=run(Path(d),"morning_pool",now=at(9,24,30),clock_checker=lambda:{"passed":False,"reason":"WINDOWS_TIME_OFFSET_TOO_LARGE"})
+        result=run(Path(d),"morning_pool",now=at(9,25,5),clock_checker=lambda:{"passed":False,"reason":"WINDOWS_TIME_OFFSET_TOO_LARGE"})
         assert result["passed"] is False and "causal clock rejected" in result["run"]["details"]["error"]
         producer.assert_not_called()
 

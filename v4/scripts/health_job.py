@@ -9,7 +9,9 @@ from phase1.scripts.verify_capture_health import main as health_main
 
 def main():
     day=date.today().isoformat()
-    sys.argv=[sys.argv[0],"--trade-date",day,"--sessions","signal,buy","--notify-failure"]
+    # V4 notification ownership is retired.  Keep this legacy audit local
+    # while the remaining paper ledger is migrated; it must never alert users.
+    sys.argv=[sys.argv[0],"--trade-date",day,"--sessions","signal,buy"]
     return health_main()
 
 if __name__=="__main__": raise SystemExit(main())

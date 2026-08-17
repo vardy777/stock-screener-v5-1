@@ -1,4 +1,7 @@
 param([switch]$Restart)
+$retiredReason="V4_DASHBOARD_RETIRED_V5_ONLY"
+Write-Output $retiredReason
+exit 0
 $ErrorActionPreference = "Stop"
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $python = Join-Path $projectRoot ".venv\Scripts\python.exe"

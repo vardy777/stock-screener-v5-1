@@ -15,18 +15,18 @@
   "production_cutover_allowed": false,
   "broker_orders_enabled": false,
   "second_source_adapter_ready": true,
-  "second_source_network_probe": "initial_http_200_then_remote_disconnect",
+  "second_source_network_probe": "tencent_http_200_full_market_diagnostic_99.827_percent_coverage_zero_price_conflicts_2026-08-17",
   "real_source_ready": false,
   "live_shadow_accepted": false,
   "offline_deliverables": {"source_consensus":true,"versioned_universe":true,"native_market_state":true,"native_paper_ledger":true,"paper_order_recovery":true,"strict_baseline_facts":true,"nine_task_entrypoint":true,"explainable_funnel_v2":true,"disabled_shadow_schedule":true,"frozen_end_to_end_replay":true,"dashboard_entity_projection":true},
   "notification_owner": "v5_only_from_2026-08-14",
   "v4_notification_tasks_os_state": "ready_but_code_guarded_retired_access_denied_on_disable",
-  "v5_notification_tasks": ["AStock-V5-Morning-Push-20260814", "AStock-V5-Confirmation-Push-20260814"],
+  "v5_notification_tasks": ["AStock-V5-Morning-Push-20260818", "AStock-V5-Confirmation-Push-20260818"],
   "shadow_tasks_registered": {"dated_safe_count":9,"business_tasks_registered":7,"business_tasks_required":9,"missing_business_tasks":["paper_sell","paper_buy"],"support_tasks":["readiness","live_acceptance"],"reason":"single_writer_cutover_not_authorized"},
-  "next_monday_shadow_tasks": {"trade_date":"2026-08-17","registered_safe_tasks":9,"registered_business_tasks":7,"duplicate_universe_writer":false,"paper_or_broker_tasks":0},
+  "next_live_shadow_tasks": {"trade_date":"2026-08-18","registered_safe_tasks":9,"registered_business_tasks":7,"morning_capture":"09:25:05","morning_push":"09:25:50","paper_or_broker_tasks":0},
   "weekend_preflight_task": "AStock-V5-Weekend-Preflight",
   "dashboard_supervisor_task": "AStock-V5-Dashboard-Logon",
-  "tests_passed": 365,
+  "tests_passed": 370,
   "migration_completion": {
     "complete": false,
     "v5_runtime_imports_v4": false,
@@ -77,7 +77,7 @@
     "funnel_policy_parameters_embedded": true,
     "confirmation_uses_frozen_morning_rank": true,
     "market_scope": "SSE_SZSE_A_INCLUDING_STAR_EXCLUDING_BSE",
-    "full_suite": "365 passed",
+    "full_suite": "370 passed",
     "dashboard_lineage_fail_closed": true,
     "market_state_projection_requires_content_id": true,
     "snapshot_reader_content_address_verified": true,
@@ -110,5 +110,6 @@
     "serialized_operational_alert_delivery": true,
     "scheduler_truthful_paper_outcomes": true
   },
-  "next_acceptance": ["real 08:30 native universe preparation", "real dual-source 09:24:30/14:49 shadow capture", "real 09:25/14:49/14:50/next-09:30 entity lineage", "V5-to-P3/P4/P5 cutover remains separately gated"]
+  "latest_live_failure": {"trade_date":"2026-08-17","root_cause":"invalid_universe_denominator_and_unsuitable_second_realtime_source","morning_coverage":{"sina":0.0007208506,"eastmoney":0.0},"signal_coverage":{"sina":0.9383672734,"eastmoney":0.3743016760},"fix":"eastmoney_directory_plus_tencent_active_filter_and_sina_tencent_quote_consensus","diagnostic_active_universe":5212,"diagnostic_dual_source_coverage":0.9982732157,"diagnostic_price_conflicts":0,"strict_fact_backfill":false},
+  "next_acceptance": ["real 08:30 active universe preparation", "real Sina+Tencent 09:25:05/14:49 capture", "real 09:25:50/14:50 PushPlus HTTP 200 and full entity lineage", "V5 paper-writer cutover remains separately gated"]
 }

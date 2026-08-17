@@ -13,7 +13,7 @@ from .clock_gate import check as check_clock
 from .ownership import load as load_ownership
 
 WINDOWS={
-    "morning_pool":((9,24,20),(9,25,19)),
+    "morning_pool":((9,25,0),(9,25,39)),
     "morning_push":((9,25,0),(9,29,59)),
     "feature_freeze":((14,48,30),(14,49,59)),
     "confirmation":((14,50,0),(14,51,59)),
@@ -64,7 +64,10 @@ def run(root,task,*,now=None,failure_alert_env=None,clock_checker=None):
         else:raise ValueError("unsupported V5 task")
     except Exception as exc:
         outcome="FAILED";details={"error_type":type(exc).__name__,"error":str(exc)}
-        if failure_alert_env is not None:
+        dependency_failure=str(exc).startswith("V5 task dependencies incomplete:")
+        if dependency_failure:
+            details["failure_alert_suppressed"]="UPSTREAM_ROOT_CAUSE_ALREADY_ALERTED"
+        elif failure_alert_env is not None:
             try:details["failure_alert"]=send_failure(root,day,task,str(exc),failure_alert_env)
             except Exception as alert_exc:details["failure_alert_error"]=f"{type(alert_exc).__name__}: {alert_exc}"
     record=scheduler.record(task,day,outcome,now,details);return {"passed":outcome=="SUCCESS","run":record}

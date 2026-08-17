@@ -22,9 +22,9 @@ class V5ReadOnlySources:
     def __init__(self,root:Path|str):self.root=Path(root)
     def build(self,trade_date:str,*,as_of=None):
         confirmation_raw=_latest(self.root,"confirmations",trade_date,as_of=as_of)
-        stage="signal" if confirmation_raw else "morning"
-        acquisition_raw=_latest(self.root,"acquisition",trade_date,predicate=lambda row:row.get("stage")==stage,as_of=as_of)
         pool_raw=_latest(self.root,"morning_pools",trade_date,as_of=as_of)
+        stage="signal" if confirmation_raw else "morning"
+        acquisition_raw=(_latest(self.root,"acquisition",trade_date,predicate=lambda row:row.get("stage")==stage,as_of=as_of) if (confirmation_raw or pool_raw) else _latest(self.root,"acquisition",trade_date,as_of=as_of))
         acquisition=(AcquisitionSessionV1.build(trade_date=acquisition_raw["trade_date"],stage=acquisition_raw["stage"],requested_at=acquisition_raw["requested_at"],expected_codes=acquisition_raw["expected_codes"],selected_snapshot_id=acquisition_raw["selected_snapshot_id"],accepted=acquisition_raw["accepted"],source_attempts=acquisition_raw["source_attempts"]) if acquisition_raw else None)
         morning=(MorningPoolV5(pool_raw["trade_date"],pool_raw["created_at"],pool_raw["funnel_id"],pool_raw["snapshot_id"],pool_raw["market_state_id"],tuple(pool_raw["candidates"])) if pool_raw else None)
         confirmation=(ConfirmationV5(confirmation_raw["trade_date"],confirmation_raw["decided_at"],confirmation_raw["morning_pool_id"],confirmation_raw["funnel_id"],confirmation_raw["snapshot_id"],confirmation_raw["market_state_id"],tuple(confirmation_raw["candidates"]),tuple(confirmation_raw["changes"]),confirmation_raw["outcome"]) if confirmation_raw else None)

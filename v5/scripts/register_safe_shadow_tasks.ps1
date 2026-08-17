@@ -6,7 +6,7 @@ $script=Join-Path $root "v5\scripts\v5_task.py"
 $settings=New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -WakeToRun -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 10) -MultipleInstances IgnoreNew -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 2)
 $principal=New-ScheduledTaskPrincipal -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -LogonType Interactive -RunLevel Limited
 $specs=@(
- @("Morning-Facts","morning_pool","09:24:30"),@("Morning-Push","morning_push","09:25:20"),@("Feature-Freeze","feature_freeze","14:49:00"),@("Confirmation","confirmation","14:50:00"),@("Confirmation-Push","confirmation_push","14:50:30"),@("Health","health_check","14:53:00"),@("Maintenance","maintenance","15:10:00")
+ @("Morning-Facts","morning_pool","09:25:05"),@("Morning-Push","morning_push","09:25:50"),@("Feature-Freeze","feature_freeze","14:49:00"),@("Confirmation","confirmation","14:50:00"),@("Confirmation-Push","confirmation_push","14:50:30"),@("Health","health_check","14:53:00"),@("Maintenance","maintenance","15:10:00")
 )
 $date=$TradeDate.ToString("yyyy-MM-dd");$suffix=$TradeDate.ToString("yyyyMMdd")
 $readinessName="AStock-V5-Readiness-$suffix"

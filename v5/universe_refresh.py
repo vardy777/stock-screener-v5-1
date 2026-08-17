@@ -55,15 +55,21 @@ def _previous(root,day,*,as_of=None):
     if not candidates:return None
     return max(candidates,key=lambda item:(item[0],item[1]))[2]
 def refresh(root,*,now=None,fetch_json=None,minimum_prior_ratio=.98,maximum_churn_ratio=.02,overall_budget_seconds=12,monotonic=None):
-    current=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=current.date().isoformat();codes,diagnostics=fetch_codes(fetch_json=fetch_json,overall_budget_seconds=overall_budget_seconds,monotonic=monotonic,return_diagnostics=True);prior=_previous(root,day,as_of=current);checks={"provider_nonempty":bool(codes),"pagination_complete":True}
+    current=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=current.date().isoformat();codes,diagnostics=fetch_codes(fetch_json=fetch_json,overall_budget_seconds=overall_budget_seconds,monotonic=monotonic,return_diagnostics=True)
+    if fetch_json is None:
+        from .tencent_source import active_codes
+        directory_count=len(codes);codes=active_codes(codes);diagnostics["directory_count"]=directory_count;diagnostics["active_count"]=len(codes);diagnostics["active_filter"]="tencent_explicit_delisted_marker"
+    prior=_previous(root,day,as_of=current);checks={"provider_nonempty":bool(codes),"pagination_complete":True}
     if prior:
         old=set(prior["codes"]);new=set(codes);legacy_seed="legacy_daily_archive_seed_migration" in prior.get("sources",[])
-        checks["minimum_prior_count"]=len(new)>=len(old)*minimum_prior_ratio
+        active_scope_correction=(diagnostics.get("active_filter")=="tencent_explicit_delisted_marker" and new<=old and len(new)>=len(old)*.90)
+        checks["minimum_prior_count"]=len(new)>=len(old)*minimum_prior_ratio or active_scope_correction
+        if active_scope_correction:diagnostics["scope_correction"]="REMOVE_TENCENT_EXPLICIT_DELISTED_ONLY"
         if legacy_seed:
             checks["legacy_seed_retention"]=len(old&new)/max(len(old),1)>=.995;checks["migration_is_expansion_only"]=len(old-new)==0;checks["bounded_churn"]=checks["legacy_seed_retention"] and checks["migration_is_expansion_only"];diagnostics["migration_mode"]="legacy_seed_to_native_directory"
         else:
             star_scope_upgrade=not any(code.startswith(("688","689")) for code in old) and any(code.startswith(("688","689")) for code in new) and not (old-new)
-            checks["bounded_churn"]=len(old^new)/max(len(old),1)<=maximum_churn_ratio or star_scope_upgrade
+            checks["bounded_churn"]=len(old^new)/max(len(old),1)<=maximum_churn_ratio or star_scope_upgrade or active_scope_correction
             if star_scope_upgrade:diagnostics["scope_upgrade"]="ADD_STAR_MARKET_RETAIN_ALL_PRIOR_CODES"
     if not all(checks.values()):raise ContractViolation("daily universe anomaly gate rejected refresh")
-    universe=UniverseV1.build(trade_date=day,created_at=current,codes=codes,sources=["eastmoney_realtime_market_directory","prior_universe_anomaly_gate"]);path=universe.save(root);return {"universe_id":universe.universe_id,"trade_date":day,"count":len(universe.codes),"checks":checks,"diagnostics":diagnostics,"path":str(path)}
+    universe=UniverseV1.build(trade_date=day,created_at=current,codes=codes,sources=["eastmoney_realtime_market_directory","tencent_active_listing_filter","prior_universe_anomaly_gate"]);path=universe.save(root);return {"universe_id":universe.universe_id,"trade_date":day,"count":len(universe.codes),"checks":checks,"diagnostics":diagnostics,"path":str(path)}
