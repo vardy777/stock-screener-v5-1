@@ -1,92 +1,58 @@
-# 本地运行手册
+# V5 本地运行手册
 
-## 每次进入项目
+## 进入项目
 
 ```powershell
 cd C:\Users\lisha\stock-screener
 .\.venv\Scripts\python.exe scripts\project_status.py
 ```
 
-先确认 `active_phase`、门禁、下一任务和测试状态，再开始改动。
-
-## 看板
-
-地址：`http://localhost:8898/`
-
-独立启动：
+看板：[http://localhost:8899/](http://localhost:8899/)。独立启动：
 
 ```powershell
-.\.venv\Scripts\python.exe -X utf8 -m v4.p5_dashboard --port 8898 --data-dir v4/data
+.\.venv\Scripts\python.exe -X utf8 -m v5.dashboard --port 8899 --data-dir v5/data
 ```
 
-健康检查：
+## 每日生产表
+
+| 时间 | 任务 | 权威证据 |
+|---|---|---|
+| 08:30 | readiness | `v5/data/preflight/YYYY-MM-DD` |
+| 09:25:05 | morning_pool | acquisition/snapshot/market_state/funnel/morning_pool |
+| 09:25:50 | morning_push | `notifications/YYYY-MM-DD/morning.json` |
+| 09:30:10 | paper_sell | paper订单、事件、sell acquisition与baseline |
+| 14:49 | feature_freeze | signal acquisition/snapshot/frozen pointer |
+| 14:50 | confirmation | 同日母池子集ConfirmationV5 |
+| 14:50:30 | confirmation_push | `notifications/YYYY-MM-DD/confirmation.json` |
+| 14:50:40 | paper_buy | Top1订单和事件 |
+| 14:53 | health_check | 依赖、血缘、通知、账本与恢复 |
+| 15:10 | maintenance | JSON校验和内容清单 |
+| 15:20 | live_acceptance | 全日不可变验收报告 |
+
+## 故障定位
+
+1. `Get-ScheduledTaskInfo -TaskName AStock-V5-...-Daily` 查看时间和返回码。
+2. 查看 `v5/data/runs/YYYY-MM-DD` 的不可变任务事实。
+3. 查看当日 `acquisition` 和 `consensus` 中每个源的覆盖、年龄、批次耗时及拒绝原因。
+4. 检查候选、确认、快照和市场状态ID血缘。
+5. 推送必须同时存在最终实体和 `HTTP 200 / ACCEPTED` 回执。
+6. 检查 `v5/data/paper` 事件链、待执行订单和对账。
+7. 看板异常时先检查 `http://127.0.0.1:8899/api/read-model`；不得回退V4数据。
+
+## 验收
 
 ```powershell
-Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8898/?view=ops
-```
-
-## 每日关键链路
-
-| 时间 | 预期产物 |
-|---|---|
-| 09:25 | `candidate_journal/YYYY-MM-DD.json` 的 `morning` 与PushPlus回执 |
-| 09:30:20 | 前一交易日持仓卖出或明确空仓回执 |
-| 14:49 | 严格信号特征；失败不得伪造 |
-| 14:50:20 | 同日日志的 `confirmation` 与PushPlus回执 |
-| 14:50:40 | paper buy回执，可能成交、空仓或阻断 |
-| 15:10 | 下一交易日上下文、标签和维护报告 |
-
-运行数据位于 `v4/data/` 和 `phase1/data/`，均被Git忽略。
-
-### P1快照目录
-
-```text
-phase1/data/execution_snapshots/
-├── strict/       # 唯一允许进入执行标签、严格数据集和模型研究的快照
-├── paper_only/   # 模拟账户执行观测，不得进入训练
-├── diagnostic/   # 窗口外人工诊断
-└── quality/      # 逐次质量原因和按日汇总
-```
-
-`strict`、`paper_only` 和 `diagnostic` 不得通过移动文件互相转换。旧版根目录下的
-`buy/sell/signal` 仅作为只读历史资产保留，新标签构建默认不会读取。
-
-## 故障定位顺序
-
-1. Windows任务是否执行、返回码是什么；
-2. `phase1/data/logs/` 对应任务日志；
-3. 当日candidate journal是否有早盘和确认；
-4. `v4/data/notifications/` 是否有完整 `NotificationReceiptV1`；
-5. `v4/data/p3/` 账本、订单、成交和执行结果是否可对账；
-6. 看板进程是否为 `python -m v4.p5_dashboard`；
-7. 不得通过降低严格门槛掩盖数据失败。
-
-## 验证
-
-```powershell
-.\.venv\Scripts\python.exe scripts\project_status.py
 .\.venv\Scripts\python.exe -m pytest -q
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\audit_production_tasks.ps1
+.\.venv\Scripts\python.exe -m v5.independence_audit
+.\.venv\Scripts\python.exe v5\scripts\live_acceptance.py --trade-date YYYY-MM-DD
 ```
 
-## 安全边界
+## 安全与恢复
 
-- 不连接券商，不发送真实订单；
-- `research_locked`不得人工绕过；
-- `v4/.env`不得输出或提交；
-- 重置账户、删除数据、重新注册系统任务前必须明确确认目标和影响。
-
-## 切换准备与统一验收（只读）
-
-```powershell
-python scripts/offline_acceptance.py --run-tests --output docs/reports/offline-acceptance-latest.json
-
-# 当日生产验收（与离线工程验收严格分离；只读、失败关闭）
-python scripts/daily_operations_acceptance.py --trade-date YYYY-MM-DD --output docs/reports/daily-operations-YYYY-MM-DD.json
-powershell -NoProfile -File scripts/export_v4_runtime_inventory.ps1 > runtime-inventory.json
-python scripts/live_window_acceptance.py --trade-date 2026-08-10 --next-session-date 2026-08-11 --derive-project
-python scripts/cutover_preflight.py --live-report live-report.json --legacy-account account.json --task-inventory runtime-inventory.json --writer-inventory runtime-inventory.json --backup-report backup-report.json
-```
-
-以上命令不注册、停用或修改Windows任务，不迁移账户，不改接8898。真实窗口派生只会
-首次保存PASSED窗口；失败或未发生窗口保持缺失。`cutover_preflight.py`在当前阶段必定
-因生产授权门禁返回非零，属于正确结果。
+- 不连接券商；`research_locked`不得绕过。
+- `v5/.env`不得显示、复制到日志或提交。
+- 不补写错过窗口；恢复观察必须保持非严格、不可确认、不可模拟成交。
+- 不同时启用V4和V5账本写者。
+- 重置账本、删除事实或变更所有权前必须先核对持仓、事件数和备份。
+- 公共行情失败时保持空仓，不通过放宽覆盖、时效或一致性门槛恢复表面可用性。
