@@ -82,3 +82,11 @@ V5 has not completed one correct full production day. Its offline contracts and 
 - The repaired dashboard returned HTTP 200 with `accepted_no_morning_pool`, 0 candidates, both source identities, the 14:49 snapshot and a forced-empty-position explanation.
 - The 14:53 health task ran independently, retained all failed checks and received a separate HTTP 200 / ACCEPTED health alert. Native universe, paper reconciliation/recovery, exclusive writer and due-position exit checks passed.
 - Full suite after the live defect repair: 385 passed, 0 failed.
+
+## Final 15:10 / 15:20 evidence
+
+- The recurring maintenance task ran at 15:10 and exited 0. Manifest `maint1-da6b931ed243dbf66643bb4b` validated 113 JSON files and found no invalid file.
+- The recurring live-acceptance task ran at 15:20. It persisted `liveacc1-e618bf9dcfd2439efcf7ee86` with no readiness or run validation errors.
+- The acceptance result is truthfully incomplete because the strict 09:25 mother pool, morning notification and complete decision lineage do not exist for this date. Exit code 3 is the required fail-closed outcome, not a scheduler failure.
+- All 11 recurring V5 tasks point to 2026-08-24 for their next applicable run. Production static audit v7 and V5 independence audit pass.
+- Full suite after the status-reader compatibility repair: 388 passed, 0 failed.

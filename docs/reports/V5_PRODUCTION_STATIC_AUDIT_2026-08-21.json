@@ -1,0 +1,267 @@
+{
+    "schema_version":  "production-task-static-audit-v7",
+    "passed":  true,
+    "v4_production_retired":  true,
+    "v4_dashboard_retired":  true,
+    "v4_os_tasks_all_disabled":  false,
+    "v4_runtime_safe":  true,
+    "legacy_tasks":  [
+                         {
+                             "task_name":  "AStock-V4-Buy-1450",
+                             "state":  "Disabled",
+                             "disabled":  true,
+                             "code_guarded":  false,
+                             "runtime_safe":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Confirmation-Decision-145020",
+                             "state":  "Ready",
+                             "disabled":  false,
+                             "code_guarded":  true,
+                             "runtime_safe":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Confirmation-Push-145030",
+                             "state":  "Ready",
+                             "disabled":  false,
+                             "code_guarded":  true,
+                             "runtime_safe":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Dashboard-Logon",
+                             "state":  "Disabled",
+                             "disabled":  true,
+                             "code_guarded":  true,
+                             "runtime_safe":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Feature-1449",
+                             "state":  "Ready",
+                             "disabled":  false,
+                             "code_guarded":  true,
+                             "runtime_safe":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Health-1453",
+                             "state":  "Ready",
+                             "disabled":  false,
+                             "code_guarded":  true,
+                             "runtime_safe":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Health-Close-1453",
+                             "state":  "Disabled",
+                             "disabled":  true,
+                             "code_guarded":  false,
+                             "runtime_safe":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Health-Sell-0936",
+                             "state":  "Disabled",
+                             "disabled":  true,
+                             "code_guarded":  false,
+                             "runtime_safe":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Maintenance-1510",
+                             "state":  "Disabled",
+                             "disabled":  true,
+                             "code_guarded":  true,
+                             "runtime_safe":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Morning-Decision-0925",
+                             "state":  "Ready",
+                             "disabled":  false,
+                             "code_guarded":  true,
+                             "runtime_safe":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Morning-Push-092520",
+                             "state":  "Ready",
+                             "disabled":  false,
+                             "code_guarded":  true,
+                             "runtime_safe":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Paper-Buy-145040",
+                             "state":  "Ready",
+                             "disabled":  false,
+                             "code_guarded":  true,
+                             "runtime_safe":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Paper-Sell-093020",
+                             "state":  "Ready",
+                             "disabled":  false,
+                             "code_guarded":  true,
+                             "runtime_safe":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Push-Confirm-145020",
+                             "state":  "Disabled",
+                             "disabled":  true,
+                             "code_guarded":  false,
+                             "runtime_safe":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Push-Morning-0925",
+                             "state":  "Disabled",
+                             "disabled":  true,
+                             "code_guarded":  false,
+                             "runtime_safe":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Sell-0930",
+                             "state":  "Disabled",
+                             "disabled":  true,
+                             "code_guarded":  false,
+                             "runtime_safe":  true
+                         },
+                         {
+                             "task_name":  "AStock-V4-Signal-1449",
+                             "state":  "Disabled",
+                             "disabled":  true,
+                             "code_guarded":  false,
+                             "runtime_safe":  true
+                         }
+                     ],
+    "v5_recurring_tasks":  [
+                               {
+                                   "task_name":  "AStock-V5-Confirmation-Daily",
+                                   "state":  "Ready",
+                                   "kind":  "confirmation",
+                                   "v5_bound":  true,
+                                   "broker":  false,
+                                   "allow_battery":  true,
+                                   "wake":  true,
+                                   "start_when_available":  true,
+                                   "restart_count":  3,
+                                   "restart_interval":  "PT1M"
+                               },
+                               {
+                                   "task_name":  "AStock-V5-Confirmation-Push-Daily",
+                                   "state":  "Ready",
+                                   "kind":  "confirmation_push",
+                                   "v5_bound":  true,
+                                   "broker":  false,
+                                   "allow_battery":  true,
+                                   "wake":  true,
+                                   "start_when_available":  true,
+                                   "restart_count":  3,
+                                   "restart_interval":  "PT1M"
+                               },
+                               {
+                                   "task_name":  "AStock-V5-Feature-Freeze-Daily",
+                                   "state":  "Ready",
+                                   "kind":  "feature_freeze",
+                                   "v5_bound":  true,
+                                   "broker":  false,
+                                   "allow_battery":  true,
+                                   "wake":  true,
+                                   "start_when_available":  true,
+                                   "restart_count":  3,
+                                   "restart_interval":  "PT1M"
+                               },
+                               {
+                                   "task_name":  "AStock-V5-Health-Daily",
+                                   "state":  "Ready",
+                                   "kind":  "health_check",
+                                   "v5_bound":  true,
+                                   "broker":  false,
+                                   "allow_battery":  true,
+                                   "wake":  true,
+                                   "start_when_available":  true,
+                                   "restart_count":  3,
+                                   "restart_interval":  "PT1M"
+                               },
+                               {
+                                   "task_name":  "AStock-V5-Live-Acceptance-Daily",
+                                   "state":  "Ready",
+                                   "kind":  "live_acceptance",
+                                   "v5_bound":  true,
+                                   "broker":  false,
+                                   "allow_battery":  true,
+                                   "wake":  true,
+                                   "start_when_available":  true,
+                                   "restart_count":  3,
+                                   "restart_interval":  "PT1M"
+                               },
+                               {
+                                   "task_name":  "AStock-V5-Maintenance-Daily",
+                                   "state":  "Ready",
+                                   "kind":  "maintenance",
+                                   "v5_bound":  true,
+                                   "broker":  false,
+                                   "allow_battery":  true,
+                                   "wake":  true,
+                                   "start_when_available":  true,
+                                   "restart_count":  3,
+                                   "restart_interval":  "PT1M"
+                               },
+                               {
+                                   "task_name":  "AStock-V5-Morning-Facts-Daily",
+                                   "state":  "Ready",
+                                   "kind":  "morning_pool",
+                                   "v5_bound":  true,
+                                   "broker":  false,
+                                   "allow_battery":  true,
+                                   "wake":  true,
+                                   "start_when_available":  true,
+                                   "restart_count":  3,
+                                   "restart_interval":  "PT1M"
+                               },
+                               {
+                                   "task_name":  "AStock-V5-Morning-Push-Daily",
+                                   "state":  "Ready",
+                                   "kind":  "morning_push",
+                                   "v5_bound":  true,
+                                   "broker":  false,
+                                   "allow_battery":  true,
+                                   "wake":  true,
+                                   "start_when_available":  true,
+                                   "restart_count":  3,
+                                   "restart_interval":  "PT1M"
+                               },
+                               {
+                                   "task_name":  "AStock-V5-Paper-Buy-Daily",
+                                   "state":  "Ready",
+                                   "kind":  "paper_buy",
+                                   "v5_bound":  true,
+                                   "broker":  false,
+                                   "allow_battery":  true,
+                                   "wake":  true,
+                                   "start_when_available":  true,
+                                   "restart_count":  3,
+                                   "restart_interval":  "PT1M"
+                               },
+                               {
+                                   "task_name":  "AStock-V5-Paper-Sell-Daily",
+                                   "state":  "Ready",
+                                   "kind":  "paper_sell",
+                                   "v5_bound":  true,
+                                   "broker":  false,
+                                   "allow_battery":  true,
+                                   "wake":  true,
+                                   "start_when_available":  true,
+                                   "restart_count":  3,
+                                   "restart_interval":  "PT1M"
+                               },
+                               {
+                                   "task_name":  "AStock-V5-Readiness-Daily",
+                                   "state":  "Ready",
+                                   "kind":  "readiness",
+                                   "v5_bound":  true,
+                                   "broker":  false,
+                                   "allow_battery":  true,
+                                   "wake":  true,
+                                   "start_when_available":  true,
+                                   "restart_count":  3,
+                                   "restart_interval":  "PT1M"
+                               }
+                           ],
+    "v5_recurring_ready":  true,
+    "v5_paper_writer_enabled":  true,
+    "v5_dashboard_supervised":  true,
+    "read_only":  true
+}

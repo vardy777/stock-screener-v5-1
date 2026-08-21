@@ -2,7 +2,13 @@ import json
 import unittest
 from pathlib import Path
 
-from scripts.project_status import REQUIRED_FILES, build_report, load_state, runtime_observation
+from scripts.project_status import (
+    REQUIRED_FILES,
+    build_report,
+    format_runtime_observation,
+    load_state,
+    runtime_observation,
+)
 import tempfile
 
 
@@ -63,6 +69,46 @@ class ProjectGovernanceTests(unittest.TestCase):
             self.assertEqual(value["kind"],"non_strict_recovery_observation")
             self.assertFalse(value["strict_0925_sample"])
             self.assertEqual(value["notification_outcome"],"ACCEPTED")
+            lines = format_runtime_observation(value)
+            self.assertIn("recovery_candidates=1", lines[0])
+            self.assertIn("strict_0925_sample=False", lines[0])
+
+    def test_runtime_status_formats_strict_pool_observation(self):
+        lines = format_runtime_observation({
+            "available": True,
+            "kind": "strict_morning_pool",
+            "trade_date": "2026-08-24",
+            "morning_candidates": 5,
+            "confirmation_candidates": 1,
+            "paper_bought": 1,
+            "paper_message": "V5 single writer active",
+        })
+        self.assertEqual(lines[0], "latest: 2026-08-24 morning=5 confirmation=1 bought=1")
+        self.assertEqual(lines[1], "paper: V5 single writer active")
+
+    def test_runtime_status_prefers_newer_strict_tail_without_inventing_pool(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            recovery = root / "v5/data/recovery_observations/2026-08-21/r.json"
+            recovery.parent.mkdir(parents=True)
+            recovery.write_text(json.dumps({
+                "trade_date": "2026-08-21",
+                "observed_at": "2026-08-21T13:02:00+08:00",
+                "candidates": [{}],
+            }), encoding="utf-8")
+            acquisition = root / "v5/data/acquisition/2026-08-21/a.json"
+            acquisition.parent.mkdir(parents=True)
+            acquisition.write_text(json.dumps({
+                "stage": "signal",
+                "trade_date": "2026-08-21",
+                "requested_at": "2026-08-21T14:49:01+08:00",
+                "accepted": True,
+                "selected_snapshot_id": "ms1-tail",
+            }), encoding="utf-8")
+            value = runtime_observation(root)
+            self.assertEqual(value["kind"], "strict_tail_without_morning_pool")
+            self.assertFalse(value["morning_pool"])
+            self.assertIn("morning_pool=False", format_runtime_observation(value)[0])
 
 
 if __name__ == "__main__":

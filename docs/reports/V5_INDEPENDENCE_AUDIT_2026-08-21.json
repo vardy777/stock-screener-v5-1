@@ -1,0 +1,16 @@
+{
+  "schema_version": "v5-independence-audit-v1",
+  "fully_independent": true,
+  "checks": {
+    "no_legacy_runtime_imports": true,
+    "v5_reference_calendar": true,
+    "v5_sensitive_config": true,
+    "v5_market_adapters": true,
+    "v5_fact_production": true,
+    "production_data_exists": true,
+    "production_scheduler_cutover": true,
+    "dashboard_8899_cutover": true,
+    "paper_writer_cutover": true
+  },
+  "violations": []
+}

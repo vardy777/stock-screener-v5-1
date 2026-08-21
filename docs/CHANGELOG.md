@@ -100,6 +100,11 @@
 - 加入V4禁止导入V3的自动测试。
 # V5 offline product closure - 2026-08-13
 
+## 2026-08-21 final live-window acceptance
+
+- Recorded the real 15:10 maintenance and 15:20 fail-closed daily acceptance. The report contains no immutable validation errors and correctly remains incomplete because the strict 09:25 mother pool is absent.
+- Made the read-only project status renderer distinguish strict tail evidence, non-strict recovery observations and strict mother pools instead of crashing on strict-pool-only fields or reporting an older recovery as current. Full suite: 388 passed.
+
 - Closed the V5-native paper/strategy measurement loop without enabling a second writer: implemented both paper task entrypoints, causal 14:50/next-09:30 execution, immutable orders and hash-chained events, crash recovery, process locking, depth/fees/slippage/T+1 constraints, ledger-derived round trips and a strict equal-weight confirmed-set baseline. Added a V5-owned exchange calendar and immutable whole-market state with fail-closed risk gating and full lineage into notifications and the dashboard. Strategy evidence remains `INSUFFICIENT_EVIDENCE`, V4 remains the sole paper writer, and cutover remains blocked on real source/live-window acceptance. Full suite: 328 passed.
 - Replaced the stale 8899 dashboard listener through its supervised task after proving that stopping the Windows task did not terminate an older descendant Python process. The live V5 page now returns HTTP 200 from the current code and explicitly reports that risk cannot be judged when no market-state fact exists, instead of claiming that no risk gate was triggered.
 - Hardened the V5 dashboard supervisor runner against orphaned listeners: it replaces only a listener whose command line proves it is this repository's V5 dashboard, refuses destructive takeover of any foreign port owner, and verifies the port is free before launch.

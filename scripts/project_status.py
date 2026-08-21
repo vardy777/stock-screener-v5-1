@@ -47,8 +47,14 @@ def v3_import_violations() -> list[str]:
 def runtime_observation(root: Path = ROOT) -> dict:
     data=root/"v5/data";pools=sorted((data/"morning_pools").glob("*/*.json")) if (data/"morning_pools").exists() else []
     recoveries=sorted((data/"recovery_observations").glob("*/*.json")) if (data/"recovery_observations").exists() else []
+    acquisitions=sorted((data/"acquisition").glob("*/*.json")) if (data/"acquisition").exists() else []
     latest_pool=json.loads(pools[-1].read_text(encoding="utf-8")) if pools else None
     latest_recovery=json.loads(recoveries[-1].read_text(encoding="utf-8")) if recoveries else None
+    signal_rows=[json.loads(path.read_text(encoding="utf-8")) for path in acquisitions]
+    signal_rows=[row for row in signal_rows if row.get("stage")=="signal"]
+    latest_signal=max(signal_rows,key=lambda row:str(row.get("requested_at",""))) if signal_rows else None
+    if latest_signal and (not latest_pool or latest_signal.get("trade_date")!=latest_pool.get("trade_date")) and (not latest_recovery or str(latest_signal.get("requested_at",""))>str(latest_recovery.get("observed_at",""))):
+        return {"available":True,"kind":"strict_tail_without_morning_pool","trade_date":str(latest_signal.get("trade_date","")),"accepted":latest_signal.get("accepted") is True,"morning_pool":False,"snapshot_id":latest_signal.get("selected_snapshot_id","")}
     if latest_recovery and (not latest_pool or str(latest_recovery.get("observed_at",""))>str(latest_pool.get("created_at",""))):
         day=str(latest_recovery.get("trade_date",""));receipts=sorted((data/"recovery_notifications"/day).glob("*.json")) if (data/"recovery_notifications"/day).exists() else []
         receipt=json.loads(receipts[-1].read_text(encoding="utf-8")) if receipts else {}
@@ -67,6 +73,32 @@ def runtime_observation(root: Path = ROOT) -> dict:
         "confirmation_candidates":len(confirmation.get("candidates",[])),
         "paper_bought":buy_count,"paper_message":"V5 single writer active" if ownership.get("paper_writer")=="v5" and ownership.get("authorized") is True else "V5 paper writer inactive",
     }
+
+
+def format_runtime_observation(runtime: dict) -> list[str]:
+    """Render every versioned runtime observation without assuming strict facts."""
+    if not runtime.get("available"):
+        return []
+    if runtime.get("kind") == "non_strict_recovery_observation":
+        return [
+            "latest: {trade_date} recovery_candidates={candidate_count} "
+            "strict_0925_sample={strict_0925_sample} notification={notification_outcome}".format(
+                **runtime
+            ),
+            f"snapshot: {runtime.get('snapshot_id', '')}",
+        ]
+    if runtime.get("kind") == "strict_tail_without_morning_pool":
+        return [
+            "latest: {trade_date} strict_tail_accepted={accepted} morning_pool={morning_pool}".format(
+                **runtime
+            ),
+            f"snapshot: {runtime.get('snapshot_id', '')}",
+        ]
+    return [
+        "latest: {trade_date} morning={morning_candidates} "
+        "confirmation={confirmation_candidates} bought={paper_bought}".format(**runtime),
+        f"paper: {runtime.get('paper_message')}",
+    ]
 
 def governance_issues(state: dict) -> list[str]:
     issues=[]
@@ -130,12 +162,8 @@ def main() -> int:
         print(f"production: {report['production_status']}")
         print(f"dashboard: {report['dashboard'].get('url')}")
         runtime = report["latest_runtime_observation"]
-        if runtime.get("available"):
-            print(
-                "latest: {trade_date} morning={morning_candidates} "
-                "confirmation={confirmation_candidates} bought={paper_bought}".format(**runtime)
-            )
-            print(f"paper: {runtime.get('paper_message')}")
+        for line in format_runtime_observation(runtime):
+            print(line)
         print("next:")
         for task in report["next_tasks"]:
             print(f"- {task}")
