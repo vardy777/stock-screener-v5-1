@@ -28,6 +28,12 @@ class Source:
         return self.value
 
 class V5DataAndFunnelTests(unittest.TestCase):
+    def test_snapshot_freshness_uses_provider_response_not_last_trade_time(self):
+        quiet=quote("000001",exchange_time=(NOW-timedelta(minutes=8)).isoformat(),provider_time=(NOW-timedelta(seconds=2)).isoformat())
+        result=MarketSnapshotV1.build(trade_date="2026-08-13",session="signal",batch_started_at=NOW-timedelta(seconds=3),batch_completed_at=NOW,quotes=[quiet],expected_codes=1)
+        self.assertTrue(result.quality.accepted)
+        self.assertLessEqual(result.quality.maximum_quote_age_seconds,2)
+
     def test_universe_is_content_addressed_and_board_filtered(self):
         universe=UniverseV1.build(trade_date="2026-08-13",created_at=NOW,codes=["000001","600000","688001","900901","430001"],sources=["daily_archive"])
         self.assertEqual(universe.codes,("000001","600000","688001"));self.assertTrue(universe.universe_id.startswith("univ1-"));self.assertEqual(universe.to_dict()["market_scope"],"SSE_SZSE_A_INCLUDING_STAR_EXCLUDING_BSE")

@@ -94,7 +94,7 @@ class TencentRealtimeSource:
                     ratio = .2 if code.startswith(("30", "688", "689")) else .1
                     quotes.append(QuoteV1.from_mapping({
                         "code": code, "name": name, "trade_date": exchange.date().isoformat(),
-                        "exchange_time": exchange, "provider_time": exchange, "received_at": received,
+                        "exchange_time": exchange, "provider_time": received, "received_at": received,
                         "last_price": price, "previous_close": previous, "open_price": opened,
                         "high_price": high, "low_price": low, "bid1": bid,
                         "bid1_volume": int(float(fields[10] or 0) * 100), "ask1": ask,

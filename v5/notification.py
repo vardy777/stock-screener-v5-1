@@ -32,7 +32,12 @@ def _validate_snapshot_freshness(root, trade_date, snapshot_id, as_of):
     quotes = raw.get("quotes", [])
     if not quotes:
         raise ContractViolation("V5 notification snapshot quotes missing")
-    times = [datetime.fromisoformat(str(row.get("exchange_time"))) for row in quotes]
+    # Delivery freshness must use the provider response lineage.  A valid
+    # illiquid symbol may have an old last-trade exchange_time.
+    try:
+        times = [datetime.fromisoformat(str(row.get("provider_time"))) for row in quotes]
+    except (TypeError, ValueError) as exc:
+        raise ContractViolation("V5 notification provider time invalid") from exc
     if any(value.tzinfo is None or value.utcoffset() is None for value in times):
         raise ContractViolation("V5 notification quote time invalid")
     maximum = max(

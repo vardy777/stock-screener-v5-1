@@ -55,7 +55,10 @@ class MarketSnapshotV1:
     def build(cls,*,trade_date,session,batch_started_at,batch_completed_at,quotes:Iterable[QuoteV1],expected_codes,minimum_coverage=.95,maximum_age_seconds=30,maximum_batch_seconds=30):
         started=_aware(batch_started_at,"batch_started_at");completed=_aware(batch_completed_at,"batch_completed_at");items=tuple(quotes);expected=int(expected_codes)
         if completed<started or expected<1 or not all(isinstance(x,QuoteV1) for x in items):raise ContractViolation("snapshot inputs invalid")
-        codes=[x.code for x in items];coverage=len(set(codes))/expected;ages=[(completed-datetime.fromisoformat(x.exchange_time)).total_seconds() for x in items]
+        # A quiet symbol may not trade for minutes even though its quote book
+        # was fetched now.  Batch freshness therefore follows provider
+        # response time; exchange_time remains immutable symbol-level lineage.
+        codes=[x.code for x in items];coverage=len(set(codes))/expected;ages=[(completed-datetime.fromisoformat(x.provider_time)).total_seconds() for x in items]
         reasons=[]
         if not items:reasons.append("empty")
         if len(codes)!=len(set(codes)):reasons.append("duplicate_code")

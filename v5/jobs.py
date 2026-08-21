@@ -52,7 +52,8 @@ def produce(root,stage,*,now=None,sources=None):
     if not result.accepted:raise ContractViolation("V5 dual-source consensus rejected")
     store.save_snapshot(result.primary);market=MarketStateV1.from_snapshot(result.primary);store.save_market_state(market);funnel=CandidateFunnel()
     fact=funnel.run(result.primary,market_state_id=market.market_state_id,market_valid=market.trade_allowed,stage="morning");store.save_funnel(fact)
-    entity=MorningPoolV5.from_funnel(fact,created_at=current);store.save_pool(entity);return entity.to_dict()
+    completed=datetime.fromisoformat(result.primary.batch_completed_at).astimezone(CHINA_TZ)
+    entity=MorningPoolV5.from_funnel(fact,created_at=completed);store.save_pool(entity);return entity.to_dict()
 
 def confirm_frozen(root,*,now=None):
     current=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=current.date().isoformat();pointer_path=Path(root)/"frozen"/day/"signal.json"
@@ -65,7 +66,7 @@ def freeze(root,*,now=None,sources=None):
     current=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=current.date().isoformat();universe=load_universe(root,day,as_of=current,require_native=True);sources=sources or (SinaRealtimeSource(),TencentRealtimeSource());result=ConsensusAcquirer(*sources).acquire(universe,stage="signal",now=current);_save_immutable(root,"consensus",day,"cons1-",result.report)
     attempts=result.report.get("attempts",[]);session=AcquisitionSessionV1.build(trade_date=day,stage="signal",requested_at=current,expected_codes=len(universe.codes),selected_snapshot_id=result.primary.snapshot_id if result.accepted else "",accepted=result.accepted,source_attempts=attempts);store=V5FactStore(root);store.save_session(session)
     if not result.accepted:raise ContractViolation("V5 feature freeze consensus rejected")
-    store.save_snapshot(result.primary);pointer=Path(root)/"frozen"/day/"signal.json";pointer.parent.mkdir(parents=True,exist_ok=True);pointer_value={"snapshot_id":result.primary.snapshot_id,"frozen_at":current.isoformat(),"acquisition_session_id":session.session_id};raw=json.dumps(pointer_value,sort_keys=True,separators=(",",":"));tmp=pointer.with_suffix(f".{os.getpid()}.tmp");tmp.write_text(raw,encoding="utf-8")
+    store.save_snapshot(result.primary);pointer=Path(root)/"frozen"/day/"signal.json";pointer.parent.mkdir(parents=True,exist_ok=True);completed=datetime.fromisoformat(result.primary.batch_completed_at).astimezone(CHINA_TZ);pointer_value={"snapshot_id":result.primary.snapshot_id,"frozen_at":completed.isoformat(),"acquisition_session_id":session.session_id};raw=json.dumps(pointer_value,sort_keys=True,separators=(",",":"));tmp=pointer.with_suffix(f".{os.getpid()}.tmp");tmp.write_text(raw,encoding="utf-8")
     try:os.link(tmp,pointer)
     except FileExistsError:
         if pointer.read_text(encoding="utf-8")!=raw:raise ContractViolation("14:49 frozen pointer immutable collision")

@@ -76,7 +76,7 @@ class ConsensusAcquirer:
         for code in common:
             a,b=left[code],right[code];base=max(a.last_price,b.last_price)
             if base<=0 or abs(a.last_price-b.last_price)/base>self.maximum_price_deviation:price_bad.add(code)
-            if abs((datetime.fromisoformat(a.exchange_time)-datetime.fromisoformat(b.exchange_time)).total_seconds())>self.maximum_time_difference_seconds:time_bad.add(code)
+            if abs((datetime.fromisoformat(a.provider_time)-datetime.fromisoformat(b.provider_time)).total_seconds())>self.maximum_time_difference_seconds:time_bad.add(code)
         consistent=(len(common)-len(price_bad|time_bad))/denominator
         accepted=match>=self.minimum_match and consistent>=self.minimum_match
         report.update({"matched_codes":len(common),"expected_codes":denominator,"match_ratio":match,"price_conflicts":len(price_bad),"time_conflicts":len(time_bad),"conflict_codes":sorted(price_bad|time_bad),"consistent_ratio":consistent,"accepted":accepted})

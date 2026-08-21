@@ -61,9 +61,9 @@ def test_production_payload_rejects_missing_or_stale_snapshot_content():
         root=Path(d);day=facts(root);now=datetime.fromisoformat(f"{day}T09:25:20+08:00")
         with pytest.raises(ContractViolation,match="snapshot content missing"):build_payload(root,day,"morning",as_of=now)
         path=root/"snapshots"/day/"ms1-a.json";path.parent.mkdir(parents=True)
-        path.write_text(json.dumps({"quotes":[{"exchange_time":f"{day}T09:23:00+08:00"}]}),encoding="utf-8")
+        path.write_text(json.dumps({"quotes":[{"exchange_time":f"{day}T09:23:00+08:00","provider_time":f"{day}T09:23:00+08:00"}]}),encoding="utf-8")
         with pytest.raises(ContractViolation,match="snapshot stale"):build_payload(root,day,"morning",as_of=now)
-        path.write_text(json.dumps({"quotes":[{"exchange_time":f"{day}T09:24:30+08:00"}]}),encoding="utf-8")
+        path.write_text(json.dumps({"quotes":[{"exchange_time":f"{day}T09:20:00+08:00","provider_time":f"{day}T09:24:30+08:00"}]}),encoding="utf-8")
         payload=build_payload(root,day,"morning",as_of=now);assert payload["maximum_quote_age_seconds"]==50
 
 def test_concurrent_notification_delivery_sends_exactly_once():
