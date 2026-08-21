@@ -4,6 +4,10 @@ from v5.recovery_observation import run
 from v5.market_snapshot import MarketSnapshotV1,QuoteV1
 from v5.universe import UniverseV1
 from v5.sources import V5ReadOnlySources
+from v5.contracts import AcquisitionSessionV1
+from v5.storage import V5FactStore
+from v5.market_state import MarketStateV1
+import json
 
 def test_recovery_observation_rejects_outside_narrow_afternoon_window(tmp_path):
     try:run(tmp_path,now=datetime(2026,8,21,11,50,tzinfo=CHINA_TZ),transport=lambda:{"code":200})
@@ -33,3 +37,11 @@ def test_recovery_observation_serializes_frozen_candidates_and_records_acceptanc
     model=V5ReadOnlySources(tmp_path).build("2026-08-21",as_of=now).to_dict()
     assert model["today"]["candidate_count"]==len(model["candidates"]["items"])
     assert model["today"]["source_consensus"]==["first","second"]
+
+    signal_at=now.replace(hour=14,minute=49);signal=snapshot("first")
+    signal=MarketSnapshotV1.build(trade_date="2026-08-21",session="signal",batch_started_at=signal_at-timedelta(seconds=2),batch_completed_at=signal_at,quotes=[QuoteV1.from_mapping({**signal.quotes[0].to_dict(),"exchange_time":signal_at-timedelta(seconds=1),"provider_time":signal_at-timedelta(seconds=1),"received_at":signal_at})],expected_codes=1)
+    store=V5FactStore(tmp_path);store.save_snapshot(signal);store.save_market_state(MarketStateV1.from_snapshot(signal));store.save_session(AcquisitionSessionV1.build(trade_date="2026-08-21",stage="signal",requested_at=signal_at,expected_codes=1,selected_snapshot_id=signal.snapshot_id,accepted=True,source_attempts=[{"source":"first","snapshot_id":signal.snapshot_id,"coverage":1.0,"complete":True},{"source":"second","snapshot_id":"ms1-second","coverage":1.0,"complete":True}]))
+    pointer=tmp_path/"frozen/2026-08-21/signal.json";pointer.parent.mkdir(parents=True);pointer.write_text(json.dumps({"snapshot_id":signal.snapshot_id,"frozen_at":signal_at.isoformat()}),encoding="utf-8")
+    tail=V5ReadOnlySources(tmp_path).build("2026-08-21",as_of=signal_at).to_dict()
+    assert tail["today"]["data_quality"]=="accepted_no_morning_pool" and tail["today"]["candidate_count"]==0
+    assert tail["candidates"]["items"]==[] and tail["today"]["snapshot_id"]==signal.snapshot_id

@@ -53,7 +53,22 @@ class V5ReadOnlySources:
         performance=report_strict_paper(trips,baseline_returns=baseline_rows,comparison_returns=[row["net_return"] for row in paired],baseline_name="top1_execution_equivalent_next_open")
         account=ledger.state(as_of=as_of)
         model=build(acquisition=acquisition,morning=morning,confirmation=confirmation,market_state=market_state,performance=performance,account=account,comparable_baseline_days=len(paired))
-        if recovery_raw:
+        orphan_signal=bool(not pool_raw and not confirmation_raw and acquisition_raw and acquisition_raw.get("stage")=="signal" and acquisition_raw.get("accepted") is True)
+        if orphan_signal:
+            snapshot_id=str(acquisition_raw.get("selected_snapshot_id", ""));pointer_path=self.root/"frozen"/trade_date/"signal.json"
+            if not pointer_path.exists():raise ValueError("dashboard orphan signal frozen pointer missing")
+            pointer=json.loads(pointer_path.read_text(encoding="utf-8"))
+            if pointer.get("snapshot_id")!=snapshot_id:raise ValueError("dashboard orphan signal frozen lineage mismatch")
+            states=[]
+            for path in (self.root/"market_states"/trade_date).glob("*.json") if (self.root/"market_states"/trade_date).exists() else []:
+                raw=json.loads(path.read_text(encoding="utf-8"))
+                if raw.get("snapshot_id")==snapshot_id:states.append(MarketStateV1.from_mapping(raw))
+            if len(states)!=1:raise ValueError("dashboard orphan signal market state missing or ambiguous")
+            attempts=list(acquisition_raw.get("source_attempts",[]));complete_sources=[row.get("source","") for row in attempts if row.get("complete")]
+            best=max(attempts,key=lambda row:float(row.get("coverage",0) or 0),default={})
+            model.today.update({"action":"14:49严格行情已冻结，但缺少09:25母池：今日不确认、不模拟买入","data_quality":"accepted_no_morning_pool","coverage":best.get("coverage"),"data_as_of":pointer.get("frozen_at") or acquisition_raw.get("requested_at"),"snapshot_id":snapshot_id,"source":" + ".join(complete_sources),"source_consensus":complete_sources,"source_results":attempts,"candidate_count":0,"market_state":states[0].to_dict(),"recovery_observation":False})
+            model.candidates.update({"items":[],"changes":[],"empty_reason":"缺少同日09:25严格母池；尾盘快照不得单独生成候选"})
+        elif recovery_raw:
             snapshot_id=str(recovery_raw.get("snapshot_id", ""));state_id=str(recovery_raw.get("market_state_id", ""));state_path=self.root/"market_states"/trade_date/f"{state_id}.json"
             if not state_path.exists():raise ValueError("dashboard recovery market state missing")
             validated=MarketStateV1.from_mapping(json.loads(state_path.read_text(encoding="utf-8")))

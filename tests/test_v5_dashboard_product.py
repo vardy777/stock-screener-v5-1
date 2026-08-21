@@ -18,3 +18,9 @@ def test_rejected_acquisition_remains_visible_as_source_diagnostics():
     page=render(model)
     assert model.today["data_quality"]=="rejected" and model.today["coverage"]==.99
     assert "新浪" not in page and "tencent：99.00%（未通过）" in page
+
+def test_orphan_signal_quality_explains_valid_data_but_forces_empty_position():
+    model=build();model.today.update({"data_quality":"accepted_no_morning_pool","action":"14:49严格行情已冻结，但缺少09:25母池：今日不确认、不模拟买入"})
+    page=render(model)
+    assert "严格尾盘行情有效，但今天缺少09:25母池；保持空仓，不确认、不模拟买入" in page
+    assert "value warn'>accepted_no_morning_pool" in page
