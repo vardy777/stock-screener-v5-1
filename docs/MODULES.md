@@ -12,6 +12,7 @@
 | `paper.py`, `paper_production.py` | V5唯一模拟账本、费用、T+1和恢复 | 已切换单写者；375测试通过 | 首次买入和次日卖出 |
 | `task_runner.py`, 循环任务 | 11任务窗口、依赖、失败传播和重试 | 静态生产审计通过 | 完整交易日无漏跑 |
 | `performance.py`, `live_acceptance.py` | 往返绩效、基线和日验收 | 工程完成 | 严格往返样本 |
+| `proxy_backtest.py` | 小时级历史代理、无泄漏母池/确认/Top1基线研究 | 20日代理完成，结果负面且非严格证据 | 仅用于诊断，不进入准入样本 |
 | `sources.py`, `product_read_model.py`, `dashboard.py` | 8899只读产品看板 | HTTP 200、V5-only | 当日完整事实视觉验收 |
 | `independence_audit.py` | 禁止V4/phase1运行依赖 | 全部通过 | 持续回归 |
 

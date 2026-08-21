@@ -2,7 +2,7 @@
   "schema_version": "project-state-v2",
   "project": "a-share-overnight-v5",
   "display_name": "A股隔夜交易研究系统 V5",
-  "updated_at": "2026-08-21T15:38:20+08:00",
+  "updated_at": "2026-08-21T16:04:00+08:00",
   "production_status": "research_locked",
   "runtime_owner": "v5",
   "broker_orders_enabled": false,
@@ -16,11 +16,12 @@
     "2026-08-21": {"strict_morning_pool": "missing", "recovery_observation": "13:02_HTTP_200_ACCEPTED_non_strict", "feature_freeze": "14:49_SUCCESS", "dual_source_coverage": 0.9980824544582934, "dual_source_consistency": 0.9976989453499521, "confirmation": "fail_closed_missing_mother_pool_alert_HTTP_200_ACCEPTED", "paper_buy": "not_run_no_confirmation", "health": "failed_expected_alert_HTTP_200_ACCEPTED", "maintenance": "15:10_SUCCESS_113_FILES_NO_INVALID", "live_acceptance": "15:20_INCOMPLETE_TRUTHFUL_NO_VALIDATION_ERRORS", "full_day": "cannot_pass_without_09:25_mother_pool"},
     "next_full_live_acceptance": "2026-08-24"
   },
-  "quality": {"tests_passed": 391, "tests_failed": 0, "production_static_audit": "v7_passed_v4_runtime_safe_not_all_os_disabled", "runtime_run_fact_validation": "content_address_and_latest_attempt_enforced", "strict_round_trips": 0, "strategy_effectiveness": "unproven"},
+  "quality": {"tests_passed": 395, "tests_failed": 0, "production_static_audit": "v7_passed_v4_runtime_safe_not_all_os_disabled", "runtime_run_fact_validation": "content_address_and_latest_attempt_enforced", "strict_round_trips": 0, "strategy_effectiveness": "unproven", "historical_hourly_proxy": {"strict_evidence": false, "period": "2026-07-09_to_2026-08-05", "sessions": 20, "trades": 14, "win_rate": 0.214285714285714, "average_return": -0.0169068096892119, "net_pnl": -7146.27, "verdict": "negative_warning_not_admission_evidence"}},
   "known_issues": [
     {"id": "V5-SCHED-001", "severity": "P0", "title": "dated shadow tasks expired after 2026-08-18", "status": "fixed_recurring_tail_tasks_ran_2026-08-21_full_day_continuity_pending_2026-08-24"},
     {"id": "V5-DATA-001", "severity": "P0", "title": "2026-08-18 signal dual-source quality rejected", "status": "fixed_2026-08-21_strict_1449_passed_0925_continuity_pending"},
     {"id": "V5-LIVE-001", "severity": "P0", "title": "no complete successful V5 production day", "status": "open_requires_2026-08-24_full_window"},
+    {"id": "V5-STRAT-001", "severity": "P1", "title": "current momentum Top1 policy underperformed in 20-session hourly proxy", "status": "open_keep_baseline_frozen_build_isolated_challengers_no_gate_change"},
     {"id": "V5-RETIRE-001", "severity": "P1", "title": "V4 protected Windows task definitions remain installed", "status": "eight_ready_tasks_code_guarded_before_business_imports_current_token_access_denied"},
     {"id": "V5-RETIRE-002", "severity": "P2", "title": "privileged retired dashboard process still owns 127.0.0.1:8898", "status": "dashboard_task_disabled_process_termination_access_denied_v5_8899_unaffected"}
   ],
