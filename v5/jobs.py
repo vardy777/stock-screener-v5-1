@@ -75,7 +75,11 @@ def freeze(root,*,now=None,sources=None):
 
 def paper_buy(root,*,now=None):
     root=Path(root);require_ownership(root/"ownership.json","paper_writer");current=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=current.date().isoformat();confirmation=_latest(root,"confirmations",day);pointer=json.loads((root/"frozen"/day/"signal.json").read_text(encoding="utf-8"));snapshot_path=root/"snapshots"/day/f"{pointer['snapshot_id']}.json"
+    validated=ConfirmationV5(confirmation["trade_date"],confirmation["decided_at"],confirmation["morning_pool_id"],confirmation["funnel_id"],confirmation["snapshot_id"],confirmation["market_state_id"],tuple(confirmation["candidates"]),tuple(confirmation["changes"]),confirmation["outcome"])
+    if confirmation.get("confirmation_id")!=validated.confirmation_id:raise ContractViolation("V5 paper buy confirmation hash mismatch")
     if confirmation.get("snapshot_id")!=pointer.get("snapshot_id"):raise ContractViolation("V5 paper buy frozen lineage mismatch")
+    if confirmation.get("outcome")=="EMPTY" and not confirmation.get("candidates"):
+        return {"outcome":"NO_CANDIDATE","confirmation_id":confirmation.get("confirmation_id", ""),"events":[]}
     event=PaperProduction(root).buy(confirmation,load_snapshot(snapshot_path),at=current,eligible_sell_date=TradingCalendar().next_open(current.date()).isoformat());return event.__dict__
 
 def paper_sell(root,*,now=None,sources=None):

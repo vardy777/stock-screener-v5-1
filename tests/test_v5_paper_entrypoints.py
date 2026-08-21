@@ -6,6 +6,7 @@ from unittest.mock import patch
 from v5.core import CHINA_TZ
 from v5.jobs import paper_buy,paper_sell
 from v5.task_runner import run
+from v5.decision_flow import ConfirmationV5
 
 NOW=datetime(2026,8,14,14,50,40,tzinfo=CHINA_TZ)
 
@@ -41,6 +42,22 @@ def test_task_runner_marks_rejected_paper_buy_failed():
         ShadowScheduler(root).record("confirmation","2026-08-14","SUCCESS",NOW,{})
         result=run(root,"paper_buy",now=NOW)
         assert result["passed"] is False and "paper buy rejected: INSUFFICIENT_CASH" in result["run"]["details"]["error"] and buyer.called
+
+def test_task_runner_accepts_explicit_no_candidate_as_valid_empty_position_day():
+    with TemporaryDirectory() as d,patch("v5.task_runner.paper_buy",return_value={"outcome":"NO_CANDIDATE","events":[]}) as buyer:
+        root=Path(d);from v5.shadow_schedule import ShadowScheduler
+        ShadowScheduler(root).record("confirmation","2026-08-14","SUCCESS",NOW,{})
+        result=run(root,"paper_buy",now=NOW)
+        assert result["passed"] is True and result["run"]["details"]["outcome"]=="NO_CANDIDATE" and buyer.called
+
+def test_authorized_empty_confirmation_is_a_hashed_noop_without_ledger_write():
+    with TemporaryDirectory() as d:
+        root=Path(d);(root/"ownership.json").write_text(json.dumps({"schema_version":"v5-ownership-v1","paper_writer":"v5","scheduler":"v5","dashboard":"v5","notifications":"v5","authorized":True}),encoding="utf-8")
+        confirmation=ConfirmationV5("2026-08-14",NOW.isoformat(),"v5mp1-test","funnel1-test","ms1-test","mstate1-test",(),(),"EMPTY").to_dict();path=root/"confirmations/2026-08-14/c.json";path.parent.mkdir(parents=True);path.write_text(json.dumps(confirmation),encoding="utf-8")
+        pointer=root/"frozen/2026-08-14/signal.json";pointer.parent.mkdir(parents=True);pointer.write_text(json.dumps({"snapshot_id":"ms1-test"}),encoding="utf-8")
+        result=paper_buy(root,now=NOW)
+        assert result["outcome"]=="NO_CANDIDATE" and result["confirmation_id"]==confirmation["confirmation_id"]
+        assert not (root/"paper/events.json").exists()
 
 def test_unfilled_sell_attempt_never_persists_comparison_baseline():
     source=(Path(__file__).resolve().parents[1]/"v5/jobs.py").read_text(encoding="utf-8")

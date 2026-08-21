@@ -24,14 +24,12 @@ WINDOWS={
     "paper_sell":((9,30,0),(9,35,59)),
     "paper_buy":((14,50,0),(14,51,59)),
 }
-SAFE_DEPENDENCIES={"morning_push":("morning_pool",),"confirmation":("morning_pool","feature_freeze"),"confirmation_push":("confirmation",),"paper_buy":("confirmation",),"health_check":("morning_pool","morning_push","feature_freeze","confirmation","confirmation_push"),"maintenance":("health_check",)}
+SAFE_DEPENDENCIES={"morning_push":("morning_pool",),"confirmation":("morning_pool","feature_freeze"),"confirmation_push":("confirmation",),"paper_buy":("confirmation",)}
 
 def dependencies_for(root,task):
     dependencies=list(SAFE_DEPENDENCIES.get(task,()))
     ownership=load_ownership(Path(root)/"ownership.json")
     v5_owns_paper=ownership.get("paper_writer")=="v5" and ownership.get("authorized") is True
-    if task=="health_check" and v5_owns_paper:
-        dependencies.extend(("paper_sell","paper_buy"))
     return tuple(dependencies)
 
 def inside_window(task,now):
@@ -57,7 +55,7 @@ def run(root,task,*,now=None,failure_alert_env=None,clock_checker=None):
         elif task=="confirmation_push":details=send(root,day,"confirmation",root.parent/".env",as_of=now)
         elif task=="paper_buy":
             details=paper_buy(root,now=now)
-            if details.get("outcome")!="FILLED":raise RuntimeError(f"V5 paper buy rejected: {details.get('reason',details.get('outcome'))}")
+            if details.get("outcome") not in {"FILLED","NO_CANDIDATE"}:raise RuntimeError(f"V5 paper buy rejected: {details.get('reason',details.get('outcome'))}")
         elif task=="paper_sell":
             details=paper_sell(root,now=now)
             if details.get("outcome") not in {"FILLED","NO_POSITIONS_OR_BASELINE"}:raise RuntimeError(f"V5 paper sell incomplete: {details.get('outcome')}")
@@ -73,4 +71,9 @@ def run(root,task,*,now=None,failure_alert_env=None,clock_checker=None):
         elif failure_alert_env is not None:
             try:details["failure_alert"]=send_failure(root,day,task,str(exc),failure_alert_env)
             except Exception as alert_exc:details["failure_alert_error"]=f"{type(alert_exc).__name__}: {alert_exc}"
+    if outcome=="FAILED" and failure_alert_env is not None and not any(key in details for key in ("failure_alert","failure_alert_error","failure_alert_suppressed")):
+        failed_checks=sorted(key for key,value in details.get("checks",{}).items() if value is not True)
+        reason=details.get("error") or f"V5 {task} reported failed checks: {', '.join(failed_checks) or 'UNKNOWN'}"
+        try:details["failure_alert"]=send_failure(root,day,task,reason,failure_alert_env)
+        except Exception as alert_exc:details["failure_alert_error"]=f"{type(alert_exc).__name__}: {alert_exc}"
     record=scheduler.record(task,day,outcome,now,details);return {"passed":outcome=="SUCCESS","run":record}

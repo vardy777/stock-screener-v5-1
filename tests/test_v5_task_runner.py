@@ -62,13 +62,21 @@ def test_market_capture_fails_before_provider_call_when_clock_is_unhealthy():
         assert result["passed"] is False and "causal clock rejected" in result["run"]["details"]["error"]
         producer.assert_not_called()
 
-def test_health_dependencies_include_paper_tasks_only_after_authorized_cutover():
+def test_diagnostic_and_maintenance_tasks_are_never_blocked_by_business_outcomes():
     with TemporaryDirectory() as d:
         root=Path(d)
-        assert "paper_buy" not in dependencies_for(root,"health_check")
+        assert dependencies_for(root,"health_check")==()
+        assert dependencies_for(root,"maintenance")==()
         (root/"ownership.json").write_text(
             '{"schema_version":"v5-ownership-v1","paper_writer":"v5","scheduler":"v5","dashboard":"v5","notifications":"v5","authorized":true}',
             encoding="utf-8",
         )
-        dependencies=dependencies_for(root,"health_check")
-        assert dependencies[-2:]==("paper_sell","paper_buy")
+        assert dependencies_for(root,"health_check")==()
+
+def test_failed_health_report_is_preserved_and_alerted():
+    with TemporaryDirectory() as d,patch("v5.task_runner.health",return_value={"passed":False,"checks":{"morning_fact_exists":False}}),patch("v5.task_runner.send_failure",return_value={"outcome":"ACCEPTED"}) as alert:
+        root=Path(d);result=run(root,"health_check",now=at(14,53),failure_alert_env=root/".env")
+        assert result["passed"] is False
+        assert result["run"]["details"]["checks"]["morning_fact_exists"] is False
+        assert result["run"]["details"]["failure_alert"]["outcome"]=="ACCEPTED"
+        alert.assert_called_once()
