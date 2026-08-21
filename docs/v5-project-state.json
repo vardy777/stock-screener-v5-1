@@ -27,7 +27,8 @@
   "weekend_preflight_task": "AStock-V5-Weekend-Preflight",
   "dashboard_supervisor_task": "AStock-V5-Dashboard-Logon",
   "tests_passed": 384,
-  "known_issues": ["V5 has not yet completed one strict full trading day", "2026-08-21 has no strict 09:25 mother pool and therefore cannot produce a valid 14:50 confirmation or paper buy"],
+  "known_issues": ["V5 has not yet completed one strict full trading day", "2026-08-21 has no strict 09:25 mother pool and therefore cannot produce a valid 14:50 confirmation or paper buy", "Eight ACL-protected V4 scheduled tasks remain Ready but are code-gated before all business imports", "A privileged retired dashboard process still owns 127.0.0.1:8898 and cannot be terminated by the current desktop token"],
+  "v4_os_retirement": {"all_tasks_disabled":false,"runtime_safe":true,"dashboard_task_disabled":true,"stale_8898_process_observed":true,"business_adapter_gate":"V4_PRODUCTION_RETIRED_V5_ONLY"},
   "migration_completion": {
     "complete": true,
     "v5_runtime_imports_v4": false,

@@ -20,8 +20,14 @@ $complete=@($required|Where-Object{$_ -notin $available}).Count -eq 0
 $unique=@($available|Group-Object|Where-Object{$_.Count -ne 1}).Count -eq 0
 $settingsOk=@($rows|Where-Object{$_.kind -ne "unknown" -and (-not $_.allow_battery -or -not $_.wake -or -not $_.start_when_available -or $_.restart_count -lt 3 -or $_.restart_interval -ne "PT1M")}).Count -eq 0
 $recurringReady=$paperEnabled -and $complete -and $unique -and $settingsOk -and @($rows|Where-Object{$_.broker}).Count -eq 0
-$legacyNames=@("AStock-V4-Push-Morning-0925","AStock-V4-Push-Confirm-145020","AStock-V4-Sell-0930","AStock-V4-Buy-1450","AStock-V4-Signal-1449","AStock-V4-Health-Sell-0936","AStock-V4-Health-Close-1453")
-$legacy=@(foreach($name in $legacyNames){$task=Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue;[pscustomobject]@{task_name=$name;disabled=[bool]($task -and [string]$task.State -eq "Disabled")}})
-$passed=$v4ProductionRetired -and $v4DashboardRetired -and (@($legacy|Where-Object{-not $_.disabled}).Count -eq 0) -and $v5DashboardSupervised -and $recurringReady
-[pscustomobject]@{schema_version="production-task-static-audit-v6";passed=$passed;v4_production_retired=$v4ProductionRetired;v4_dashboard_retired=$v4DashboardRetired;legacy_tasks=$legacy;v5_recurring_tasks=$rows;v5_recurring_ready=$recurringReady;v5_paper_writer_enabled=$paperEnabled;v5_dashboard_supervised=$v5DashboardSupervised;read_only=$true}|ConvertTo-Json -Depth 5
+$legacy=@(foreach($task in @(Get-ScheduledTask|Where-Object TaskName -Like "AStock-V4-*")){
+ $action=[string](($task.Actions|Select-Object -First 1).Execute+" "+($task.Actions|Select-Object -First 1).Arguments)
+ $disabled=[string]$task.State -eq "Disabled"
+ $guarded=[bool](($action -match 'v4[\\/]scripts[\\/]p4_task_adapter.py' -and $v4ProductionRetired) -or ($task.TaskName -eq 'AStock-V4-Dashboard-Logon' -and $v4DashboardRetired))
+ [pscustomobject]@{task_name=$task.TaskName;state=[string]$task.State;disabled=$disabled;code_guarded=$guarded;runtime_safe=[bool]($disabled -or $guarded)}
+})
+$v4OsTasksDisabled=@($legacy|Where-Object{-not $_.disabled}).Count -eq 0
+$v4RuntimeSafe=@($legacy|Where-Object{-not $_.runtime_safe}).Count -eq 0
+$passed=$v4ProductionRetired -and $v4DashboardRetired -and $v4RuntimeSafe -and $v5DashboardSupervised -and $recurringReady
+[pscustomobject]@{schema_version="production-task-static-audit-v7";passed=$passed;v4_production_retired=$v4ProductionRetired;v4_dashboard_retired=$v4DashboardRetired;v4_os_tasks_all_disabled=$v4OsTasksDisabled;v4_runtime_safe=$v4RuntimeSafe;legacy_tasks=$legacy;v5_recurring_tasks=$rows;v5_recurring_ready=$recurringReady;v5_paper_writer_enabled=$paperEnabled;v5_dashboard_supervised=$v5DashboardSupervised;read_only=$true}|ConvertTo-Json -Depth 5
 if(-not $passed){exit 1}
