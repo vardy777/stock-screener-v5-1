@@ -4,8 +4,8 @@
 |---|---|---|---|
 | `calendar.py`, `clock_gate.py`, `preflight.py` | 交易日、NTP、股票池和传输准备 | 已接循环生产 | 完整交易日08:30 |
 | `universe_refresh.py`, `universe.py` | 5215量级沪深A股独立股票池 | 真实数据通过 | 连续稳定性 |
-| `sina_source.py`, `tencent_source.py` | 独立全市场报价 | 99.808%真实午间共识通过 | 09:25与14:49 |
-| `market_snapshot.py`, `data_production.py` | 版本化快照、覆盖/时效/价格共识 | 离线与午间诊断通过 | 严格窗口 |
+| `sina_source.py`, `tencent_source.py` | 独立全市场报价 | 2026-08-21严格14:49覆盖99.808%、一致99.770%通过 | 连续09:25与14:49 |
+| `market_snapshot.py`, `data_production.py` | 版本化快照、覆盖/时效/价格共识 | 严格14:49真实窗口通过 | 09:25窗口与连续稳定性 |
 | `market_state.py`, `funnel.py` | 市场风险、逐标的过滤、可解释排名 | 工程完成 | 因子与阈值效果 |
 | `decision_flow.py`, `jobs.py` | 母池、冻结、确认和血缘 | 工程完成 | 同日完整母池→确认 |
 | `notification.py`, `alerts.py` | V5业务推送和故障告警 | 8月18日早盘200/ACCEPTED | 同日两次成功 |

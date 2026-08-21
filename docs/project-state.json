@@ -2,7 +2,7 @@
   "schema_version": "project-state-v2",
   "project": "a-share-overnight-v5",
   "display_name": "A股隔夜交易研究系统 V5",
-  "updated_at": "2026-08-21T15:35:09+08:00",
+  "updated_at": "2026-08-21T15:38:20+08:00",
   "production_status": "research_locked",
   "runtime_owner": "v5",
   "broker_orders_enabled": false,
@@ -18,8 +18,8 @@
   },
   "quality": {"tests_passed": 391, "tests_failed": 0, "production_static_audit": "v7_passed_v4_runtime_safe_not_all_os_disabled", "runtime_run_fact_validation": "content_address_and_latest_attempt_enforced", "strict_round_trips": 0, "strategy_effectiveness": "unproven"},
   "known_issues": [
-    {"id": "V5-SCHED-001", "severity": "P0", "title": "dated shadow tasks expired after 2026-08-18", "status": "fixed_offline_and_recurring_tasks_registered_2026-08-21_live_retest_pending"},
-    {"id": "V5-DATA-001", "severity": "P0", "title": "2026-08-18 signal dual-source quality rejected", "status": "diagnostics_extended_live_1449_retest_pending"},
+    {"id": "V5-SCHED-001", "severity": "P0", "title": "dated shadow tasks expired after 2026-08-18", "status": "fixed_recurring_tail_tasks_ran_2026-08-21_full_day_continuity_pending_2026-08-24"},
+    {"id": "V5-DATA-001", "severity": "P0", "title": "2026-08-18 signal dual-source quality rejected", "status": "fixed_2026-08-21_strict_1449_passed_0925_continuity_pending"},
     {"id": "V5-LIVE-001", "severity": "P0", "title": "no complete successful V5 production day", "status": "open_requires_2026-08-24_full_window"},
     {"id": "V5-RETIRE-001", "severity": "P1", "title": "V4 protected Windows task definitions remain installed", "status": "eight_ready_tasks_code_guarded_before_business_imports_current_token_access_denied"},
     {"id": "V5-RETIRE-002", "severity": "P2", "title": "privileged retired dashboard process still owns 127.0.0.1:8898", "status": "dashboard_task_disabled_process_termination_access_denied_v5_8899_unaffected"}
