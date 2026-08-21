@@ -26,7 +26,7 @@
   "next_live_shadow_tasks": {"trade_date":"recurring_weekdays","registered_tasks":11,"registered_business_tasks":9,"morning_capture":"09:25:05","morning_push":"09:25:50","paper_tasks":2,"broker_tasks":0},
   "weekend_preflight_task": "AStock-V5-Weekend-Preflight",
   "dashboard_supervisor_task": "AStock-V5-Dashboard-Logon",
-  "tests_passed": 395,
+  "tests_passed": 402,
   "known_issues": ["V5 has not yet completed one strict full trading day", "2026-08-21 has no strict 09:25 mother pool and therefore cannot produce a valid 14:50 confirmation or paper buy", "Eight ACL-protected V4 scheduled tasks remain Ready but are code-gated before all business imports", "A privileged retired dashboard process still owns 127.0.0.1:8898 and cannot be terminated by the current desktop token"],
   "v4_os_retirement": {"all_tasks_disabled":false,"runtime_safe":true,"dashboard_task_disabled":true,"stale_8898_process_observed":true,"business_adapter_gate":"V4_PRODUCTION_RETIRED_V5_ONLY"},
   "migration_completion": {
@@ -119,5 +119,6 @@
   "latest_tail_window": {"observed_at":"2026-08-21T14:49:09.715158+08:00","feature_freeze":"SUCCESS","snapshot_id":"ms1-6a844da95a02d0a70840391162d4a05721b13dca5888c44f636d6d71ca381a03","coverage":0.9980824544582934,"consistent_ratio":0.9976989453499521,"price_conflicts":2,"confirmation":"FAILED_MISSING_STRICT_MORNING_POOL","confirmation_alert":"HTTP_200_ACCEPTED","paper_buy":"NOT_RUN_DEPENDENCY_FAIL_CLOSED","dashboard":"HTTP_200_ACCEPTED_NO_MORNING_POOL_ZERO_CANDIDATES","health":"FAILED_EXPECTED_HTTP_200_ACCEPTED"},
   "latest_daily_acceptance": {"trade_date":"2026-08-21","observed_at":"2026-08-21T15:20:00.414962+08:00","report_id":"liveacc1-e618bf9dcfd2439efcf7ee86","complete":false,"expected_reason":"missing strict 09:25 mother pool and full lineage","readiness_passed":true,"signal_acquisition_accepted":true,"maintenance":"SUCCESS_113_FILES_NO_INVALID","run_validation_errors":0,"readiness_validation_errors":0},
   "latest_historical_proxy": {"report_id":"v5proxy1-63027024a328103d4f54d531","cohort":"historical_hourly_proxy","strict_evidence":false,"period":"2026-07-09_to_2026-08-05","sessions":20,"trades":14,"win_rate":0.214285714285714,"average_return":-0.0169068096892119,"net_pnl":-7146.27,"maximum_drawdown":0.0807024675687136,"paired_market_median_average":-0.00445483851508654,"verdict":"negative_warning_strategy_effectiveness_unproven"},
+  "volume_price_challenger": {"strategy_id":"volume_price_v1","mode":"isolated_shadow_no_push","baseline_policy_changed":false,"shared_strict_snapshots":true,"separate_paper_ledger":true,"target_trade_date":"2026-08-24","universe_count":5215,"valid_context_rows":5116,"coverage":0.9810162991371045,"reference_match_rate":0.9882720875684128,"offline_acceptance":"passed_402_tests","live_acceptance":"pending_2026_08_24"},
   "next_acceptance": ["2026-08-24 complete 08:30 through 15:20 all eleven tasks", "both required PushPlus receipts HTTP 200 ACCEPTED with entity lineage", "first V5 strict Top1 paper buy and next-open sell round trip"]
 }

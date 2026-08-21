@@ -77,4 +77,23 @@ class V5ReadOnlySources:
             recovery_candidates=list(recovery_raw.get("candidates",[]));complete_sources=[row.get("source","") for row in attempts if row.get("complete")]
             model.today.update({"action":"午后恢复观察：不是09:25样本，不进入尾盘确认或模拟买入","data_quality":"recovery_observation","coverage":best.get("coverage"),"data_as_of":recovery_raw.get("observed_at"),"snapshot_id":snapshot_id,"source":" + ".join(complete_sources),"source_consensus":complete_sources,"source_results":attempts,"candidate_count":len(recovery_candidates),"market_state":validated.to_dict(),"recovery_observation":True})
             model.candidates.update({"items":recovery_candidates,"empty_reason":None if recovery_candidates else "午后恢复观察没有标的通过漏斗"})
+        # The challenger is a separate, read-only projection.  It cannot
+        # replace the baseline decision or notification payload.
+        from .challenger import projection as challenger_projection
+        try:
+            model.validation["challenger"] = challenger_projection(self.root, trade_date, as_of=as_of)
+        except Exception as exc:
+            model.validation["challenger"] = {
+                "strategy_id": "volume_price_v1",
+                "label": "量价挑战者",
+                "mode": "shadow_no_push",
+                "status": "FAILED",
+                "error_type": type(exc).__name__,
+                "stage": "unavailable",
+                "context_ready": False,
+                "candidate_count": 0,
+                "candidates": [],
+                "account": {},
+                "performance": {},
+            }
         return model

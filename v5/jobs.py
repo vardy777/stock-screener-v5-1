@@ -88,7 +88,12 @@ def paper_sell(root,*,now=None,sources=None):
     for path in (root/"confirmations").glob("*/*.json") if (root/"confirmations").exists() else []:
         row=json.loads(path.read_text(encoding="utf-8"))
         if TradingCalendar().next_open(datetime.fromisoformat(row["decided_at"]).date())==current.date():confirmations.append(row)
-    codes=sorted({row["code"] for row in positions}|{candidate["code"] for confirmation in confirmations for candidate in confirmation.get("candidates",[])})
+    # One sell-window capture serves the production baseline and all isolated
+    # shadow positions.  This avoids a second market request and preserves a
+    # directly comparable execution timestamp.
+    from .challenger import position_codes as challenger_position_codes
+    shadow_codes=challenger_position_codes(root)
+    codes=sorted({row["code"] for row in positions}|shadow_codes|{candidate["code"] for confirmation in confirmations for candidate in confirmation.get("candidates",[])})
     if not codes:return {"events":[],"baselines":[],"snapshot_id":"","outcome":"NO_POSITIONS_OR_BASELINE"}
     sources=sources or (SinaRealtimeSource(),TencentRealtimeSource());universe=UniverseV1.build(trade_date=day,created_at=current,codes=codes,sources=["v5_open_positions_and_baseline"]);result=ConsensusAcquirer(*sources).acquire(universe,stage="sell",now=current)
     _save_immutable(root,"consensus",day,"cons1-",result.report);attempts=result.report.get("attempts",[]);session=AcquisitionSessionV1.build(trade_date=day,stage="sell",requested_at=current,expected_codes=len(universe.codes),selected_snapshot_id=result.primary.snapshot_id if result.accepted else "",accepted=result.accepted,source_attempts=attempts);store=V5FactStore(root);store.save_session(session)

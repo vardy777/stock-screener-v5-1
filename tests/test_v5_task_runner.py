@@ -30,6 +30,8 @@ def test_in_window_task_executes_and_records_success():
         result=run(Path(d),"morning_pool",now=at(9,25,5),clock_checker=lambda:{"passed":True,"reason":"OK"})
         assert result["passed"] is True
         assert result["run"]["details"]["pool_id"]=="v5mp1-test"
+        assert result["run"]["details"]["challenger"]["outcome"]=="FAILED"
+        assert "context" in result["run"]["details"]["challenger"]["details"]["error"]
         producer.assert_called_once()
 
 def test_missing_upstream_without_prior_alert_emits_one_dependency_alert():

@@ -12,6 +12,15 @@ from .alerts import send_failure
 from .clock_gate import check as check_clock
 from .ownership import load as load_ownership
 from .calendar import TradingCalendar
+from .challenger import (
+    advance_context as advance_challenger_context,
+    paper_buy as challenger_paper_buy,
+    paper_sell as challenger_paper_sell,
+    project_confirmation as project_challenger_confirmation,
+    project_morning as project_challenger_morning,
+    run_isolated as run_challenger_isolated,
+)
+from .paper_production import load_snapshot
 
 WINDOWS={
     "morning_pool":((9,25,0),(9,25,39)),
@@ -50,17 +59,31 @@ def run(root,task,*,now=None,failure_alert_env=None,clock_checker=None):
             details["clock_gate"]=clock
         missing=[name for name in dependencies_for(root,task) if name not in scheduler.successful_tasks(day)]
         if missing:raise ValueError(f"V5 task dependencies incomplete: {', '.join(missing)}")
-        if task=="morning_pool":details.update(produce(root,"morning",now=now))
+        if task=="morning_pool":
+            details.update(produce(root,"morning",now=now))
+            details["challenger"]=run_challenger_isolated(root,"morning_pool",now,lambda:project_challenger_morning(root,now))
         elif task=="morning_push":details=send(root,day,"morning",root.parent/".env",as_of=now)
-        elif task=="feature_freeze":details.update(freeze(root,now=now))
-        elif task=="confirmation":details=confirm_frozen(root,now=now)
+        elif task=="feature_freeze":
+            details.update(freeze(root,now=now))
+            snapshot=load_snapshot(root/"snapshots"/day/f"{details['snapshot_id']}.json")
+            details["challenger"]=run_challenger_isolated(root,"feature_freeze",now,lambda:advance_challenger_context(root,now,snapshot))
+        elif task=="confirmation":
+            details=confirm_frozen(root,now=now)
+            details["challenger"]=run_challenger_isolated(root,"confirmation",now,lambda:project_challenger_confirmation(root,now))
         elif task=="confirmation_push":details=send(root,day,"confirmation",root.parent/".env",as_of=now)
         elif task=="paper_buy":
             details=paper_buy(root,now=now)
             if details.get("outcome") not in {"FILLED","NO_CANDIDATE"}:raise RuntimeError(f"V5 paper buy rejected: {details.get('reason',details.get('outcome'))}")
+            details["challenger"]=run_challenger_isolated(root,"paper_buy",now,lambda:challenger_paper_buy(root,now))
         elif task=="paper_sell":
             details=paper_sell(root,now=now)
             if details.get("outcome") not in {"FILLED","NO_POSITIONS_OR_BASELINE"}:raise RuntimeError(f"V5 paper sell incomplete: {details.get('outcome')}")
+            snapshot_id=details.get("snapshot_id","")
+            details["challenger"]=run_challenger_isolated(
+                root,"paper_sell",now,
+                (lambda:challenger_paper_sell(root,load_snapshot(root/"snapshots"/day/f"{snapshot_id}.json"),now))
+                if snapshot_id else (lambda:{"outcome":"NO_POSITIONS","events":[]}),
+            )
         elif task=="health_check":details=health(root,day,now);outcome="SUCCESS" if details["passed"] else "FAILED"
         elif task=="maintenance":details=maintenance(root,day,now);outcome="SUCCESS" if details["passed"] else "FAILED"
         else:raise ValueError("unsupported V5 task")
