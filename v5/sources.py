@@ -23,6 +23,7 @@ class V5ReadOnlySources:
     def build(self,trade_date:str,*,as_of=None):
         confirmation_raw=_latest(self.root,"confirmations",trade_date,as_of=as_of)
         pool_raw=_latest(self.root,"morning_pools",trade_date,as_of=as_of)
+        recovery_raw=None if pool_raw else _latest(self.root,"recovery_observations",trade_date,as_of=as_of)
         stage="signal" if confirmation_raw else "morning"
         acquisition_raw=(_latest(self.root,"acquisition",trade_date,predicate=lambda row:row.get("stage")==stage,as_of=as_of) if (confirmation_raw or pool_raw) else _latest(self.root,"acquisition",trade_date,as_of=as_of))
         acquisition=(AcquisitionSessionV1.build(trade_date=acquisition_raw["trade_date"],stage=acquisition_raw["stage"],requested_at=acquisition_raw["requested_at"],expected_codes=acquisition_raw["expected_codes"],selected_snapshot_id=acquisition_raw["selected_snapshot_id"],accepted=acquisition_raw["accepted"],source_attempts=acquisition_raw["source_attempts"]) if acquisition_raw else None)
@@ -51,4 +52,13 @@ class V5ReadOnlySources:
         paired=[row for row in trips if row.get("decision_id") in baselines];baseline_rows=[baselines[row["decision_id"]] for row in paired]
         performance=report_strict_paper(trips,baseline_returns=baseline_rows,comparison_returns=[row["net_return"] for row in paired],baseline_name="top1_execution_equivalent_next_open")
         account=ledger.state(as_of=as_of)
-        return build(acquisition=acquisition,morning=morning,confirmation=confirmation,market_state=market_state,performance=performance,account=account,comparable_baseline_days=len(paired))
+        model=build(acquisition=acquisition,morning=morning,confirmation=confirmation,market_state=market_state,performance=performance,account=account,comparable_baseline_days=len(paired))
+        if recovery_raw:
+            snapshot_id=str(recovery_raw.get("snapshot_id", ""));state_id=str(recovery_raw.get("market_state_id", ""));state_path=self.root/"market_states"/trade_date/f"{state_id}.json"
+            if not state_path.exists():raise ValueError("dashboard recovery market state missing")
+            validated=MarketStateV1.from_mapping(json.loads(state_path.read_text(encoding="utf-8")))
+            if validated.market_state_id!=state_id or validated.snapshot_id!=snapshot_id:raise ValueError("dashboard recovery lineage mismatch")
+            attempts=list(recovery_raw.get("source_consensus",{}).get("attempts",[]));best=max(attempts,key=lambda row:float(row.get("coverage",0) or 0),default={})
+            model.today.update({"action":"午后恢复观察：不是09:25样本，不进入尾盘确认或模拟买入","data_quality":"recovery_observation","coverage":best.get("coverage"),"data_as_of":recovery_raw.get("observed_at"),"snapshot_id":snapshot_id,"source":" + ".join(row.get("source","") for row in attempts if row.get("complete")),"source_results":attempts,"market_state":validated.to_dict(),"recovery_observation":True})
+            model.candidates.update({"items":list(recovery_raw.get("candidates",[])),"empty_reason":None if recovery_raw.get("candidates") else "午后恢复观察没有标的通过漏斗"})
+        return model

@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from .core import ContractViolation
 
-TIME_FIELDS={"acquisition":"requested_at","morning_pools":"created_at","confirmations":"decided_at"}
+TIME_FIELDS={"acquisition":"requested_at","morning_pools":"created_at","confirmations":"decided_at","recovery_observations":"observed_at"}
 
 def rows(root,kind,day):
     directory=Path(root)/kind/day
