@@ -23,7 +23,7 @@ $specs=@(
 foreach($spec in $specs){
  $name="$Prefix-$($spec[0])";$action=New-ScheduledTaskAction -Execute $python -Argument $spec[2] -WorkingDirectory $root
  $trigger=New-ScheduledTaskTrigger -Weekly -WeeksInterval 1 -DaysOfWeek $days -At ([datetime]::Parse($spec[1]))
- Register-ScheduledTask -TaskName $name -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description "V5 recurring safe task; calendar-gated; no broker or V5 paper write" -Force|Out-Null
+ Register-ScheduledTask -TaskName $name -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description "V5 recurring production-research task; calendar-gated; local paper only; no broker or V4 write" -Force|Out-Null
 }
 $installed=@($specs|ForEach-Object{Get-ScheduledTask -TaskName "$Prefix-$($_[0])" -ErrorAction Stop})
 if($installed.Count -ne 11 -or @($installed|Where-Object{$_.State -eq 'Disabled'}).Count){throw "V5 recurring task registration failed"}

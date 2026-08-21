@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 from tempfile import TemporaryDirectory
 from pathlib import Path
 from v5.core import CHINA_TZ
@@ -21,3 +22,23 @@ def test_run_artifact_is_idempotent_and_immutable():
     with TemporaryDirectory() as d:
         scheduler=ShadowScheduler(d);now=datetime(2026,8,13,9,25,tzinfo=CHINA_TZ);first=scheduler.record("morning_pool","2026-08-13","SUCCESS",now,{"x":1});second=scheduler.record("morning_pool","2026-08-13","SUCCESS",now,{"x":1});assert first==second and len(list((Path(d)/"runs/2026-08-13").glob("*.json")))==1
         assert scheduler.successful_tasks("2026-08-13")=={"morning_pool"}
+
+def test_tampered_run_cannot_satisfy_dependency_alert_or_recovery():
+    with TemporaryDirectory() as d:
+        scheduler=ShadowScheduler(d);now=datetime(2026,8,13,9,26,tzinfo=CHINA_TZ)
+        scheduler.record("morning_pool","2026-08-13","SUCCESS",now,{"failure_alert":{"outcome":"ACCEPTED"}})
+        path=next((Path(d)/"runs/2026-08-13").glob("*.json"));row=json.loads(path.read_text(encoding="utf-8"));row["outcome"]="FAILED";path.write_text(json.dumps(row),encoding="utf-8")
+        assert scheduler.successful_tasks("2026-08-13")==set()
+        assert scheduler.failed_tasks_with_accepted_alerts("2026-08-13")==set()
+        report=scheduler.recovery_report("2026-08-13",now)
+        assert report["status"]=="RECOVERY_REQUIRED" and report["run_validation_errors"]
+
+def test_latest_valid_attempt_is_authoritative_for_runtime_dependencies():
+    with TemporaryDirectory() as d:
+        scheduler=ShadowScheduler(d);day="2026-08-13"
+        scheduler.record("morning_pool",day,"SUCCESS",datetime(2026,8,13,9,25,5,tzinfo=CHINA_TZ))
+        scheduler.record("morning_pool",day,"FAILED",datetime(2026,8,13,9,25,6,tzinfo=CHINA_TZ),{"failure_alert":{"outcome":"ACCEPTED"}})
+        assert scheduler.successful_tasks(day)==set()
+        assert scheduler.failed_tasks_with_accepted_alerts(day)=={"morning_pool"}
+        report=scheduler.recovery_report(day,datetime(2026,8,13,9,26,tzinfo=CHINA_TZ))
+        assert report["status"]=="RECOVERY_REQUIRED"

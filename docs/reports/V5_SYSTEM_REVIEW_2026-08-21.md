@@ -90,3 +90,11 @@ V5 has not completed one correct full production day. Its offline contracts and 
 - The acceptance result is truthfully incomplete because the strict 09:25 mother pool, morning notification and complete decision lineage do not exist for this date. Exit code 3 is the required fail-closed outcome, not a scheduler failure.
 - All 11 recurring V5 tasks point to 2026-08-24 for their next applicable run. Production static audit v7 and V5 independence audit pass.
 - Full suite after the status-reader compatibility repair: 388 passed, 0 failed.
+
+## Final offline integrity hardening
+
+- Runtime dependency checks, accepted-alert suppression and missed-run recovery now rebuild every run content address, require the declared ID to match its filename and reject wrong schema/task/date facts.
+- The latest valid attempt for each task is authoritative. An earlier success can no longer unlock a downstream notification after a later failed attempt.
+- The recurring-task description now states the actual boundary: V5 local paper execution is allowed, while broker orders and V4 writes are forbidden.
+- Power and host readiness were checked: 1,206 GiB free, Windows Time running automatically, AC sleep disabled, V5 dashboard supervised on 8899, and all 11 tasks configured to wake, start when available, ignore overlapping instances and retry within their unchanged strict windows.
+- Full suite after runtime dependency hardening: 391 passed, 0 failed.

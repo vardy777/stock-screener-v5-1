@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -54,6 +55,14 @@ def test_failed_upstream_never_satisfies_dependency():
         # The producer is not patched in this branch and therefore fails; a
         # failed upstream record must still not satisfy the dependency.
         result=run(root,"morning_push",now=at(9,25,21));assert result["passed"] is False
+        sender.assert_not_called()
+
+def test_tampered_successful_upstream_cannot_unlock_notification():
+    with TemporaryDirectory() as d,patch("v5.task_runner.produce",return_value={"pool_id":"v5mp1-test"}),patch("v5.task_runner.send") as sender:
+        root=Path(d);run(root,"morning_pool",now=at(9,25,5),clock_checker=lambda:{"passed":True,"reason":"OK"})
+        path=next((root/"runs/2026-08-14").glob("*.json"));row=json.loads(path.read_text(encoding="utf-8"));row["details"]["pool_id"]="tampered";path.write_text(json.dumps(row),encoding="utf-8")
+        result=run(root,"morning_push",now=at(9,25,20))
+        assert result["passed"] is False and "dependencies incomplete: morning_pool" in result["run"]["details"]["error"]
         sender.assert_not_called()
 
 def test_market_capture_fails_before_provider_call_when_clock_is_unhealthy():

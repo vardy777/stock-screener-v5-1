@@ -29,26 +29,34 @@ class ShadowScheduler:
             if path.read_text(encoding="utf-8")!=raw:raise ContractViolation("immutable shadow run collision")
         finally:tmp.unlink(missing_ok=True)
         return row
+    def _validated_rows(self,trade_date):
+        directory=self.root/"runs"/trade_date;rows=[];errors=[];known={x.name for x in TASKS}
+        for path in directory.glob("*.json") if directory.exists() else []:
+            try:
+                row=json.loads(path.read_text(encoding="utf-8"));declared=row.get("run_id");unsigned={key:value for key,value in row.items() if key!="run_id"};rebuilt="run1-"+hashlib.sha256(json.dumps(unsigned,sort_keys=True,separators=(",",":")).encode()).hexdigest()[:24]
+                if declared!=rebuilt or path.stem!=declared:raise ContractViolation("run content-address mismatch")
+                if row.get("schema_version")!="v5-shadow-run-v1" or row.get("trade_date")!=trade_date or row.get("task") not in known:raise ContractViolation("run contract mismatch")
+                rows.append(row)
+            except Exception as exc:errors.append({"file":path.name,"error":type(exc).__name__})
+        return rows,errors
+    @staticmethod
+    def _latest_by_task(rows):
+        latest={}
+        for row in sorted(rows,key=lambda value:(value.get("recorded_at",""),value.get("run_id",""))):latest[row["task"]]=row
+        return latest
     def successful_tasks(self,trade_date):
-        directory=self.root/"runs"/trade_date;rows=[]
-        for path in directory.glob("*.json") if directory.exists() else []:
-            try:rows.append(json.loads(path.read_text(encoding="utf-8")))
-            except Exception:continue
-        return {row["task"] for row in rows if row.get("outcome")=="SUCCESS"}
+        rows,_=self._validated_rows(trade_date)
+        return {task for task,row in self._latest_by_task(rows).items() if row.get("outcome")=="SUCCESS"}
     def failed_tasks_with_accepted_alerts(self,trade_date):
-        directory=self.root/"runs"/trade_date;rows=[]
-        for path in directory.glob("*.json") if directory.exists() else []:
-            try:rows.append(json.loads(path.read_text(encoding="utf-8")))
-            except Exception:continue
-        return {row["task"] for row in rows if row.get("outcome")=="FAILED" and row.get("details",{}).get("failure_alert",{}).get("outcome")=="ACCEPTED"}
+        rows,_=self._validated_rows(trade_date)
+        return {task for task,row in self._latest_by_task(rows).items() if row.get("outcome")=="FAILED" and row.get("details",{}).get("failure_alert",{}).get("outcome")=="ACCEPTED"}
     def recovery_report(self,trade_date,now,*,excluded_tasks=()):
         excluded=set(excluded_tasks);unknown=excluded-{x.name for x in TASKS}
         if unknown:raise ContractViolation("unknown excluded shadow task")
-        rows=[]
-        for path in (self.root/"runs"/trade_date).glob("*.json") if (self.root/"runs"/trade_date).exists() else []:rows.append(json.loads(path.read_text(encoding="utf-8")))
-        completed={x["task"] for x in rows if x["outcome"]=="SUCCESS"};due=[]
+        rows,validation_errors=self._validated_rows(trade_date)
+        completed={task for task,row in self._latest_by_task(rows).items() if row.get("outcome")=="SUCCESS"};due=[]
         for task in TASKS:
             if task.name in excluded:continue
             scheduled=datetime.fromisoformat(f"{trade_date}T{task.time}+08:00")
             if scheduled<=now.astimezone(CHINA_TZ) and task.name not in completed:due.append({"task":task.name,"scheduled_at":scheduled.isoformat(),"blocked_by":[x for x in task.depends_on if x not in completed and x not in excluded]})
-        return {"schema_version":"v5-shadow-recovery-v1","trade_date":trade_date,"excluded_tasks":sorted(excluded),"missing_due_tasks":due,"status":"RECOVERY_REQUIRED" if due else "CLEAN"}
+        return {"schema_version":"v5-shadow-recovery-v1","trade_date":trade_date,"excluded_tasks":sorted(excluded),"missing_due_tasks":due,"run_validation_errors":validation_errors,"status":"RECOVERY_REQUIRED" if due or validation_errors else "CLEAN"}

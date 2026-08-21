@@ -26,7 +26,7 @@
   "next_live_shadow_tasks": {"trade_date":"recurring_weekdays","registered_tasks":11,"registered_business_tasks":9,"morning_capture":"09:25:05","morning_push":"09:25:50","paper_tasks":2,"broker_tasks":0},
   "weekend_preflight_task": "AStock-V5-Weekend-Preflight",
   "dashboard_supervisor_task": "AStock-V5-Dashboard-Logon",
-  "tests_passed": 388,
+  "tests_passed": 391,
   "known_issues": ["V5 has not yet completed one strict full trading day", "2026-08-21 has no strict 09:25 mother pool and therefore cannot produce a valid 14:50 confirmation or paper buy", "Eight ACL-protected V4 scheduled tasks remain Ready but are code-gated before all business imports", "A privileged retired dashboard process still owns 127.0.0.1:8898 and cannot be terminated by the current desktop token"],
   "v4_os_retirement": {"all_tasks_disabled":false,"runtime_safe":true,"dashboard_task_disabled":true,"stale_8898_process_observed":true,"business_adapter_gate":"V4_PRODUCTION_RETIRED_V5_ONLY"},
   "migration_completion": {
@@ -79,7 +79,7 @@
     "funnel_policy_parameters_embedded": true,
     "confirmation_uses_frozen_morning_rank": true,
     "market_scope": "SSE_SZSE_A_INCLUDING_STAR_EXCLUDING_BSE",
-    "full_suite": "388 passed",
+    "full_suite": "391 passed",
     "dashboard_lineage_fail_closed": true,
     "market_state_projection_requires_content_id": true,
     "snapshot_reader_content_address_verified": true,
@@ -110,7 +110,9 @@
     "atomic_universe_and_maintenance": true,
     "serialized_notification_delivery": true,
     "serialized_operational_alert_delivery": true,
-    "scheduler_truthful_paper_outcomes": true
+    "scheduler_truthful_paper_outcomes": true,
+    "runtime_dependency_run_hash_verified": true,
+    "runtime_latest_task_attempt_authoritative": true
   },
   "latest_live_failure": {"trade_date":"2026-08-21","task":"recovery_observation","scheduled_at":"2026-08-21T13:01:00+08:00","root_cause":"immutable_candidate_mappingproxy_not_json_serializable","scheduled_result":"FAILED_LAST_TASK_RESULT_3","failure_alert":"HTTP_200_ACCEPTED","fixed_by_commit":"787bbdd","separate_in_window_rerun":"HTTP_200_ACCEPTED","strict_fact_backfill":false},
   "latest_live_diagnostic": {"observed_at":"2026-08-21T13:02:32.600749+08:00","expected_codes":5215,"sina_quotes":5205,"tencent_quotes":5205,"coverage":0.9980824544582934,"consistent_ratio":0.9975071907957814,"price_conflicts":3,"consensus_accepted":true,"strict_0925_sample":false},
