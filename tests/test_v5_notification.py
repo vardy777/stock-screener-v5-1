@@ -40,7 +40,7 @@ def test_failed_gate_never_sends_and_accepted_receipt_is_idempotent():
         with pytest.raises(ContractViolation):build_payload(root,day,"confirmation")
 def test_v5_notification_entrypoint_never_reads_v4_configuration():
     text=(Path(__file__).resolve().parents[1]/"v5/scripts/v5_push_job.py").read_text(encoding="utf-8")
-    assert 'ROOT/"v5/.env"' in text and 'ROOT/"v4/.env"' not in text
+    assert 'from v5.task_runner import run' in text and 'ROOT/"v5/.env"' in text and 'ROOT/"v4/.env"' not in text
 def test_rejected_push_attempt_is_audited_but_does_not_block_retry():
     with TemporaryDirectory() as d:
         root=Path(d);day=facts(root);env=root/".env";env.write_text("PUSHPLUS_TOKEN=secret",encoding="utf-8")
