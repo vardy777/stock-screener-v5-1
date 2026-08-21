@@ -12,8 +12,9 @@ from .jobs import load_universe
 from .shadow_schedule import ShadowScheduler
 from .universe_refresh import refresh as refresh_universe
 from .clock_gate import check as check_clock
+from .calendar import TradingCalendar
 def run(root,day=None,*,refresh_attempts=3,sleeper=None,clock_checker=None):
- root=Path(root);now=datetime.now(CHINA_TZ);day=day or now.date().isoformat();checks={};details={};trading_day=now.weekday()<5 and day==now.date().isoformat();details["trading_day"]=trading_day
+ root=Path(root);now=datetime.now(CHINA_TZ);day=day or now.date().isoformat();checks={};details={};trading_day=(day==now.date().isoformat() and TradingCalendar().is_open(now.date()) is True);details["trading_day"]=trading_day
  clock=(clock_checker or check_clock)();checks["causal_clock"]=clock["passed"];details["clock_gate"]=clock
  if not trading_day:
   checks["universe_refresh"]=True;checks["universe"]=True;checks["sina_transport"]=True;checks["tencent_transport"]=True;checks["eastmoney_transport"]=True;details["market_checks_skipped"]="market_closed_diagnostic"

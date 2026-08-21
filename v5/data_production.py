@@ -63,7 +63,8 @@ class ConsensusAcquirer:
         def capture(source):
             try:
                 snap=source.capture(list(universe.codes),stage=stage,now=now);provider_valid=is_market_snapshot(snap) and _provider_lineage_matches(snap,source.name);denominator_valid=is_market_snapshot(snap) and snap.quality.expected_codes==len(universe.codes);complete=is_market_snapshot(snap) and snap.trade_date==universe.trade_date and denominator_valid and snap.quality.coverage>=.95 and acquisition_accepted(snap) and provider_valid
-                return {"source":source.name,"snapshot_id":getattr(snap,"snapshot_id",""),"coverage":getattr(getattr(snap,"quality",None),"coverage",0),"expected_codes":getattr(getattr(snap,"quality",None),"expected_codes",0),"universe_denominator_valid":denominator_valid,"provider_lineage_valid":provider_valid,"complete":complete},snap if complete else None
+                quality=getattr(snap,"quality",None)
+                return {"source":source.name,"snapshot_id":getattr(snap,"snapshot_id",""),"coverage":getattr(quality,"coverage",0),"expected_codes":getattr(quality,"expected_codes",0),"age_seconds":getattr(quality,"maximum_quote_age_seconds",None),"batch_seconds":getattr(quality,"batch_duration_seconds",None),"reasons":list(getattr(quality,"reasons",()) or ()),"universe_denominator_valid":denominator_valid,"provider_lineage_valid":provider_valid,"complete":complete},snap if complete else None
             except Exception as exc:return {"source":source.name,"complete":False,"error":f"{type(exc).__name__}: {exc}"},None
         with ThreadPoolExecutor(max_workers=2,thread_name_prefix="v5-source") as executor:
             results=[future.result() for future in [executor.submit(capture,source) for source in (self.first,self.second)]]

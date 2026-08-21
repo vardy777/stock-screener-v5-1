@@ -26,11 +26,10 @@ class ProjectGovernanceTests(unittest.TestCase):
 
     def test_project_state_schema_and_phase_are_valid(self):
         state = load_state()
-        self.assertEqual(state["schema_version"], "project-state-v1")
-        self.assertIn(state["active_phase"], state["phase_status"])
-        self.assertEqual(state["phase_status"][state["active_phase"]], "in_progress")
+        self.assertEqual(state["schema_version"], "project-state-v2")
+        self.assertEqual(state["project"], "a-share-overnight-v5")
         self.assertEqual(state["production_status"], "research_locked")
-        self.assertFalse(state["paper_contract"]["broker_orders_enabled"])
+        self.assertFalse(state["broker_orders_enabled"])
 
     def test_project_report_is_consistent(self):
         report = build_report()
@@ -43,59 +42,15 @@ class ProjectGovernanceTests(unittest.TestCase):
             text = (ROOT / name).read_bytes().decode("utf-8", errors="strict")
             self.assertNotIn("\ufffd", text, name)
 
-    def test_authorized_p3_p4_p5_cutover_preserves_research_gate(self):
+    def test_v5_production_state_preserves_research_gate_and_live_truth(self):
         state = load_state()
-        self.assertEqual(state["active_phase"], "P6")
-        self.assertEqual(state["p1_validation"]["engineering_status"], "offline_completed")
-        self.assertIn("pending", state["p1_validation"]["live_window_status"])
-        self.assertEqual(state["p2_validation"]["engineering_status"], "offline_completed")
-        self.assertIn("confirmation", state["p2_validation"]["live_window_status"])
-        self.assertEqual(
-            state["phase_status"]["P2"], "offline_completed_live_pending"
-        )
-        self.assertEqual(state["phase_status"]["P3"], "in_progress")
-        p3 = state["p3_validation"]
-        self.assertEqual(p3["operating_mode"], "local_research_paper_production")
-        self.assertTrue(p3["scheduling_enabled"])
-        self.assertTrue(p3["daily_paper_production_connected"])
-        self.assertFalse(p3["completion_allowed"])
-        p4 = state["p4_validation"]
-        self.assertEqual(p4["operating_mode"], "local_production_scheduler")
-        self.assertTrue(p4["windows_tasks_registered_by_p4"])
-        # The 2026-08-11 09:25 production notification has a real
-        # PushPlus 200/ACCEPTED receipt.  This flag is observed evidence,
-        # not an authorization to release the research gate.
-        self.assertTrue(p4["real_pushplus_called"])
-        self.assertTrue(p4["production_entrypoints_connected"])
-        self.assertFalse(p4["completion_allowed"])
-        p5 = state["p5_validation"]
-        self.assertEqual(p5["operating_mode"], "production_read_only")
-        self.assertTrue(p5["existing_8898_connected"])
-        self.assertFalse(p5["mutation_endpoints_enabled"])
-        self.assertTrue(p5["production_cutover_allowed"])
-        self.assertEqual(state["phase_status"]["P5"], "in_progress")
-        self.assertFalse(state["p6_validation"]["production_evaluation_allowed"])
-        self.assertFalse(state["p7_validation"]["production_publication_allowed"])
-        self.assertTrue(state["p8_validation"]["production_data_backup_performed"])
-        self.assertTrue(state["p8_validation"]["production_restore_performed"])
-        self.assertTrue(state["p8_validation"]["historical_archive_performed"])
-        self.assertTrue(state["p8_validation"]["v3_runtime_tree_retired"])
-        self.assertEqual(
-            state["p8_validation"]["v3_restore_verification"], "passed_81_files"
-        )
-        cutover=state["cutover_preparation"]
-        self.assertTrue(cutover["live_window_acceptance_available"])
-        self.assertTrue(cutover["writer_inventory_required"])
-        self.assertFalse(cutover["apply_allowed"])
-        self.assertTrue(cutover["tasks_modified"])
-        self.assertFalse(cutover["account_migrated"])
-        self.assertTrue(cutover["dashboard_switched"])
-        self.assertTrue(cutover["cutover_applied"])
-        self.assertEqual(cutover["unified_offline_acceptance_status"],"passed_248_tests_then_cutover_applied")
-        self.assertEqual(cutover["legacy_2026_08_07_window_projection"],"failed_as_expected_not_valid_live_evidence")
-        modules = (ROOT / "docs" / "MODULES.md").read_text(encoding="utf-8")
-        self.assertNotIn("P1完成", modules)
-        self.assertNotIn("P2完成", modules)
+        self.assertEqual(state["live_evidence"]["complete_successful_days"], 0)
+        self.assertEqual(state["quality"]["strategy_effectiveness"], "unproven")
+        self.assertFalse(state["hard_gates"]["model_publication_allowed"])
+        self.assertFalse(state["hard_gates"]["paper_or_live_cutover_allowed"])
+        self.assertTrue(state["schedule"]["nine_safe_tasks_registered"])
+        self.assertFalse(state["schedule"]["paper_or_broker_tasks_registered"])
+        self.assertEqual(state["notifications"]["owner"], "v5")
 
 
 if __name__ == "__main__":

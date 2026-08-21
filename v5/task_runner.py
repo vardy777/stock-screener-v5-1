@@ -11,6 +11,7 @@ from .shadow_schedule import ShadowScheduler
 from .alerts import send_failure
 from .clock_gate import check as check_clock
 from .ownership import load as load_ownership
+from .calendar import TradingCalendar
 
 WINDOWS={
     "morning_pool":((9,25,0),(9,25,39)),
@@ -41,6 +42,7 @@ def inside_window(task,now):
 def run(root,task,*,now=None,failure_alert_env=None,clock_checker=None):
     root=Path(root);now=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=now.date().isoformat();scheduler=ShadowScheduler(root);outcome="SUCCESS";details={}
     try:
+        if TradingCalendar().is_open(now.date()) is not True:raise ValueError(f"V5 task rejected non-trading day: {day}")
         if not inside_window(task,now):raise ValueError(f"V5 task outside allowed window: {task} at {now.isoformat()}")
         if task in {"morning_pool","feature_freeze","paper_sell"}:
             clock=(clock_checker or check_clock)()
