@@ -35,6 +35,12 @@ class ShadowScheduler:
             try:rows.append(json.loads(path.read_text(encoding="utf-8")))
             except Exception:continue
         return {row["task"] for row in rows if row.get("outcome")=="SUCCESS"}
+    def failed_tasks_with_accepted_alerts(self,trade_date):
+        directory=self.root/"runs"/trade_date;rows=[]
+        for path in directory.glob("*.json") if directory.exists() else []:
+            try:rows.append(json.loads(path.read_text(encoding="utf-8")))
+            except Exception:continue
+        return {row["task"] for row in rows if row.get("outcome")=="FAILED" and row.get("details",{}).get("failure_alert",{}).get("outcome")=="ACCEPTED"}
     def recovery_report(self,trade_date,now,*,excluded_tasks=()):
         excluded=set(excluded_tasks);unknown=excluded-{x.name for x in TASKS}
         if unknown:raise ContractViolation("unknown excluded shadow task")

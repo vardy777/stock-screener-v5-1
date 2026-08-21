@@ -31,16 +31,30 @@ def test_in_window_task_executes_and_records_success():
         assert result["run"]["details"]["pool_id"]=="v5mp1-test"
         producer.assert_called_once()
 
-def test_downstream_task_requires_immutable_upstream_success():
-    with TemporaryDirectory() as d,patch("v5.task_runner.send") as sender:
-        root=Path(d);result=run(root,"morning_push",now=at(9,25,20))
+def test_missing_upstream_without_prior_alert_emits_one_dependency_alert():
+    with TemporaryDirectory() as d,patch("v5.task_runner.send") as sender,patch("v5.task_runner.send_failure",return_value={"outcome":"ACCEPTED"}) as alert:
+        root=Path(d);result=run(root,"morning_push",now=at(9,25,20),failure_alert_env=root/".env")
         assert result["passed"] is False and "dependencies incomplete: morning_pool" in result["run"]["details"]["error"]
-        assert result["run"]["details"]["failure_alert_suppressed"]=="UPSTREAM_ROOT_CAUSE_ALREADY_ALERTED"
+        assert result["run"]["details"]["failure_alert"]["outcome"]=="ACCEPTED"
+        alert.assert_called_once()
         sender.assert_not_called()
+
+def test_downstream_suppresses_duplicate_only_after_upstream_alert_was_accepted():
+    with TemporaryDirectory() as d,patch("v5.task_runner.produce",side_effect=RuntimeError("source down")),patch("v5.task_runner.send_failure",return_value={"outcome":"ACCEPTED"}) as alert:
+        root=Path(d);failed=run(root,"morning_pool",now=at(9,25,5),failure_alert_env=root/".env",clock_checker=lambda:{"passed":True,"reason":"OK"})
+        assert failed["run"]["details"]["failure_alert"]["outcome"]=="ACCEPTED"
+        result=run(root,"morning_push",now=at(9,25,20),failure_alert_env=root/".env")
+        assert result["run"]["details"]["failure_alert_suppressed"]=="UPSTREAM_ROOT_CAUSE_ALREADY_ALERTED"
+        assert alert.call_count==1
+
+def test_failed_upstream_never_satisfies_dependency():
+    with TemporaryDirectory() as d,patch("v5.task_runner.send") as sender:
+        root=Path(d)
         run(root,"morning_pool",now=at(9,25,5),clock_checker=lambda:{"passed":True,"reason":"OK"})
         # The producer is not patched in this branch and therefore fails; a
         # failed upstream record must still not satisfy the dependency.
         result=run(root,"morning_push",now=at(9,25,21));assert result["passed"] is False
+        sender.assert_not_called()
 
 def test_market_capture_fails_before_provider_call_when_clock_is_unhealthy():
     with TemporaryDirectory() as d,patch("v5.task_runner.produce") as producer:

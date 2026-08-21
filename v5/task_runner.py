@@ -40,7 +40,7 @@ def inside_window(task,now):
     return start<=clock<=end
 
 def run(root,task,*,now=None,failure_alert_env=None,clock_checker=None):
-    root=Path(root);now=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=now.date().isoformat();scheduler=ShadowScheduler(root);outcome="SUCCESS";details={}
+    root=Path(root);now=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=now.date().isoformat();scheduler=ShadowScheduler(root);outcome="SUCCESS";details={};missing=[]
     try:
         if TradingCalendar().is_open(now.date()) is not True:raise ValueError(f"V5 task rejected non-trading day: {day}")
         if not inside_window(task,now):raise ValueError(f"V5 task outside allowed window: {task} at {now.isoformat()}")
@@ -67,7 +67,8 @@ def run(root,task,*,now=None,failure_alert_env=None,clock_checker=None):
     except Exception as exc:
         outcome="FAILED";details={"error_type":type(exc).__name__,"error":str(exc)}
         dependency_failure=str(exc).startswith("V5 task dependencies incomplete:")
-        if dependency_failure:
+        upstream_alerted=scheduler.failed_tasks_with_accepted_alerts(day) if dependency_failure else set()
+        if dependency_failure and missing and set(missing)<=upstream_alerted:
             details["failure_alert_suppressed"]="UPSTREAM_ROOT_CAUSE_ALREADY_ALERTED"
         elif failure_alert_env is not None:
             try:details["failure_alert"]=send_failure(root,day,task,str(exc),failure_alert_env)
