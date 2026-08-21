@@ -2,26 +2,28 @@
   "schema_version": "project-state-v2",
   "project": "a-share-overnight-v5",
   "display_name": "A股隔夜交易研究系统 V5",
-  "updated_at": "2026-08-21T11:45:00+08:00",
+  "updated_at": "2026-08-21T13:42:00+08:00",
   "production_status": "research_locked",
   "runtime_owner": "v5",
   "broker_orders_enabled": false,
   "dashboard": {"url": "http://127.0.0.1:8899/", "entrypoint": "python -m v5.dashboard", "status": "production_read_only"},
   "notifications": {"owner": "v5", "required": ["09:25 morning observation", "14:50 confirmation"], "success_contract": "HTTP 200 and ACCEPTED immutable receipt", "v4_channels_retired_in_code": true},
-  "schedule": {"owner": "v5", "mode": "weekday_recurring_with_exchange_calendar_runtime_gate", "eleven_tasks_registered": true, "paper_tasks_registered": true, "broker_tasks_registered": false, "static_audit": "passed_2026-08-21"},
+  "schedule": {"owner": "v5", "mode": "weekday_recurring_with_exchange_calendar_runtime_gate", "eleven_tasks_registered": true, "paper_tasks_registered": true, "broker_tasks_registered": false, "static_audit": "v7_passed_runtime_safe_os_v4_not_fully_disabled"},
   "live_evidence": {
     "complete_successful_days": 0,
     "2026-08-18": {"readiness": "success", "morning_pool": "success", "morning_push": "HTTP_200_ACCEPTED", "feature_freeze": "failed_dual_source_quality", "confirmation_push": "not_produced", "full_day": "failed"},
-    "2026-08-19_to_2026-08-21": "no_v5_runs_due_expired_one_day_schedule",
+    "2026-08-19_to_2026-08-20": "no_v5_runs_due_expired_one_day_schedule",
+    "2026-08-21": {"strict_morning_pool": "missing", "recovery_observation": "13:02_HTTP_200_ACCEPTED_non_strict", "dual_source_coverage": 0.9980824544582934, "full_day": "cannot_pass_without_09:25_mother_pool"},
     "next_full_live_acceptance": "2026-08-24"
   },
-  "quality": {"tests_passed": 371, "tests_failed": 0, "production_static_audit": "passed", "strict_round_trips": 0, "strategy_effectiveness": "unproven"},
+  "quality": {"tests_passed": 384, "tests_failed": 0, "production_static_audit": "v7_passed_v4_runtime_safe_not_all_os_disabled", "strict_round_trips": 0, "strategy_effectiveness": "unproven"},
   "known_issues": [
     {"id": "V5-SCHED-001", "severity": "P0", "title": "dated shadow tasks expired after 2026-08-18", "status": "fixed_offline_and_recurring_tasks_registered_2026-08-21_live_retest_pending"},
     {"id": "V5-DATA-001", "severity": "P0", "title": "2026-08-18 signal dual-source quality rejected", "status": "diagnostics_extended_live_1449_retest_pending"},
     {"id": "V5-LIVE-001", "severity": "P0", "title": "no complete successful V5 production day", "status": "open_requires_2026-08-24_full_window"},
-    {"id": "V5-RETIRE-001", "severity": "P1", "title": "V4 protected Windows task definitions remain installed", "status": "all_v4_business_entrypoints_code_retired_v5_is_single_writer"}
+    {"id": "V5-RETIRE-001", "severity": "P1", "title": "V4 protected Windows task definitions remain installed", "status": "eight_ready_tasks_code_guarded_before_business_imports_current_token_access_denied"},
+    {"id": "V5-RETIRE-002", "severity": "P2", "title": "privileged retired dashboard process still owns 127.0.0.1:8898", "status": "dashboard_task_disabled_process_termination_access_denied_v5_8899_unaffected"}
   ],
   "hard_gates": {"minimum_market_coverage": 0.95, "future_data_forbidden": true, "historical_strict_window_backfill_forbidden": true, "model_publication_allowed": false, "broker_or_live_trading_allowed": false},
-  "next_tasks": ["observe 2026-08-21 14:49 recurring task scheduling without claiming a full day", "complete 2026-08-24 08:30 through 15:20 live acceptance", "require both PushPlus immutable HTTP 200 ACCEPTED receipts", "only after live acceptance decide V5 paper writer cutover and V4 bridge retirement", "accumulate strict round trips before any strategy effectiveness claim"]
+  "next_tasks": ["observe 2026-08-21 14:49 recurring task scheduling without claiming a full day", "complete 2026-08-24 08:30 through 15:20 live acceptance", "require both PushPlus immutable HTTP 200 ACCEPTED receipts", "verify V5-only paper no-op or fill and next-open exit", "accumulate strict round trips before any strategy effectiveness claim"]
 }
