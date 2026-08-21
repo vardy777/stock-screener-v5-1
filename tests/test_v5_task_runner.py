@@ -80,3 +80,16 @@ def test_failed_health_report_is_preserved_and_alerted():
         assert result["run"]["details"]["checks"]["morning_fact_exists"] is False
         assert result["run"]["details"]["failure_alert"]["outcome"]=="ACCEPTED"
         alert.assert_called_once()
+
+def test_health_suppresses_only_derived_failures_after_upstream_alert():
+    checks={"morning_fact_exists":False,"morning_notification_accepted":False,
+            "confirmation_fact_exists":False,"confirmation_notification_accepted":False,
+            "lineage_accepted":False,"paper_ledger_reconciled":True}
+    with TemporaryDirectory() as d,patch("v5.task_runner.produce",side_effect=RuntimeError("source down")), \
+         patch("v5.task_runner.health",return_value={"passed":False,"checks":checks}), \
+         patch("v5.task_runner.send_failure",return_value={"outcome":"ACCEPTED"}) as alert:
+        root=Path(d)
+        run(root,"morning_pool",now=at(9,25,5),failure_alert_env=root/".env",clock_checker=lambda:{"passed":True})
+        result=run(root,"health_check",now=at(14,53),failure_alert_env=root/".env")
+        assert result["run"]["details"]["failure_alert_suppressed"]=="UPSTREAM_ROOT_CAUSE_ALREADY_ALERTED"
+        assert alert.call_count==1

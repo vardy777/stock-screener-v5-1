@@ -25,6 +25,8 @@ WINDOWS={
     "paper_buy":((14,50,0),(14,51,59)),
 }
 SAFE_DEPENDENCIES={"morning_push":("morning_pool",),"confirmation":("morning_pool","feature_freeze"),"confirmation_push":("confirmation",),"paper_buy":("confirmation",)}
+HEALTH_DERIVED_CHECKS={"morning_fact_exists","morning_notification_accepted",
+    "confirmation_fact_exists","confirmation_notification_accepted","lineage_accepted"}
 
 def dependencies_for(root,task):
     dependencies=list(SAFE_DEPENDENCIES.get(task,()))
@@ -74,6 +76,10 @@ def run(root,task,*,now=None,failure_alert_env=None,clock_checker=None):
     if outcome=="FAILED" and failure_alert_env is not None and not any(key in details for key in ("failure_alert","failure_alert_error","failure_alert_suppressed")):
         failed_checks=sorted(key for key,value in details.get("checks",{}).items() if value is not True)
         reason=details.get("error") or f"V5 {task} reported failed checks: {', '.join(failed_checks) or 'UNKNOWN'}"
-        try:details["failure_alert"]=send_failure(root,day,task,reason,failure_alert_env)
-        except Exception as alert_exc:details["failure_alert_error"]=f"{type(alert_exc).__name__}: {alert_exc}"
+        prior_alerts=scheduler.failed_tasks_with_accepted_alerts(day)
+        if task=="health_check" and failed_checks and set(failed_checks)<=HEALTH_DERIVED_CHECKS and prior_alerts:
+            details["failure_alert_suppressed"]="UPSTREAM_ROOT_CAUSE_ALREADY_ALERTED"
+        else:
+            try:details["failure_alert"]=send_failure(root,day,task,reason,failure_alert_env)
+            except Exception as alert_exc:details["failure_alert_error"]=f"{type(alert_exc).__name__}: {alert_exc}"
     record=scheduler.record(task,day,outcome,now,details);return {"passed":outcome=="SUCCESS","run":record}
