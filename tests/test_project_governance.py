@@ -2,7 +2,8 @@ import json
 import unittest
 from pathlib import Path
 
-from scripts.project_status import REQUIRED_FILES, build_report, load_state
+from scripts.project_status import REQUIRED_FILES, build_report, load_state, runtime_observation
+import tempfile
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -52,6 +53,16 @@ class ProjectGovernanceTests(unittest.TestCase):
         self.assertTrue(state["schedule"]["paper_tasks_registered"])
         self.assertFalse(state["schedule"]["broker_tasks_registered"])
         self.assertEqual(state["notifications"]["owner"], "v5")
+
+    def test_runtime_status_prefers_newer_non_strict_recovery_without_promoting_it(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);pool=root/"v5/data/morning_pools/2026-08-18/p.json";pool.parent.mkdir(parents=True);pool.write_text(json.dumps({"trade_date":"2026-08-18","created_at":"2026-08-18T09:25:10+08:00","candidates":[]}),encoding="utf-8")
+            recovery=root/"v5/data/recovery_observations/2026-08-21/r.json";recovery.parent.mkdir(parents=True);recovery.write_text(json.dumps({"trade_date":"2026-08-21","observed_at":"2026-08-21T13:02:00+08:00","snapshot_id":"ms1-test","candidates":[{}]}),encoding="utf-8")
+            receipt=root/"v5/data/recovery_notifications/2026-08-21/r.json";receipt.parent.mkdir(parents=True);receipt.write_text(json.dumps({"outcome":"ACCEPTED"}),encoding="utf-8")
+            value=runtime_observation(root)
+            self.assertEqual(value["kind"],"non_strict_recovery_observation")
+            self.assertFalse(value["strict_0925_sample"])
+            self.assertEqual(value["notification_outcome"],"ACCEPTED")
 
 
 if __name__ == "__main__":

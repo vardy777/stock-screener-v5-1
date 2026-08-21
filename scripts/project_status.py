@@ -44,16 +44,24 @@ def v3_import_violations() -> list[str]:
     return violations
 
 
-def runtime_observation() -> dict:
-    pools=sorted((ROOT/"v5/data/morning_pools").glob("*/*.json")) if (ROOT/"v5/data/morning_pools").exists() else []
-    if not pools:return {"available":False}
-    pool=json.loads(pools[-1].read_text(encoding="utf-8"));trade_date=str(pool.get("trade_date",""));confirmations=sorted((ROOT/"v5/data/confirmations"/trade_date).glob("*.json")) if (ROOT/"v5/data/confirmations"/trade_date).exists() else []
+def runtime_observation(root: Path = ROOT) -> dict:
+    data=root/"v5/data";pools=sorted((data/"morning_pools").glob("*/*.json")) if (data/"morning_pools").exists() else []
+    recoveries=sorted((data/"recovery_observations").glob("*/*.json")) if (data/"recovery_observations").exists() else []
+    latest_pool=json.loads(pools[-1].read_text(encoding="utf-8")) if pools else None
+    latest_recovery=json.loads(recoveries[-1].read_text(encoding="utf-8")) if recoveries else None
+    if latest_recovery and (not latest_pool or str(latest_recovery.get("observed_at",""))>str(latest_pool.get("created_at",""))):
+        day=str(latest_recovery.get("trade_date",""));receipts=sorted((data/"recovery_notifications"/day).glob("*.json")) if (data/"recovery_notifications"/day).exists() else []
+        receipt=json.loads(receipts[-1].read_text(encoding="utf-8")) if receipts else {}
+        return {"available":True,"kind":"non_strict_recovery_observation","trade_date":day,"candidate_count":len(latest_recovery.get("candidates",[])),"strict_0925_sample":False,"notification_outcome":receipt.get("outcome","MISSING"),"snapshot_id":latest_recovery.get("snapshot_id","")}
+    if not latest_pool:return {"available":False}
+    pool=latest_pool;trade_date=str(pool.get("trade_date",""));confirmations=sorted((data/"confirmations"/trade_date).glob("*.json")) if (data/"confirmations"/trade_date).exists() else []
     confirmation=json.loads(confirmations[-1].read_text(encoding="utf-8")) if confirmations else {}
-    ownership_path=ROOT/"v5/data/ownership.json";ownership=json.loads(ownership_path.read_text(encoding="utf-8-sig")) if ownership_path.exists() else {}
-    ledger_path=ROOT/"v5/data/paper/events.json";ledger=json.loads(ledger_path.read_text(encoding="utf-8")) if ledger_path.exists() else {"events":[]}
+    ownership_path=data/"ownership.json";ownership=json.loads(ownership_path.read_text(encoding="utf-8-sig")) if ownership_path.exists() else {}
+    ledger_path=data/"paper/events.json";ledger=json.loads(ledger_path.read_text(encoding="utf-8")) if ledger_path.exists() else {"events":[]}
     buy_count=sum(row.get("event",{}).get("side")=="BUY" and row.get("event",{}).get("outcome")=="FILLED" for row in ledger.get("events",[]))
     return {
         "available": True,
+        "kind": "strict_morning_pool",
         "trade_date": trade_date,
         "morning_candidates":len(pool.get("candidates",[])),
         "confirmation_candidates":len(confirmation.get("candidates",[])),
