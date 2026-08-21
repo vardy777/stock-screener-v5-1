@@ -10,7 +10,7 @@ V5 has not completed one correct full production day. Its offline contracts and 
 - 2026-08-18: 14:49 feature freeze failed. Sina signal coverage was 91.71%; Tencent coverage was 99.85% but the strict quality contract rejected it. Confirmation and the second push therefore did not complete.
 - 2026-08-19, 2026-08-20 and 2026-08-21 morning: no V5 run artifacts, candidate facts or notification receipts exist.
 - Root cause of the multi-day outage: production registered dated one-day tasks only. There was no recurring task continuity after 2026-08-18.
-- The V4-labelled message was emitted by a legacy V4 health task before its notification entrypoint was retired. V4 notification and dashboard entrypoints are now code-gated, but V4 paper compatibility tasks remain installed as the sole existing paper writer bridge.
+- The V4-labelled message was emitted by a legacy V4 health task before its notification entrypoint was retired. V4 notification, paper and dashboard entrypoints are now code-gated; V5 is the authorized single paper writer. Several ACL-protected V4 task definitions remain installed but cannot reach business implementations.
 
 ## Repairs made
 
