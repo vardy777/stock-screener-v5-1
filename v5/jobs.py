@@ -87,12 +87,13 @@ def paper_sell(root,*,now=None,sources=None):
     codes=sorted({row["code"] for row in positions}|{candidate["code"] for confirmation in confirmations for candidate in confirmation.get("candidates",[])})
     if not codes:return {"events":[],"baselines":[],"snapshot_id":"","outcome":"NO_POSITIONS_OR_BASELINE"}
     sources=sources or (SinaRealtimeSource(),TencentRealtimeSource());universe=UniverseV1.build(trade_date=day,created_at=current,codes=codes,sources=["v5_open_positions_and_baseline"]);result=ConsensusAcquirer(*sources).acquire(universe,stage="sell",now=current)
+    _save_immutable(root,"consensus",day,"cons1-",result.report);attempts=result.report.get("attempts",[]);session=AcquisitionSessionV1.build(trade_date=day,stage="sell",requested_at=current,expected_codes=len(universe.codes),selected_snapshot_id=result.primary.snapshot_id if result.accepted else "",accepted=result.accepted,source_attempts=attempts);store=V5FactStore(root);store.save_session(session)
     if not result.accepted:raise ContractViolation("V5 paper sell consensus rejected")
-    V5FactStore(root).save_snapshot(result.primary);production=PaperProduction(root);events=production.sell_all(result.primary,at=current)
+    store.save_snapshot(result.primary);executed_at=datetime.fromisoformat(result.primary.batch_completed_at).astimezone(CHINA_TZ);production=PaperProduction(root);events=production.sell_all(result.primary,at=executed_at)
     if len(events)!=len(positions):raise ContractViolation("V5 paper sell missing executable bid")
     outcomes=[event.outcome for event in events]
     baselines=[]
     if outcomes and all(value=="FILLED" for value in outcomes):
         for confirmation in confirmations:
-            buy_snapshot=load_snapshot(root/"snapshots"/confirmation["trade_date"]/f"{confirmation['snapshot_id']}.json");baselines.append(production.save_baseline(confirmation,buy_snapshot,result.primary,at=current))
+            buy_snapshot=load_snapshot(root/"snapshots"/confirmation["trade_date"]/f"{confirmation['snapshot_id']}.json");baselines.append(production.save_baseline(confirmation,buy_snapshot,result.primary,at=executed_at))
     return {"events":[event.__dict__ for event in events],"baselines":baselines,"snapshot_id":result.primary.snapshot_id,"outcome":"FILLED" if outcomes and all(value=="FILLED" for value in outcomes) else "PARTIALLY_FILLED" if "FILLED" in outcomes else "UNFILLED"}

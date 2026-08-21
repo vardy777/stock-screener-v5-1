@@ -47,9 +47,10 @@ class ProjectGovernanceTests(unittest.TestCase):
         self.assertEqual(state["live_evidence"]["complete_successful_days"], 0)
         self.assertEqual(state["quality"]["strategy_effectiveness"], "unproven")
         self.assertFalse(state["hard_gates"]["model_publication_allowed"])
-        self.assertFalse(state["hard_gates"]["paper_or_live_cutover_allowed"])
-        self.assertTrue(state["schedule"]["nine_safe_tasks_registered"])
-        self.assertFalse(state["schedule"]["paper_or_broker_tasks_registered"])
+        self.assertFalse(state["hard_gates"]["broker_or_live_trading_allowed"])
+        self.assertTrue(state["schedule"]["eleven_tasks_registered"])
+        self.assertTrue(state["schedule"]["paper_tasks_registered"])
+        self.assertFalse(state["schedule"]["broker_tasks_registered"])
         self.assertEqual(state["notifications"]["owner"], "v5")
 
 

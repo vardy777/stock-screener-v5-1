@@ -11,6 +11,13 @@ from .core import CHINA_TZ
 
 D=lambda x:Decimal(str(x));CENT=Decimal("0.01")
 def _id(prefix,value):return prefix+hashlib.sha256(json.dumps(value,sort_keys=True,separators=(",",":")).encode()).hexdigest()[:24]
+def _replace_with_retry(source,target,timeout=3.0):
+    deadline=time.monotonic()+timeout
+    while True:
+        try:os.replace(source,target);return
+        except PermissionError:
+            if time.monotonic()>=deadline:raise
+            time.sleep(.01)
 @dataclass(frozen=True)
 class PaperOrderV1:
     decision_id:str;side:str;code:str;trade_date:str;created_at:str;reference_price:str;shares:int;snapshot_id:str;eligible_sell_date:str;schema_version:str="v5-paper-order-v1"
@@ -69,7 +76,7 @@ class PaperLedger:
                 rows=self.events()
                 if any(x["event"]["order_id"]==event.order_id for x in rows):return False
                 previous=rows[-1]["event_id"] if rows else "genesis";rows.append({"sequence":len(rows)+1,"previous_event_id":previous,"event_id":event.event_id,"event":asdict(event)})
-                payload={"schema_version":"v5-paper-ledger-v1","initial_cash":str(self.initial),"head":event.event_id,"events":rows};tmp=self.path.with_suffix(f".{os.getpid()}.{event.event_id}.tmp");tmp.write_text(json.dumps(payload,ensure_ascii=False,sort_keys=True,separators=(",",":")),encoding="utf-8");os.replace(tmp,self.path);return True
+                payload={"schema_version":"v5-paper-ledger-v1","initial_cash":str(self.initial),"head":event.event_id,"events":rows};tmp=self.path.with_suffix(f".{os.getpid()}.{event.event_id}.tmp");tmp.write_text(json.dumps(payload,ensure_ascii=False,sort_keys=True,separators=(",",":")),encoding="utf-8");_replace_with_retry(tmp,self.path);return True
             finally:
                 lock.seek(0);msvcrt.locking(lock.fileno(),msvcrt.LK_UNLCK,1)
     def state(self,*,as_of=None):
