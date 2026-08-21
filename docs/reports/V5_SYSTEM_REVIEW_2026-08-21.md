@@ -37,4 +37,17 @@ V5 has not completed one correct full production day. Its offline contracts and 
 - Both 09:25 and 14:50 notifications must each have an immutable HTTP 200 / ACCEPTED receipt.
 - The 14:49 dual-source capture must pass strict coverage, freshness and consistency without relaxed thresholds.
 - Strict simulated round trips remain zero, so strategy effectiveness and profitability are unproven.
-- V5 paper-writer cutover and final removal of the V4 paper bridge are not authorized by the evidence yet.
+- V5 paper writer was activated at 12:12 after proving both ledgers contained zero events and no positions. V4 business entrypoints are code-retired because their protected OS definitions cannot be disabled by the current token.
+
+## Midday production hardening
+
+- Corrected the quote clock model: provider response time now controls whole-batch freshness; a symbol's last-trade exchange time no longer invalidates the entire market.
+- Added a 120-second per-symbol last-quote gate so stale symbols cannot enter the funnel.
+- Real 2026-08-21 diagnostic: 5,215-symbol universe, 5,205 quotes from each source, 99.808% coverage, zero price conflicts, zero time conflicts, consensus accepted.
+- Corrected morning-pool and frozen-pointer causal timestamps to follow snapshot completion.
+- Reduced scheduler restart interval from two minutes to one minute and enabled start-when-available.
+- Retired every V4 business adapter before any V4 market or execution import, preventing simultaneous V4/V5 full-market requests.
+- Activated the V5-only paper buyer and seller; the recurring production manifest now has eleven tasks and no broker action.
+- Added immutable sell acquisition/consensus lineage and snapshot-completion execution time.
+- Repaired a Windows atomic-replace sharing race in the V5 event ledger; the concurrent append test passed 30 consecutive stress iterations.
+- Full suite after repairs: 375 passed, 0 failed.
