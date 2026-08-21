@@ -48,7 +48,8 @@ def build(root,day,*,now=None):
     lineage_checks=report["lineage"].get("checks",{})
     for stage in ("morning","confirmation"):
         accepted_receipts[stage]=bool(accepted_receipts[stage] and lineage_checks.get(f"{stage}_receipt_accepted") is True and lineage_checks.get(f"{stage}_receipt_lineage_matches") is True and lineage_checks.get(f"{stage}_payload_parent_matches") is True)
-    required=("morning_pool","morning_push","feature_freeze","confirmation","confirmation_push","health_check","maintenance")
+    required=("morning_pool","morning_push","paper_sell","feature_freeze","confirmation","confirmation_push","paper_buy","health_check","maintenance")
+    report["required_tasks"]=list(required)
     report["complete"]=bool(not readiness_errors and not run_errors and report["readiness"]["latest_passed"] is True and all(task_summary.get(task,{}).get("latest_outcome")=="SUCCESS" for task in required) and all(accepted_receipts.values()) and report["lineage"].get("passed") is True)
     return report
 

@@ -8,6 +8,7 @@ import json
 def test_live_acceptance_is_read_only_and_incomplete_without_window_evidence(tmp_path):
     before=list(tmp_path.rglob("*"));report=build(tmp_path,"2026-08-14",now=datetime(2026,8,14,8,0,tzinfo=CHINA_TZ));after=list(tmp_path.rglob("*"))
     assert before==after and report["complete"] is False and report["research_locked"] is True and report["broker_orders"] is False
+    assert set(report["required_tasks"])=={"morning_pool","morning_push","paper_sell","feature_freeze","confirmation","confirmation_push","paper_buy","health_check","maintenance"}
 
 def test_live_acceptance_selects_latest_readiness_by_entity_time(tmp_path):
     import hashlib
