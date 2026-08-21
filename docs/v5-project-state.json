@@ -26,7 +26,7 @@
   "next_live_shadow_tasks": {"trade_date":"recurring_weekdays","registered_tasks":11,"registered_business_tasks":9,"morning_capture":"09:25:05","morning_push":"09:25:50","paper_tasks":2,"broker_tasks":0},
   "weekend_preflight_task": "AStock-V5-Weekend-Preflight",
   "dashboard_supervisor_task": "AStock-V5-Dashboard-Logon",
-  "tests_passed": 377,
+  "tests_passed": 380,
   "known_issues": ["V5 has not yet completed one strict full trading day", "2026-08-21 has no strict 09:25 mother pool and therefore cannot produce a valid 14:50 confirmation or paper buy"],
   "migration_completion": {
     "complete": true,
@@ -78,7 +78,7 @@
     "funnel_policy_parameters_embedded": true,
     "confirmation_uses_frozen_morning_rank": true,
     "market_scope": "SSE_SZSE_A_INCLUDING_STAR_EXCLUDING_BSE",
-    "full_suite": "377 passed",
+    "full_suite": "380 passed",
     "dashboard_lineage_fail_closed": true,
     "market_state_projection_requires_content_id": true,
     "snapshot_reader_content_address_verified": true,

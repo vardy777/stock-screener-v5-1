@@ -58,4 +58,7 @@ V5 has not completed one correct full production day. Its offline contracts and 
 - The serialization path was corrected by projecting the immutable funnel through its versioned dictionary contract. A success-path regression test now persists candidates and verifies an accepted receipt.
 - A separate in-window rerun at 13:02 succeeded. Both independent sources returned 5,205 of 5,215 symbols (99.808% coverage); the cross-source consistent ratio was 99.751%; the observation notification received HTTP 200 / ACCEPTED.
 - The recovery observation is explicitly non-strict (`strict_0925_sample=false`) and ineligible for confirmation or paper execution. It does not repair or pretend that the missing 09:25 production window occurred.
-- Full suite after the recovery repair: 377 passed, 0 failed.
+- Full suite after the recovery repair: 380 passed, 0 failed.
+- Corrected downstream alert suppression: a dependency gap is silent only when an immutable upstream failure record contains an accepted alert. A task that never ran now causes one actionable alert instead of a silent downstream cascade.
+- Corrected the dashboard recovery projection so `candidate_count`, rendered items and both complete source identities agree. The supervised 8899 process was restarted and returned HTTP 200 with 5/5 candidates and two sources.
+- Corrected machine-readable runtime status to report the latest 2026-08-21 non-strict recovery fact instead of the older 2026-08-18 morning pool.
