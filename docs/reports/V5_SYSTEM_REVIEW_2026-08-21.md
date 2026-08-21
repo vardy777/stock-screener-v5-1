@@ -62,3 +62,7 @@ V5 has not completed one correct full production day. Its offline contracts and 
 - Corrected downstream alert suppression: a dependency gap is silent only when an immutable upstream failure record contains an accepted alert. A task that never ran now causes one actionable alert instead of a silent downstream cascade.
 - Corrected the dashboard recovery projection so `candidate_count`, rendered items and both complete source identities agree. The supervised 8899 process was restarted and returned HTTP 200 with 5/5 candidates and two sources.
 - Corrected machine-readable runtime status to report the latest 2026-08-21 non-strict recovery fact instead of the older 2026-08-18 morning pool.
+- Made health and maintenance observational tasks independent of business-task success. They now always persist diagnostics/maintenance evidence; a failed health report retains its checks and emits one accepted operational alert.
+- Made a valid empty confirmation an explicit `NO_CANDIDATE` paper success with no ledger event. A no-op trading day can now complete operational acceptance without pretending that a fill occurred.
+- Added confirmation content-hash verification before both filled and no-candidate paper paths.
+- Full suite after task-graph and empty-day repairs: 383 passed, 0 failed.
