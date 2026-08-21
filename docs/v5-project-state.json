@@ -9,7 +9,7 @@
   "status": "production_research_live_acceptance_pending",
   "production_status": "research_locked",
   "v4_integration": "runtime_retired_read_only_history_only",
-  "active_stage": "LIVE_SHADOW_ACCEPTANCE",
+  "active_stage": "LIVE_PRODUCTION_RESEARCH_ACCEPTANCE",
   "stages": {"V5-A":"offline_completed_live_pending","V5-B":"offline_completed_live_pending","V5-C":"offline_completed_live_pending","V5-D":"offline_completed_live_pending","V5-E":"pending"},
   "strict_samples_available": 0,
   "production_cutover_allowed": false,
@@ -111,5 +111,5 @@
     "scheduler_truthful_paper_outcomes": true
   },
   "latest_live_failure": {"trade_date":"2026-08-17","root_cause":"invalid_universe_denominator_and_unsuitable_second_realtime_source","morning_coverage":{"sina":0.0007208506,"eastmoney":0.0},"signal_coverage":{"sina":0.9383672734,"eastmoney":0.3743016760},"fix":"eastmoney_directory_plus_tencent_active_filter_and_sina_tencent_quote_consensus","diagnostic_active_universe":5212,"diagnostic_dual_source_coverage":0.9982732157,"diagnostic_price_conflicts":0,"strict_fact_backfill":false},
-  "next_acceptance": ["real 08:30 active universe preparation", "real Sina+Tencent 09:25:05/14:49 capture", "real 09:25:50/14:50 PushPlus HTTP 200 and full entity lineage", "V5 paper-writer cutover remains separately gated"]
+  "next_acceptance": ["2026-08-21 13:01 non-strict recovery observation and PushPlus receipt", "2026-08-21 real 14:49 strict dual-source freeze", "next full trade day 08:30 through 15:20 all eleven tasks", "first V5 strict Top1 paper buy and next-open sell round trip"]
 }

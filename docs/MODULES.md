@@ -1,34 +1,24 @@
-# V4 模块清单
+# V5 模块清单
 
-| 阶段 | 模块 | 契约与当前状态 | 待验收 |
+| 模块 | 职责 | 当前状态 | 尚待真实验收 |
 |---|---|---|---|
-| P1 | `market_contracts.py`, `market_gateway.py`, `market.py` | 唯一网关、不可变快照、时区与市场状态血缘；离线通过 | 真实四窗口 |
-| P2 | `decision_production.py`, `candidate_journal.py`, `decision_contracts.py` | 母池/确认唯一事实源；逐标的盘口阻断；离线通过 | 真实 09:25/14:50 |
-| P3 | `p3_account.py`, `p3_execution.py`, `p3_production.py` | 唯一模拟账户；费用、滑点、T+1、幂等、锁、恢复；已接生产 | 首次真实买入/次日卖出 |
-| P4 | `production_task_runner.py`, `push.py`, `notification_contracts.py` | 九任务唯一调度；不可变尝试、详细进程工件与通知实体；已接生产 | 连续真实闭环与漏跑恢复 |
-| P5 | `p5_sources.py`, `p5_read_model.py`, `p5_dashboard.py` | 8898 只读三视图；当日状态投影；已接生产 | 真实实体视觉验收 |
-| P6 | `p6_research_audit.py`, `phase1/overnight/` | 严格数据、WF、压力门禁；失败关闭 | ≥500 严格样本 |
-| P7 | `model_registry.py`, `p7_release_audit.py` | 模型/策略/报告哈希与原子发布审计 | P6 全部门禁通过 |
-| P8 | `p8_backup.py` | 内容寻址备份、校验和隔离恢复 | 当前 V4 生产数据演练、历史表面归档 |
+| `calendar.py`, `clock_gate.py`, `preflight.py` | 交易日、NTP、股票池和传输准备 | 已接循环生产 | 完整交易日08:30 |
+| `universe_refresh.py`, `universe.py` | 5215量级沪深A股独立股票池 | 真实数据通过 | 连续稳定性 |
+| `sina_source.py`, `tencent_source.py` | 独立全市场报价 | 99.808%真实午间共识通过 | 09:25与14:49 |
+| `market_snapshot.py`, `data_production.py` | 版本化快照、覆盖/时效/价格共识 | 离线与午间诊断通过 | 严格窗口 |
+| `market_state.py`, `funnel.py` | 市场风险、逐标的过滤、可解释排名 | 工程完成 | 因子与阈值效果 |
+| `decision_flow.py`, `jobs.py` | 母池、冻结、确认和血缘 | 工程完成 | 同日完整母池→确认 |
+| `notification.py`, `alerts.py` | V5业务推送和故障告警 | 8月18日早盘200/ACCEPTED | 同日两次成功 |
+| `paper.py`, `paper_production.py` | V5唯一模拟账本、费用、T+1和恢复 | 已切换单写者；375测试通过 | 首次买入和次日卖出 |
+| `task_runner.py`, 循环任务 | 11任务窗口、依赖、失败传播和重试 | 静态生产审计通过 | 完整交易日无漏跑 |
+| `performance.py`, `live_acceptance.py` | 往返绩效、基线和日验收 | 工程完成 | 严格往返样本 |
+| `sources.py`, `product_read_model.py`, `dashboard.py` | 8899只读产品看板 | HTTP 200、V5-only | 当日完整事实视觉验收 |
+| `independence_audit.py` | 禁止V4/phase1运行依赖 | 全部通过 | 持续回归 |
 
-## 强制实体
+## 当前未完成事实
 
-- `MarketSnapshotV1`、`MarketStateV1`
-- `MorningPoolV1`、`ConfirmationDecisionV1`
-- `PaperOrderIntentV1`、`PaperFillV1`、`PaperRoundTripV1`
-- `TaskOutputV1`、`NotificationReceiptV1`
-
-实体落盘后不可就地修改；派生视图可以重建。核心模块不得直接访问 `DataFetcher`。通知验收只读取不可变 `NotificationReceiptV1`，`push_receipts.json` 仅为旧兼容索引。
-
-## 当前生产入口
-
-```text
-v4/scripts/p4_task_adapter.py
-v4/scripts/decision_job.py
-v4/scripts/morning_push.py
-v4/scripts/afternoon_push.py
-v4/p3_production.py
-python -m v4.p5_dashboard --port 8898 --data-dir v4/data
-```
-
-旧 `paper_scheduler.py`、`dashboard.py`、`simulation.py`、`sim_engine.py` 不属于当前生产架构。
+- 尚无一个完整V5严格交易日。
+- 尚无严格完整模拟往返，无法评价胜率或盈利能力。
+- 今天错过的09:25不能补写；13:01恢复观察不属于策略样本。
+- 公共行情源没有商业SLA；任何覆盖、时效或一致性失败都必须空仓。
+- 规则因子权重、流动性阈值和市场状态阈值仍需严格样本与基线比较验证。

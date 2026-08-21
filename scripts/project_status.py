@@ -49,12 +49,15 @@ def runtime_observation() -> dict:
     if not pools:return {"available":False}
     pool=json.loads(pools[-1].read_text(encoding="utf-8"));trade_date=str(pool.get("trade_date",""));confirmations=sorted((ROOT/"v5/data/confirmations"/trade_date).glob("*.json")) if (ROOT/"v5/data/confirmations"/trade_date).exists() else []
     confirmation=json.loads(confirmations[-1].read_text(encoding="utf-8")) if confirmations else {}
+    ownership_path=ROOT/"v5/data/ownership.json";ownership=json.loads(ownership_path.read_text(encoding="utf-8-sig")) if ownership_path.exists() else {}
+    ledger_path=ROOT/"v5/data/paper/events.json";ledger=json.loads(ledger_path.read_text(encoding="utf-8")) if ledger_path.exists() else {"events":[]}
+    buy_count=sum(row.get("event",{}).get("side")=="BUY" and row.get("event",{}).get("outcome")=="FILLED" for row in ledger.get("events",[]))
     return {
         "available": True,
         "trade_date": trade_date,
         "morning_candidates":len(pool.get("candidates",[])),
         "confirmation_candidates":len(confirmation.get("candidates",[])),
-        "paper_bought":0,"paper_message":"V5 paper writer disabled during shadow acceptance",
+        "paper_bought":buy_count,"paper_message":"V5 single writer active" if ownership.get("paper_writer")=="v5" and ownership.get("authorized") is True else "V5 paper writer inactive",
     }
 
 def governance_issues(state: dict) -> list[str]:
@@ -89,7 +92,7 @@ def build_report() -> dict:
         "ok": not missing and not violations and v3_tree_retired and not governance,
         "project": state.get("display_name","A股隔夜交易研究系统 V5"),
         "active_phase": state.get("active_stage"),
-        "active_phase_name": "真实影子窗口验收",
+        "active_phase_name": "V5生产真实窗口验收",
         "production_status": state.get("production_status"),
         "dashboard": state.get("dashboard",{"url":"http://127.0.0.1:8899/"}),
         "next_tasks": state.get("next_acceptance", []),
