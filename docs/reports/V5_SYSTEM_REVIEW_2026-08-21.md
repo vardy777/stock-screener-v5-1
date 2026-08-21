@@ -66,3 +66,6 @@ V5 has not completed one correct full production day. Its offline contracts and 
 - Made a valid empty confirmation an explicit `NO_CANDIDATE` paper success with no ledger event. A no-op trading day can now complete operational acceptance without pretending that a fill occurred.
 - Added confirmation content-hash verification before both filled and no-candidate paper paths.
 - Full suite after task-graph and empty-day repairs: 383 passed, 0 failed.
+- Live acceptance now requires both V5 paper tasks; a day cannot pass while simulated execution is missing.
+- Added the orphan-signal dashboard state: after a valid 14:49 freeze without a strict 09:25 mother pool, the page projects the latest tail market state, clears recovery candidates and explicitly forces no confirmation/no paper buy.
+- Full suite after live-acceptance and tail-projection repairs: 384 passed, 0 failed.
