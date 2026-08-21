@@ -10,7 +10,7 @@ def test_v5_dashboard_is_one_page_decision_product_and_has_responsive_contract()
     assert "严格模拟往返" in page and "可比基线日" in page
     assert "市场状态尚未生成，不能判断风险" in page and "当前未触发市场风险阻断" not in page
     assert "width:min(1160px,calc(100% - 32px))" in page and "<nav" not in page and "不连接券商" in page
-    assert "V5 ONLY · V5-20260816" in page and "http-equiv='refresh' content='30'" in page
+    assert "V5 ONLY · V5-20260821" in page and "http-equiv='refresh' content='30'" in page
 
 def test_rejected_acquisition_remains_visible_as_source_diagnostics():
     acquisition=AcquisitionSessionV1.build(trade_date="2026-08-17",stage="morning",requested_at=datetime(2026,8,17,9,25,5,tzinfo=CHINA_TZ),expected_codes=5212,selected_snapshot_id="",accepted=False,source_attempts=[{"source":"sina","coverage":.94,"complete":False},{"source":"tencent","coverage":.99,"complete":False}])
