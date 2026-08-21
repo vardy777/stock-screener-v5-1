@@ -1,4 +1,5 @@
 from datetime import datetime,timedelta
+import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from v5.core import CHINA_TZ
@@ -23,6 +24,7 @@ def test_jobs_produce_v5_only_mother_pool_and_confirmation_facts():
 def test_feature_freeze_persists_independent_pointer_before_confirmation():
     with TemporaryDirectory() as d:
         root=Path(d);universe=UniverseV1.build(trade_date="2026-08-14",created_at=NOW,codes=["000001"],sources=["eastmoney_realtime_market_directory"]);universe.save(root);at=NOW.replace(hour=14,minute=49);signal=snap(at,"signal");result=freeze(root,now=at,sources=(Source("sina",signal),Source("eastmoney",signal)));assert result["snapshot_id"].startswith("ms1-") and result["acquisition_session_id"].startswith("acq1-") and (root/"frozen/2026-08-14/signal.json").exists()
+        states=list((root/"market_states/2026-08-14").glob("*.json"));assert len(states)==1 and json.loads(states[0].read_text())["snapshot_id"]==result["snapshot_id"]
         assert freeze(root,now=at,sources=(Source("sina",signal),Source("eastmoney",signal)))==result
         changed=snap(at+timedelta(seconds=1),"signal")
         with pytest.raises(Exception,match="frozen pointer immutable collision"):freeze(root,now=at+timedelta(seconds=1),sources=(Source("sina",changed),Source("eastmoney",changed)))
