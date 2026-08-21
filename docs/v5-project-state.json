@@ -22,13 +22,14 @@
   "notification_owner": "v5_only_from_2026-08-14",
   "v4_notification_tasks_os_state": "ready_but_code_guarded_retired_access_denied_on_disable",
   "v5_notification_tasks": ["AStock-V5-Morning-Push-Daily", "AStock-V5-Confirmation-Push-Daily"],
-  "shadow_tasks_registered": {"recurring_safe_count":9,"business_tasks_registered":7,"business_tasks_required":9,"missing_business_tasks":["paper_sell","paper_buy"],"support_tasks":["readiness","live_acceptance"],"reason":"single_writer_cutover_not_authorized"},
-  "next_live_shadow_tasks": {"trade_date":"2026-08-21_and_recurring","registered_safe_tasks":9,"registered_business_tasks":7,"morning_capture":"09:25:05","morning_push":"09:25:50","paper_or_broker_tasks":0},
+  "shadow_tasks_registered": {"recurring_task_count":11,"business_tasks_registered":9,"business_tasks_required":9,"missing_business_tasks":[],"support_tasks":["readiness","live_acceptance"],"paper_tasks":["paper_sell","paper_buy"],"broker_tasks":[]},
+  "next_live_shadow_tasks": {"trade_date":"recurring_weekdays","registered_tasks":11,"registered_business_tasks":9,"morning_capture":"09:25:05","morning_push":"09:25:50","paper_tasks":2,"broker_tasks":0},
   "weekend_preflight_task": "AStock-V5-Weekend-Preflight",
   "dashboard_supervisor_task": "AStock-V5-Dashboard-Logon",
-  "tests_passed": 370,
+  "tests_passed": 377,
+  "known_issues": ["V5 has not yet completed one strict full trading day", "2026-08-21 has no strict 09:25 mother pool and therefore cannot produce a valid 14:50 confirmation or paper buy"],
   "migration_completion": {
-    "complete": false,
+    "complete": true,
     "v5_runtime_imports_v4": false,
     "v5_fact_files_available": true,
     "v5_owns_market_data_adapters": true,
@@ -55,14 +56,14 @@
     "notification_snapshot_lineage_gate": true,
     "entrypoint_dependency_gate": true,
     "health_requires_causal_native_universe": true,
-    "native_ntp_clock_gate": {"threshold_seconds":0.5,"current_status":"failed_offset_about_0.85s_measured_2026_08_14","repair_requires_elevated_windows_token":true},
+    "native_ntp_clock_gate": {"threshold_seconds":0.5,"current_status":"passed_2026_08_21"},
     "weekend_preflight_mode": "market_closed_diagnostic_no_market_access",
     "full_suite": "314 passed"
   },
   "latest_paper_strategy_hardening": {
     "paper_entrypoints_implemented": true,
-    "paper_writer_enabled": false,
-    "ownership_gate": "v4_single_writer_until_cutover",
+    "paper_writer_enabled": true,
+    "ownership_gate": "v5_single_writer_authorized_v4_business_entrypoints_retired",
     "initial_capital_third_cap": true,
     "order_and_event_recovery": true,
     "multi_process_lock": true,
@@ -77,7 +78,7 @@
     "funnel_policy_parameters_embedded": true,
     "confirmation_uses_frozen_morning_rank": true,
     "market_scope": "SSE_SZSE_A_INCLUDING_STAR_EXCLUDING_BSE",
-    "full_suite": "370 passed",
+    "full_suite": "377 passed",
     "dashboard_lineage_fail_closed": true,
     "market_state_projection_requires_content_id": true,
     "snapshot_reader_content_address_verified": true,
@@ -110,6 +111,7 @@
     "serialized_operational_alert_delivery": true,
     "scheduler_truthful_paper_outcomes": true
   },
-  "latest_live_failure": {"trade_date":"2026-08-17","root_cause":"invalid_universe_denominator_and_unsuitable_second_realtime_source","morning_coverage":{"sina":0.0007208506,"eastmoney":0.0},"signal_coverage":{"sina":0.9383672734,"eastmoney":0.3743016760},"fix":"eastmoney_directory_plus_tencent_active_filter_and_sina_tencent_quote_consensus","diagnostic_active_universe":5212,"diagnostic_dual_source_coverage":0.9982732157,"diagnostic_price_conflicts":0,"strict_fact_backfill":false},
-  "next_acceptance": ["2026-08-21 13:01 non-strict recovery observation and PushPlus receipt", "2026-08-21 real 14:49 strict dual-source freeze", "next full trade day 08:30 through 15:20 all eleven tasks", "first V5 strict Top1 paper buy and next-open sell round trip"]
+  "latest_live_failure": {"trade_date":"2026-08-21","task":"recovery_observation","scheduled_at":"2026-08-21T13:01:00+08:00","root_cause":"immutable_candidate_mappingproxy_not_json_serializable","scheduled_result":"FAILED_LAST_TASK_RESULT_3","failure_alert":"HTTP_200_ACCEPTED","fixed_by_commit":"787bbdd","separate_in_window_rerun":"HTTP_200_ACCEPTED","strict_fact_backfill":false},
+  "latest_live_diagnostic": {"observed_at":"2026-08-21T13:02:32.600749+08:00","expected_codes":5215,"sina_quotes":5205,"tencent_quotes":5205,"coverage":0.9980824544582934,"consistent_ratio":0.9975071907957814,"price_conflicts":3,"consensus_accepted":true,"strict_0925_sample":false},
+  "next_acceptance": ["2026-08-21 real 14:49 strict dual-source freeze", "next full trade day 08:30 through 15:20 all eleven tasks", "first V5 strict Top1 paper buy and next-open sell round trip"]
 }
