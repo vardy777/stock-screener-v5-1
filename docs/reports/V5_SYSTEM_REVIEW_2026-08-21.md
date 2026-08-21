@@ -71,3 +71,14 @@ V5 has not completed one correct full production day. Its offline contracts and 
 - Full suite after live-acceptance and tail-projection repairs: 384 passed, 0 failed.
 - The prior production task audit enumerated only seven legacy names and missed eight ACL-protected V4 tasks that remain `Ready`. Audit v7 now inventories every `AStock-V4-*` task and reports OS retirement separately from code-gated runtime safety.
 - Current truth: not every V4 OS task is disabled, but every remaining Ready business task invokes the retired adapter that exits before importing any market, decision, notification or paper implementation. The V4 dashboard task is now disabled; a privileged process started on 2026-08-16 still owns 127.0.0.1:8898 and the current desktop token receives Access Denied when terminating it. Port 8899 remains the supervised V5 product.
+
+## Real 14:49 tail window
+
+- The recurring feature-freeze task ran at 14:49:00 and exited 0. The causal clock gate passed with a 40 ms maximum measured offset.
+- Both sources returned 5,205 of 5,215 symbols (99.808% coverage). Cross-source consistency was 99.770%; two symbols had price conflicts; consensus was accepted without changing any threshold.
+- Frozen snapshot `ms1-6a844da95a02d0a70840391162d4a05721b13dca5888c44f636d6d71ca381a03` completed at 14:49:09 and was published through an immutable pointer.
+- Confirmation failed closed because the strict 09:25 mother pool was missing. Exactly one dependency alert received HTTP 200 / ACCEPTED; confirmation push and paper buy preserved failed run facts and suppressed duplicate alerts. No confirmation, notification receipt, order or paper event was fabricated.
+- A production defect was exposed: feature freeze did not persist its market-state entity because that derivation previously lived only inside confirmation. The dashboard correctly returned 503 rather than fall back, then recovered after deterministic derivation from the immutable frozen snapshot. Feature freeze now persists market state itself; no morning pool, candidate, confirmation or fill was backfilled.
+- The repaired dashboard returned HTTP 200 with `accepted_no_morning_pool`, 0 candidates, both source identities, the 14:49 snapshot and a forced-empty-position explanation.
+- The 14:53 health task ran independently, retained all failed checks and received a separate HTTP 200 / ACCEPTED health alert. Native universe, paper reconciliation/recovery, exclusive writer and due-position exit checks passed.
+- Full suite after the live defect repair: 385 passed, 0 failed.

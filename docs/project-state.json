@@ -2,7 +2,7 @@
   "schema_version": "project-state-v2",
   "project": "a-share-overnight-v5",
   "display_name": "A股隔夜交易研究系统 V5",
-  "updated_at": "2026-08-21T13:42:00+08:00",
+  "updated_at": "2026-08-21T14:58:00+08:00",
   "production_status": "research_locked",
   "runtime_owner": "v5",
   "broker_orders_enabled": false,
@@ -13,10 +13,10 @@
     "complete_successful_days": 0,
     "2026-08-18": {"readiness": "success", "morning_pool": "success", "morning_push": "HTTP_200_ACCEPTED", "feature_freeze": "failed_dual_source_quality", "confirmation_push": "not_produced", "full_day": "failed"},
     "2026-08-19_to_2026-08-20": "no_v5_runs_due_expired_one_day_schedule",
-    "2026-08-21": {"strict_morning_pool": "missing", "recovery_observation": "13:02_HTTP_200_ACCEPTED_non_strict", "dual_source_coverage": 0.9980824544582934, "full_day": "cannot_pass_without_09:25_mother_pool"},
+    "2026-08-21": {"strict_morning_pool": "missing", "recovery_observation": "13:02_HTTP_200_ACCEPTED_non_strict", "feature_freeze": "14:49_SUCCESS", "dual_source_coverage": 0.9980824544582934, "dual_source_consistency": 0.9976989453499521, "confirmation": "fail_closed_missing_mother_pool_alert_HTTP_200_ACCEPTED", "paper_buy": "not_run_no_confirmation", "health": "failed_expected_alert_HTTP_200_ACCEPTED", "full_day": "cannot_pass_without_09:25_mother_pool"},
     "next_full_live_acceptance": "2026-08-24"
   },
-  "quality": {"tests_passed": 384, "tests_failed": 0, "production_static_audit": "v7_passed_v4_runtime_safe_not_all_os_disabled", "strict_round_trips": 0, "strategy_effectiveness": "unproven"},
+  "quality": {"tests_passed": 385, "tests_failed": 0, "production_static_audit": "v7_passed_v4_runtime_safe_not_all_os_disabled", "strict_round_trips": 0, "strategy_effectiveness": "unproven"},
   "known_issues": [
     {"id": "V5-SCHED-001", "severity": "P0", "title": "dated shadow tasks expired after 2026-08-18", "status": "fixed_offline_and_recurring_tasks_registered_2026-08-21_live_retest_pending"},
     {"id": "V5-DATA-001", "severity": "P0", "title": "2026-08-18 signal dual-source quality rejected", "status": "diagnostics_extended_live_1449_retest_pending"},
