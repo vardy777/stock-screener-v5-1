@@ -59,6 +59,7 @@ class V5ReadOnlySources:
             validated=MarketStateV1.from_mapping(json.loads(state_path.read_text(encoding="utf-8")))
             if validated.market_state_id!=state_id or validated.snapshot_id!=snapshot_id:raise ValueError("dashboard recovery lineage mismatch")
             attempts=list(recovery_raw.get("source_consensus",{}).get("attempts",[]));best=max(attempts,key=lambda row:float(row.get("coverage",0) or 0),default={})
-            model.today.update({"action":"午后恢复观察：不是09:25样本，不进入尾盘确认或模拟买入","data_quality":"recovery_observation","coverage":best.get("coverage"),"data_as_of":recovery_raw.get("observed_at"),"snapshot_id":snapshot_id,"source":" + ".join(row.get("source","") for row in attempts if row.get("complete")),"source_results":attempts,"market_state":validated.to_dict(),"recovery_observation":True})
-            model.candidates.update({"items":list(recovery_raw.get("candidates",[])),"empty_reason":None if recovery_raw.get("candidates") else "午后恢复观察没有标的通过漏斗"})
+            recovery_candidates=list(recovery_raw.get("candidates",[]));complete_sources=[row.get("source","") for row in attempts if row.get("complete")]
+            model.today.update({"action":"午后恢复观察：不是09:25样本，不进入尾盘确认或模拟买入","data_quality":"recovery_observation","coverage":best.get("coverage"),"data_as_of":recovery_raw.get("observed_at"),"snapshot_id":snapshot_id,"source":" + ".join(complete_sources),"source_consensus":complete_sources,"source_results":attempts,"candidate_count":len(recovery_candidates),"market_state":validated.to_dict(),"recovery_observation":True})
+            model.candidates.update({"items":recovery_candidates,"empty_reason":None if recovery_candidates else "午后恢复观察没有标的通过漏斗"})
         return model

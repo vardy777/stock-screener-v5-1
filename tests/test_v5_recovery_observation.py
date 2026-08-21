@@ -3,6 +3,7 @@ from v5.core import CHINA_TZ,ContractViolation
 from v5.recovery_observation import run
 from v5.market_snapshot import MarketSnapshotV1,QuoteV1
 from v5.universe import UniverseV1
+from v5.sources import V5ReadOnlySources
 
 def test_recovery_observation_rejects_outside_narrow_afternoon_window(tmp_path):
     try:run(tmp_path,now=datetime(2026,8,21,11,50,tzinfo=CHINA_TZ),transport=lambda:{"code":200})
@@ -29,3 +30,6 @@ def test_recovery_observation_serializes_frozen_candidates_and_records_acceptanc
     assert result["observation"]["strict_0925_sample"] is False
     assert result["observation"]["eligible_for_confirmation"] is False
     assert list((tmp_path/"recovery_observations/2026-08-21").glob("*.json"))
+    model=V5ReadOnlySources(tmp_path).build("2026-08-21",as_of=now).to_dict()
+    assert model["today"]["candidate_count"]==len(model["candidates"]["items"])
+    assert model["today"]["source_consensus"]==["first","second"]
