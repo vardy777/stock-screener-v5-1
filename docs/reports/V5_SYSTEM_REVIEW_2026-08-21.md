@@ -24,7 +24,7 @@ V5 has not completed one correct full production day. Its offline contracts and 
 
 ## Acceptance evidence
 
-- Full automated suite: 371 passed, 0 failed.
+- Full automated suite: 377 passed, 0 failed.
 - Production scheduled-task static audit: passed.
 - Nine recurring safe tasks: installed and Ready.
 - V5 dashboard task: supervised and running on port 8899.
@@ -51,3 +51,11 @@ V5 has not completed one correct full production day. Its offline contracts and 
 - Added immutable sell acquisition/consensus lineage and snapshot-completion execution time.
 - Repaired a Windows atomic-replace sharing race in the V5 event ledger; the concurrent append test passed 30 consecutive stress iterations.
 - Full suite after repairs: 375 passed, 0 failed.
+
+## 13:01 same-day recovery evidence
+
+- The scheduled recovery task did run at 13:01, but retained an immutable failed result (`LastTaskResult=3`): frozen candidate mappings were not JSON serializable. Its failure alert received a real PushPlus HTTP 200 / ACCEPTED response.
+- The serialization path was corrected by projecting the immutable funnel through its versioned dictionary contract. A success-path regression test now persists candidates and verifies an accepted receipt.
+- A separate in-window rerun at 13:02 succeeded. Both independent sources returned 5,205 of 5,215 symbols (99.808% coverage); the cross-source consistent ratio was 99.751%; the observation notification received HTTP 200 / ACCEPTED.
+- The recovery observation is explicitly non-strict (`strict_0925_sample=false`) and ineligible for confirmation or paper execution. It does not repair or pretend that the missing 09:25 production window occurred.
+- Full suite after the recovery repair: 377 passed, 0 failed.
