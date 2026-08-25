@@ -28,6 +28,7 @@ class PaperProduction:
         if order.shares>depth_shares:order=PaperOrderV1(order.decision_id,order.side,order.code,order.trade_date,order.created_at,order.reference_price,depth_shares,order.snapshot_id,order.eligible_sell_date)
         return self.engine.execute(order,at=at)
     def sell_all(self,snapshot,*,at):
+        assert_runtime_frozen()
         events=[]
         for position in list(self.ledger.state()["positions"]):
             quote=next((x for x in snapshot.quotes if x.code==position["code"]),None)

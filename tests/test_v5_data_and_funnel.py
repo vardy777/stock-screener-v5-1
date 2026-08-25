@@ -67,6 +67,22 @@ class V5DataAndFunnelTests(unittest.TestCase):
         sell=ConsensusAcquirer(Source("sina",sell_left),Source("tencent",sell_right)).acquire(universe,stage="sell",now=NOW)
         self.assertFalse(sell.accepted);self.assertEqual(sell.report["consistent_codes"],[])
 
+    def test_execution_consensus_rejects_agreed_locked_state_and_uses_conservative_book(self):
+        universe=UniverseV1.build(trade_date="2026-08-13",created_at=NOW,codes=["000001"],sources=["test"])
+        locked_buy=[snapshot([quote("000001",provider=name,limit_up=True)],1) for name in ("sina","tencent")]
+        assert not ConsensusAcquirer(Source("sina",locked_buy[0]),Source("tencent",locked_buy[1])).acquire(universe,stage="buy_execution",now=NOW).accepted
+        locked_sell=[snapshot([quote("000001",provider=name,limit_down=True)],1) for name in ("sina","tencent")]
+        assert not ConsensusAcquirer(Source("sina",locked_sell[0]),Source("tencent",locked_sell[1])).acquire(universe,stage="sell",now=NOW).accepted
+        left=snapshot([quote("000001",provider="sina",ask1=10.20,ask1_volume=100)],1);right=snapshot([quote("000001",provider="tencent",ask1=10.21,ask1_volume=10000)],1)
+        result=ConsensusAcquirer(Source("sina",left),Source("tencent",right)).acquire(universe,stage="buy_execution",now=NOW)
+        assert result.accepted and result.primary.quotes[0].ask1==10.21 and result.primary.quotes[0].ask1_volume==100
+        assert result.report["execution_books"]["000001"]["depth_rule"]=="min_depth"
+        from v5.paper_production import PaperProduction
+        with TemporaryDirectory() as root:
+            confirmation={"outcome":"BUY_CANDIDATE","confirmation_id":"v5cd1-consensus-depth","trade_date":"2026-08-13","candidates":[{"code":"000001"}]}
+            event=PaperProduction(root).buy(confirmation,result.primary,at=NOW.replace(hour=14,minute=50),eligible_sell_date="2026-08-14")
+            assert event.outcome=="FILLED" and event.shares==100
+
     def test_consensus_rejects_same_source_identity_even_with_two_objects(self):
         good=snapshot([quote("000001"),quote("000002")])
         with self.assertRaisesRegex(ValueError,"distinct source identities"):

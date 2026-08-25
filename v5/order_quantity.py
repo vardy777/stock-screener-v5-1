@@ -1,6 +1,7 @@
 """A-share board quantity rules used by strict paper execution."""
 from __future__ import annotations
 from decimal import Decimal, ROUND_DOWN
+ORDER_QUANTITY_RULE_VERSION="v5-board-quantity-v1"
 
 def board(code: str) -> str:
     code = str(code).zfill(6)

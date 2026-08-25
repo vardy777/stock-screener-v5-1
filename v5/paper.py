@@ -11,6 +11,7 @@ from .core import CHINA_TZ
 from .order_quantity import floor_quantity,valid_buy,valid_sell
 
 D=lambda x:Decimal(str(x));CENT=Decimal("0.01")
+DEFAULT_COMMISSION_RATE="0.0003";DEFAULT_MINIMUM_COMMISSION="5";DEFAULT_STAMP_TAX="0.0005";DEFAULT_SLIPPAGE="0.0005"
 def _id(prefix,value):return prefix+hashlib.sha256(json.dumps(value,sort_keys=True,separators=(",",":")).encode()).hexdigest()[:24]
 def _replace_with_retry(source,target,timeout=3.0):
     deadline=time.monotonic()+timeout
@@ -109,7 +110,7 @@ class PaperLedger:
         return trips
 
 class PaperEngine:
-    def __init__(self,ledger,commission_rate="0.0003",minimum_commission="5",stamp_tax="0.0005",slippage="0.0005"):
+    def __init__(self,ledger,commission_rate=DEFAULT_COMMISSION_RATE,minimum_commission=DEFAULT_MINIMUM_COMMISSION,stamp_tax=DEFAULT_STAMP_TAX,slippage=DEFAULT_SLIPPAGE):
         self.ledger=ledger;self.commission_rate=D(commission_rate);self.minimum_commission=D(minimum_commission);self.stamp_tax=D(stamp_tax);self.slippage=D(slippage)
     def _reject(self,order,reason,at):return PaperEventV1(order.order_id,"REJECTED",reason,at.isoformat(),order.code,order.side,order.shares,"0","0","0","0",order.decision_id,order.trade_date,order.eligible_sell_date)
     def reject(self,order,reason,*,at):

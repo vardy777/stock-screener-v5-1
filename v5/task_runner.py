@@ -83,12 +83,14 @@ def run(root,task,*,now=None,failure_alert_env=None,clock_checker=None):
             details=paper_sell(root,now=now)
             if details.get("outcome") not in {"FILLED","NO_POSITIONS_OR_BASELINE","NO_BASELINE_POSITIONS_SHARED_SNAPSHOT"}:raise RuntimeError(f"V5 paper sell incomplete: {details.get('outcome')}")
             snapshot_id=details.get("snapshot_id","")
+            execution_observed_at=details.get("execution_observed_at","")
+            execution_at=datetime.fromisoformat(execution_observed_at)
             details["challenger"]=run_challenger_isolated(
                 root,"paper_sell",now,
-                (lambda:challenger_paper_sell(root,load_snapshot(root/"snapshots"/day/f"{snapshot_id}.json"),now))
+                (lambda:challenger_paper_sell(root,load_snapshot(root/"snapshots"/day/f"{snapshot_id}.json"),execution_at))
                 if snapshot_id else (lambda:{"outcome":"NO_POSITIONS","events":[]}),
             )
-            details["pairings"]=finalize_due(root,day,now.isoformat(),snapshot_id,PaperProduction(root).ledger,PaperProduction(challenger_root(root)).ledger,TradingCalendar())
+            details["pairings"]=finalize_due(root,day,execution_observed_at,snapshot_id,PaperProduction(root).ledger,PaperProduction(challenger_root(root)).ledger,TradingCalendar(),details.get("sell_observation_id",""))
         elif task=="health_check":details=health(root,day,now);outcome="SUCCESS" if details["passed"] else "FAILED"
         elif task=="maintenance":details=maintenance(root,day,now);outcome="SUCCESS" if details["passed"] else "FAILED"
         else:raise ValueError("unsupported V5 task")

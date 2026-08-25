@@ -19,9 +19,10 @@ from .calendar import TradingCalendar
 from .market_state import MarketStateV1
 from .factor_research import observations_from_snapshot,analyze as analyze_factors
 from .baseline_policy import assert_runtime_frozen,BASELINE_ID,BASELINE_HASH
-from .opportunity import save_opportunity
+from .opportunity import save_opportunity,save_sell_observation
 
 NATIVE_UNIVERSE_SOURCE = "eastmoney_realtime_market_directory"
+CONFIRMATION_LOGIC_VERSION="v5-baseline-confirmation-subset-v1"
 
 def load_universe(root,day,*,as_of=None,require_native=False):
     files=list((Path(root)/"universes"/day).glob("*.json"))
@@ -69,6 +70,7 @@ def confirm_frozen(root,*,now=None):
     snapshot=load_snapshot(paths[0]);pool_raw=_latest(root,"morning_pools",day);pool=MorningPoolV5(pool_raw["trade_date"],pool_raw["created_at"],pool_raw["funnel_id"],pool_raw["snapshot_id"],pool_raw["market_state_id"],tuple(pool_raw["candidates"]));market=MarketStateV1.from_snapshot(snapshot);store=V5FactStore(root);store.save_market_state(market);funnel=CandidateFunnel().run(snapshot,market_state_id=market.market_state_id,market_valid=market.trade_allowed,stage="confirmation",allowed_codes=[x["code"] for x in pool.candidates],baseline_candidates=pool.candidates);store.save_funnel(funnel);entity=ConfirmationV5.from_funnel(pool,funnel,decided_at=current);store.save_confirmation(entity);return entity.to_dict()
 
 def freeze(root,*,now=None,sources=None):
+    assert_runtime_frozen()
     current=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=current.date().isoformat();universe=load_universe(root,day,as_of=current,require_native=True);sources=sources or (SinaRealtimeSource(),TencentRealtimeSource());result=ConsensusAcquirer(*sources).acquire(universe,stage="signal",now=current);_save_immutable(root,"consensus",day,"cons1-",result.report)
     attempts=result.report.get("attempts",[]);session=AcquisitionSessionV1.build(trade_date=day,stage="signal",requested_at=current,expected_codes=len(universe.codes),selected_snapshot_id=result.primary.snapshot_id if result.accepted else "",accepted=result.accepted,source_attempts=attempts);store=V5FactStore(root);store.save_session(session)
     if not result.accepted:raise ContractViolation("V5 feature freeze consensus rejected")
@@ -109,6 +111,7 @@ def paper_buy(root,*,now=None,sources=None):
     return details|{"execution_snapshot_id":result.primary.snapshot_id,"decision_snapshot_id":confirmation["snapshot_id"],"execution_context":str(context_path.relative_to(root)) if context_path else "","opportunity_id":opportunity["opportunity_id"]}
 
 def paper_sell(root,*,now=None,sources=None):
+    assert_runtime_frozen()
     root=Path(root);require_ownership(root/"ownership.json","paper_writer");current=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=current.date().isoformat();positions=PaperProduction(root).ledger.state()["positions"]
     confirmations=[]
     for path in (root/"confirmations").glob("*/*.json") if (root/"confirmations").exists() else []:
@@ -120,7 +123,9 @@ def paper_sell(root,*,now=None,sources=None):
     from .challenger import position_codes as challenger_position_codes
     shadow_codes=challenger_position_codes(root)
     codes=sorted({row["code"] for row in positions}|shadow_codes|{candidate["code"] for confirmation in confirmations for candidate in confirmation.get("candidates",[])})
-    if not codes:return {"events":[],"baselines":[],"snapshot_id":"","outcome":"NO_POSITIONS_OR_BASELINE"}
+    if not codes:
+        observation=save_sell_observation(root,trade_date=day,observed_at=current.isoformat(),snapshot_id="",codes=[])
+        return {"events":[],"baselines":[],"snapshot_id":"","execution_observed_at":current.isoformat(),"sell_observation_id":observation["observation_id"],"outcome":"NO_POSITIONS_OR_BASELINE"}
     sources=sources or (SinaRealtimeSource(),TencentRealtimeSource());universe=UniverseV1.build(trade_date=day,created_at=current,codes=codes,sources=["v5_open_positions_and_baseline"]);result=ConsensusAcquirer(*sources).acquire(universe,stage="sell",now=current)
     _save_immutable(root,"consensus",day,"cons1-",result.report);attempts=result.report.get("attempts",[]);session=AcquisitionSessionV1.build(trade_date=day,stage="sell",requested_at=current,expected_codes=len(universe.codes),selected_snapshot_id=result.primary.snapshot_id if result.accepted else "",accepted=result.accepted,source_attempts=attempts);store=V5FactStore(root);store.save_session(session)
     if not result.accepted or set(result.report.get("consistent_codes",()))!=set(codes):raise ContractViolation("V5 final-symbol sell consensus rejected")
@@ -137,4 +142,5 @@ def paper_sell(root,*,now=None,sources=None):
             if not contexts:raise ContractViolation("V5 baseline buy execution context missing")
             context=max(contexts,key=lambda value:value["recorded_at"]);buy_snapshot=load_snapshot(root/"snapshots"/confirmation["trade_date"]/f"{context['execution_snapshot_id']}.json");baselines.append(production.save_baseline(confirmation,buy_snapshot,result.primary,at=executed_at,decision_snapshot_id=context["decision_snapshot_id"]))
     outcome="NO_BASELINE_POSITIONS_SHARED_SNAPSHOT" if not positions else "FILLED" if outcomes and all(value=="FILLED" for value in outcomes) else "PARTIALLY_FILLED" if "FILLED" in outcomes else "UNFILLED"
-    return {"events":[event.__dict__ for event in events],"baselines":baselines,"snapshot_id":result.primary.snapshot_id,"outcome":outcome}
+    observation=save_sell_observation(root,trade_date=day,observed_at=executed_at.isoformat(),snapshot_id=result.primary.snapshot_id,codes=codes)
+    return {"events":[event.__dict__ for event in events],"baselines":baselines,"snapshot_id":result.primary.snapshot_id,"execution_observed_at":executed_at.isoformat(),"sell_observation_id":observation["observation_id"],"outcome":outcome}

@@ -46,7 +46,7 @@ def test_protocol_promotes_only_after_coverage_and_real_walk_forward():
     result=evaluate(_promotable());assert result["decision"]=="PROMOTE" and result["walk_forward"]["development"]["count"]==36 and result["walk_forward"]["validation"]["count"]==12 and result["walk_forward"]["holdout"]["count"]==12
 
 def test_protocol_kills_lineage_violation_negative_evidence_and_compounded_drawdown():
-    broken=_promotable();broken[0]["lineage_valid"]=False;assert evaluate(broken)["decision"]=="KILL"
+    broken=_promotable();broken[0]["lineage_valid"]=False;invalid=evaluate(broken);assert invalid["decision"]=="EVIDENCE_INVALID" and invalid["evidence_status"]=="QUARANTINE"
     negative=_promotable()[:30]
     for row in negative:row["challenger_return"]=-.01
     assert evaluate(negative)["decision"]=="KILL"
@@ -60,6 +60,38 @@ def test_factor_quintiles_are_contiguous_equal_frequency_and_ties_use_average_ra
     rows=[{"intraday_change":i,"amount":i,"close_location":0 if i<5 else 1,"net_return":i/100} for i in range(10)];result=analyze(rows);groups=result["factors"]["intraday_change"]["quintile_returns"]
     assert [x["count"] for x in groups]==[2,2,2,2,2] and groups[0]["maximum_factor"]<groups[1]["minimum_factor"]
     assert _rank([1,1,3])==[.5,.5,2]
+
+def test_factor_equal_frequency_groups_never_drop_or_duplicate_small_samples():
+    for size in range(1,10):
+        rows=[{"intraday_change":i,"amount":i,"close_location":i,"net_return":i/100} for i in range(size)]
+        groups=analyze(rows)["factors"]["intraday_change"]["quintile_returns"]
+        assert sum(group["count"] for group in groups)==size
+
+def test_baseline_freeze_protects_execution_sell_confirmation_and_quantity(monkeypatch):
+    import v5.paper as paper
+    original=paper.PaperEngine.execute;monkeypatch.setattr(paper.PaperEngine,"execute",lambda *a,**k:None)
+    try:assert_runtime_frozen()
+    except RuntimeError:pass
+    else:raise AssertionError("cash-flow execution drift must fail closed")
+    monkeypatch.setattr(paper.PaperEngine,"execute",original)
+    import v5.jobs as jobs
+    original_confirm=jobs.confirm_frozen;monkeypatch.setattr(jobs,"confirm_frozen",lambda *a,**k:None)
+    try:assert_runtime_frozen()
+    except RuntimeError:pass
+    else:raise AssertionError("confirmation drift must fail closed")
+    monkeypatch.setattr(jobs,"confirm_frozen",original_confirm)
+    import v5.paper_production as production
+    original_sell=production.PaperProduction.sell_all;monkeypatch.setattr(production.PaperProduction,"sell_all",lambda *a,**k:[])
+    try:assert_runtime_frozen()
+    except RuntimeError:pass
+    else:raise AssertionError("sell logic drift must fail closed")
+    monkeypatch.setattr(production.PaperProduction,"sell_all",original_sell)
+    import v5.order_quantity as quantity
+    original_floor=quantity.floor_quantity;monkeypatch.setattr(quantity,"floor_quantity",lambda *a,**k:0)
+    try:assert_runtime_frozen()
+    except RuntimeError:pass
+    else:raise AssertionError("quantity drift must fail closed")
+    monkeypatch.setattr(quantity,"floor_quantity",original_floor)
 
 def test_factor_label_join_is_causal_and_rejects_future_or_wrong_snapshot():
     observation={"trade_date":"2026-08-25","snapshot_id":"morning-1","created_at":"2026-08-25T09:25:20+08:00","observations":[{"code":"000001","snapshot_id":"morning-1","observed_at":"2026-08-25T09:25:10+08:00","intraday_change":.01,"amount":1e7,"close_location":.5}]};label={"code":"000001","buy_trade_date":"2026-08-25","morning_snapshot_id":"morning-1","strict_exit_window":True,"sell_recorded_at":"2026-08-26T09:30:10+08:00","net_return":.02}

@@ -37,7 +37,7 @@ def test_task_runner_marks_unfilled_paper_sell_failed_after_preserving_result():
         assert result["passed"] is False and "paper sell incomplete: UNFILLED" in result["run"]["details"]["error"] and seller.called
 
 def test_challenger_only_sell_snapshot_is_not_rejected_as_baseline_unfilled():
-    with TemporaryDirectory() as d,patch("v5.task_runner.paper_sell",return_value={"outcome":"NO_BASELINE_POSITIONS_SHARED_SNAPSHOT","events":[],"snapshot_id":"shared-sell"}),patch("v5.task_runner.load_snapshot",return_value=object()),patch("v5.task_runner.challenger_paper_sell",return_value={"outcome":"FILLED"}),patch("v5.task_runner.finalize_due",return_value=[]) as finalize:
+    with TemporaryDirectory() as d,patch("v5.task_runner.paper_sell",return_value={"outcome":"NO_BASELINE_POSITIONS_SHARED_SNAPSHOT","events":[],"snapshot_id":"shared-sell","execution_observed_at":"2026-08-17T09:30:10+08:00","sell_observation_id":"obs"}),patch("v5.task_runner.load_snapshot",return_value=object()),patch("v5.task_runner.challenger_paper_sell",return_value={"outcome":"FILLED"}),patch("v5.task_runner.finalize_due",return_value=[]) as finalize:
         result=run(Path(d),"paper_sell",now=datetime(2026,8,17,9,30,10,tzinfo=CHINA_TZ),clock_checker=lambda:{"passed":True,"reason":"OK"});assert result["passed"] is True and finalize.called
 
 def test_task_runner_marks_rejected_paper_buy_failed():

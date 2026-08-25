@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from .core import CHINA_TZ,is_market_snapshot
 from .contracts import AcquisitionSessionV1
 from .universe import UniverseV1
+from .market_snapshot import MarketSnapshotV1,QuoteV1
 
 # These describe collection truth for the entire universe.  Per-symbol
 # execution states (halt, limit lock, missing book) are intentionally handled
@@ -72,7 +73,7 @@ class ConsensusAcquirer:
         report={"schema_version":"v5-source-consensus-v1","universe_id":universe.universe_id,"attempts":attempts,"accepted":False}
         if None in snapshots:return ConsensusResult(False,None,report)
         left,right=({q.code:q for q in snap.quotes} for snap in snapshots);common=sorted(set(left)&set(right));denominator=len(universe.codes);match=len(common)/denominator
-        price_bad=set();time_bad=set();book_bad=set();state_bad=set()
+        price_bad=set();time_bad=set();book_bad=set();state_bad=set();execution_books={}
         for code in common:
             a,b=left[code],right[code];base=max(a.last_price,b.last_price)
             if base<=0 or abs(a.last_price-b.last_price)/base>self.maximum_price_deviation:price_bad.add(code)
@@ -82,15 +83,29 @@ class ConsensusAcquirer:
             if stage=="buy_execution":
                 executable=a.ask1>0 and b.ask1>0 and a.ask1_volume>0 and b.ask1_volume>0
                 reference=max(a.ask1,b.ask1)
+                if a.limit_up or b.limit_up:state_bad.add(code)
                 if not executable or abs(a.ask1-b.ask1)/reference>self.maximum_price_deviation:book_bad.add(code)
+                execution_books[code]={"side":"BUY","sources":[{"provider":a.provider,"price":a.ask1,"volume":a.ask1_volume},{"provider":b.provider,"price":b.ask1,"volume":b.ask1_volume}],"consensus_price":max(a.ask1,b.ask1),"consensus_volume":min(a.ask1_volume,b.ask1_volume),"price_rule":"max_ask","depth_rule":"min_depth"}
             elif stage=="sell":
                 executable=a.bid1>0 and b.bid1>0 and a.bid1_volume>0 and b.bid1_volume>0
                 reference=max(a.bid1,b.bid1)
+                if a.limit_down or b.limit_down:state_bad.add(code)
                 if not executable or abs(a.bid1-b.bid1)/reference>self.maximum_price_deviation:book_bad.add(code)
+                execution_books[code]={"side":"SELL","sources":[{"provider":a.provider,"price":a.bid1,"volume":a.bid1_volume},{"provider":b.provider,"price":b.bid1,"volume":b.bid1_volume}],"consensus_price":min(a.bid1,b.bid1),"consensus_volume":min(a.bid1_volume,b.bid1_volume),"price_rule":"min_bid","depth_rule":"min_depth"}
         conflicts=price_bad|time_bad|book_bad|state_bad
         consistent=(len(common)-len(conflicts))/denominator
         accepted=match>=self.minimum_match and consistent>=self.minimum_match
-        report.update({"matched_codes":len(common),"expected_codes":denominator,"match_ratio":match,"price_conflicts":len(price_bad),"time_conflicts":len(time_bad),"execution_book_conflicts":len(book_bad),"state_conflicts":len(state_bad),"conflict_codes":sorted(conflicts),"consistent_codes":sorted(set(common)-conflicts),"consistent_ratio":consistent,"execution_side":"BUY" if stage=="buy_execution" else "SELL" if stage=="sell" else "NONE","accepted":accepted})
+        report.update({"matched_codes":len(common),"expected_codes":denominator,"match_ratio":match,"price_conflicts":len(price_bad),"time_conflicts":len(time_bad),"execution_book_conflicts":len(book_bad),"state_conflicts":len(state_bad),"conflict_codes":sorted(conflicts),"consistent_codes":sorted(set(common)-conflicts),"consistent_ratio":consistent,"execution_side":"BUY" if stage=="buy_execution" else "SELL" if stage=="sell" else "NONE","execution_books":execution_books,"execution_price_policy":"conservative_max_ask_min_bid","execution_depth_policy":"conservative_minimum_source_depth","accepted":accepted})
         primary=max(snapshots,key=lambda snapshot:(datetime.fromisoformat(snapshot.batch_completed_at),snapshot.snapshot_id))
+        if accepted and stage in {"buy_execution","sell"}:
+            quotes=[]
+            for code in sorted(set(common)-conflicts):
+                base=left[code] if datetime.fromisoformat(left[code].provider_time)>=datetime.fromisoformat(right[code].provider_time) else right[code]
+                row=base.__dict__.copy();book=execution_books[code];row["provider"]="v5_dual_source_conservative_consensus"
+                if stage=="buy_execution":row.update({"ask1":book["consensus_price"],"ask1_volume":book["consensus_volume"]})
+                else:row.update({"bid1":book["consensus_price"],"bid1_volume":book["consensus_volume"]})
+                quotes.append(QuoteV1.from_mapping(row))
+            primary=MarketSnapshotV1.build(trade_date=universe.trade_date,session=stage,batch_started_at=min(x.batch_started_at for x in snapshots),batch_completed_at=max(x.batch_completed_at for x in snapshots),quotes=quotes,expected_codes=denominator)
+            report["source_snapshot_ids"]=[snapshot.snapshot_id for snapshot in snapshots]
         report["selected_snapshot_id"]=primary.snapshot_id if accepted else ""
         return ConsensusResult(accepted,primary if accepted else None,report)

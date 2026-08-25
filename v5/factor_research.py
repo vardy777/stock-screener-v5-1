@@ -37,8 +37,9 @@ def analyze(observations):
             entry["near_constant"]=(max(values)-min(values)<.02 or (_summary(values)["q75"]-_summary(values)["q25"])<.01)
         if result["label_status"]=="AVAILABLE":
             returns=[float(x["net_return"]) for x in rows];entry["rank_ic"]=_corr(_rank(values),_rank(returns));ordered=sorted(zip(values,returns));groups=[]
-            for group in range(min(5,len(ordered))):
-                start=group*len(ordered)//5;end=(group+1)*len(ordered)//5;chunk=ordered[start:end]
+            group_count=min(5,len(ordered))
+            for group in range(group_count):
+                start=group*len(ordered)//group_count;end=(group+1)*len(ordered)//group_count;chunk=ordered[start:end]
                 if chunk:groups.append({"count":len(chunk),"minimum_factor":chunk[0][0],"maximum_factor":chunk[-1][0],"mean_return":sum(y for _,y in chunk)/len(chunk)})
             entry["quintile_returns"]=groups
         result["factors"][factor]=entry
