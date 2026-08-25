@@ -32,6 +32,12 @@ def test_daily_lineage_acceptance_proves_snapshot_decision_and_notification_chai
         write(root/f"morning_pools/{day}/p.json",pool_entity.to_dict())
         write(root/f"confirmations/{day}/c.json",confirmation_entity.to_dict())
         write(root/f"frozen/{day}/signal.json",{"snapshot_id":signal,"acquisition_session_id":s_acq.session_id})
+        from v5.index_capture import capture as capture_index
+        from v5.index_benchmark import source_observation
+        class IndexSource:
+            def __init__(self,name,price):self.name=name;self.price=price
+            def capture(self,now):return source_observation(observed_at=now.isoformat(),previous_close=4000,last_price=self.price,provider=self.name,source_snapshot_id=f"response-{self.name}")
+        capture_index(root,now=signal_at,sources=(IndexSource("index_a",3980),IndexSource("index_b",3979)))
         from v5.notification import build_payload
         scheduler=ShadowScheduler(root)
         for stage,parent,run_at in (("morning",pool,morning_at+timedelta(seconds=30)),("confirmation",confirmation,signal_at+timedelta(minutes=1,seconds=30))):

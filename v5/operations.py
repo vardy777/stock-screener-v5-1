@@ -11,8 +11,8 @@ from .fact_reader import latest
 from .lineage_acceptance import audit as lineage_audit
 from .jobs import load_universe
 
-def _latest(root,kind,day,*,as_of=None):
-    try:return latest(root,kind,day,as_of=as_of)
+def _latest(root,kind,day,*,as_of=None,time_field=None):
+    try:return latest(root,kind,day,as_of=as_of,time_field=time_field)
     except Exception:return None
 def health(root,day,now):
     root=Path(root);morning=_latest(root,"morning_pools",day,as_of=now);confirmation=_latest(root,"confirmations",day,as_of=now);notifications=root/"notifications"/day
@@ -28,7 +28,8 @@ def health(root,day,now):
     # A running health task cannot have recorded its own SUCCESS yet.  Treating
     # that as a missed task makes every otherwise healthy 14:53 run fail.
     excluded=("health_check",) if v5_owns_paper else ("paper_sell","paper_buy","health_check")
-    recovery=ShadowScheduler(root).recovery_report(day,now,excluded_tasks=excluded);report={"schema_version":"v5-health-v1","trade_date":day,"recorded_at":now.astimezone(CHINA_TZ).isoformat(),"mode":"production" if v5_owns_paper else "shadow_without_paper_writer","checks":checks,"lineage":lineage,"recovery":recovery,"production_complete":v5_owns_paper,"passed":all(checks.values()) and recovery["status"]=="CLEAN"};return report
+    index_run=_latest(root,"index_benchmark_runs",day,as_of=now,time_field="recorded_at") or {"status":"UNKNOWN","errors":[{"error":"14:49 index capture not observed"}]}
+    recovery=ShadowScheduler(root).recovery_report(day,now,excluded_tasks=excluded);report={"schema_version":"v5-health-v1","trade_date":day,"recorded_at":now.astimezone(CHINA_TZ).isoformat(),"mode":"production" if v5_owns_paper else "shadow_without_paper_writer","checks":checks,"research_observations":{"index_benchmark":index_run,"index_coverage_available":index_run.get("status") in {"VERIFIED_DECLINE","VERIFIED_NOT_DECLINE"}},"lineage":lineage,"recovery":recovery,"production_complete":v5_owns_paper,"passed":all(checks.values()) and recovery["status"]=="CLEAN"};return report
 def maintenance(root,day,now):
     root=Path(root);files=[];bad=[]
     for path in root.rglob("*.json"):

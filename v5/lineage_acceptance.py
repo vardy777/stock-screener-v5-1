@@ -1,6 +1,6 @@
 """Fail-closed daily lineage acceptance across V5 facts and projections."""
 from __future__ import annotations
-import json
+import json,hashlib
 from datetime import datetime
 from pathlib import Path
 from .fact_reader import latest
@@ -29,6 +29,11 @@ def audit(root,day,*,as_of=None):
         pool_entity=MorningPoolV5(pool["trade_date"],pool["created_at"],pool["funnel_id"],pool["snapshot_id"],pool["market_state_id"],tuple(pool["candidates"]));checks["morning_pool_hash_matches"]=pool.get("pool_id")==pool_entity.pool_id
         confirmation_entity=ConfirmationV5(confirmation["trade_date"],confirmation["decided_at"],confirmation["morning_pool_id"],confirmation["funnel_id"],confirmation["snapshot_id"],confirmation["market_state_id"],tuple(confirmation["candidates"]),tuple(confirmation["changes"]),confirmation["outcome"]);checks["confirmation_hash_matches"]=confirmation.get("confirmation_id")==confirmation_entity.confirmation_id
         pointer=json.loads((root/"frozen"/day/"signal.json").read_text(encoding="utf-8"))
+        index_run=latest(root,"index_benchmark_runs",day,time_field="recorded_at",as_of=as_of);index_raw=json.dumps(index_run,ensure_ascii=False,sort_keys=True,separators=(",",":"));index_run_id="idxrun1-"+hashlib.sha256(index_raw.encode()).hexdigest()[:24];checks["index_capture_run_hash_matches"]=_exists(root,"index_benchmark_runs",day,index_run_id)
+        if index_run.get("status") in {"VERIFIED_DECLINE","VERIFIED_NOT_DECLINE"}:
+            from .index_benchmark import resolve as resolve_index_benchmark
+            index_fact=resolve_index_benchmark(root,day,as_of=index_run["recorded_at"]);checks["index_benchmark_lineage_valid"]=index_fact.get("index_benchmark_id")==index_run.get("index_benchmark_id") and index_fact.get("status")==index_run.get("status")
+        else:checks["index_benchmark_lineage_valid"]=index_run.get("status")=="UNKNOWN" and not index_run.get("index_benchmark_id")
         morning_snapshot=load_snapshot(root/"snapshots"/day/f"{morning_acq['selected_snapshot_id']}.json");signal_snapshot=load_snapshot(root/"snapshots"/day/f"{signal_acq['selected_snapshot_id']}.json")
         checks["morning_snapshot_exists"]=morning_snapshot.snapshot_id==morning_acq["selected_snapshot_id"]
         checks["pool_uses_morning_snapshot"]=pool["snapshot_id"]==morning_acq["selected_snapshot_id"]
@@ -51,7 +56,7 @@ def audit(root,day,*,as_of=None):
             if receipt.exists():
                 row=json.loads(receipt.read_text(encoding="utf-8"));checks[f"{stage}_receipt_accepted"]=row.get("outcome")=="ACCEPTED" and row.get("response_code")==200;checks[f"{stage}_receipt_lineage_matches"]=row.get("parent_entity_id")==entity_id and row.get("payload_sha256")==payload["payload_sha256"]
             else:checks[f"{stage}_receipt_accepted"]=False;checks[f"{stage}_receipt_lineage_matches"]=False
-        evidence={"morning_pool_id":pool["pool_id"],"confirmation_id":confirmation["confirmation_id"],"morning_snapshot_id":morning_acq["selected_snapshot_id"],"signal_snapshot_id":signal_acq["selected_snapshot_id"]}
+        evidence={"morning_pool_id":pool["pool_id"],"confirmation_id":confirmation["confirmation_id"],"morning_snapshot_id":morning_acq["selected_snapshot_id"],"signal_snapshot_id":signal_acq["selected_snapshot_id"],"index_benchmark_status":index_run.get("status"),"index_benchmark_id":index_run.get("index_benchmark_id","")}
     except Exception as exc:
         checks["audit_completed"]=False;evidence["error"]=f"{type(exc).__name__}: {exc}"
     return {"schema_version":"v5-daily-lineage-acceptance-v1","trade_date":day,"checks":checks,"evidence":evidence,"passed":bool(checks) and all(checks.values())}

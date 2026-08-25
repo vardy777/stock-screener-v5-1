@@ -9,7 +9,7 @@ def observations_from_snapshot(snapshot,*,minimum_amount=5_000_000.0,maximum_cha
         if "ST" in q.name.upper() or "退" in q.name or q.halted or q.limit_up or q.limit_down or q.amount<minimum_amount or q.previous_close<=0:continue
         change=q.last_price/q.previous_close-1;day_range=(q.high_price-q.low_price)/q.previous_close
         if change>maximum_change or day_range>maximum_range:continue
-        rows.append({"code":q.code,"snapshot_id":snapshot.snapshot_id,"observed_at":q.exchange_time,"intraday_change":change,"amount":q.amount,"close_location":(q.last_price-q.low_price)/max(q.high_price-q.low_price,.000001)})
+        rows.append({"code":q.code,"snapshot_id":snapshot.snapshot_id,"observed_at":q.exchange_time,"last_price":q.last_price,"intraday_change":change,"amount":q.amount,"close_location":(q.last_price-q.low_price)/max(q.high_price-q.low_price,.000001)})
     ranks=_rank([row["amount"] for row in rows]);denominator=len(rows)-1
     for row,rank in zip(rows,ranks):row["amount_percentile"]=rank/denominator if denominator>0 else .5
     return rows

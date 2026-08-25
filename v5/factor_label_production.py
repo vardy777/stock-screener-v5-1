@@ -49,7 +49,8 @@ def produce(root,trade_date,*,as_of):
             trip=next((row for row in ledger.round_trips(as_of=cutoff) if row["buy_trade_date"]==trade_date),None)
             if trip:
                 if trip["code"] not in observed_codes:raise ContractViolation("strict label code missing from 09:25 eligible cross-section")
-                label=_label(strategy,trip,pair,diagnostic["snapshot_id"]);_save(root,"factor_labels",trade_date,"flabel1-",{key:value for key,value in label.items() if key!="label_id"});labels.append(label)
+                label=_label(strategy,trip,pair,diagnostic["snapshot_id"]);_save(root,"strategy_factor_labels",trade_date,"flabel1-",{key:value for key,value in label.items() if key!="label_id"});labels.append(label)
     joined=join_strict_labels(diagnostic,labels,as_of=cutoff);status="EVIDENCE_INVALID" if invalid else joined["label_status"]
     value={"schema_version":"v5-factor-labelled-cohort-v1","trade_date":trade_date,"created_at":cutoff.isoformat(),"diagnostic_id":diagnostic["diagnostic_id"],"morning_snapshot_id":diagnostic["snapshot_id"],"pairing_id":pair.get("pairing_id","") if pair else "","label_ids":[row["label_id"] for row in labels],"label_status":status,"rows":joined["rows"],"diagnostics":joined["diagnostics"]}
-    cohort_id=_save(root,"factor_labelled_cohorts",trade_date,"flcohort1-",value);return value|{"cohort_id":cohort_id}
+    value["cohort_type"]="strategy_executed_only_not_cross_sectional"
+    cohort_id=_save(root,"strategy_factor_labelled_cohorts",trade_date,"flcohort1-",value);return value|{"cohort_id":cohort_id}
