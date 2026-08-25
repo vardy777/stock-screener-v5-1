@@ -1,6 +1,7 @@
 """Fail-closed daily lineage acceptance across V5 facts and projections."""
 from __future__ import annotations
 import json
+from datetime import datetime
 from pathlib import Path
 from .fact_reader import latest
 from .notification import build_payload
@@ -8,11 +9,16 @@ from .market_state import MarketStateV1
 from .contracts import AcquisitionSessionV1
 from .decision_flow import MorningPoolV5,ConfirmationV5
 from .paper_production import load_snapshot
+from .shadow_schedule import ShadowScheduler
 
 def _exists(root,kind,day,entity_id):return (Path(root)/kind/day/f"{entity_id}.json").exists()
 def audit(root,day,*,as_of=None):
     root=Path(root);checks={};evidence={}
     try:
+        scheduler=ShadowScheduler(root)
+        runs,run_errors=scheduler._validated_rows(day)
+        if run_errors:raise ValueError("invalid V5 task run facts")
+        latest_runs=scheduler._latest_by_task(runs)
         morning_acq=latest(root,"acquisition",day,predicate=lambda row:row.get("stage")=="morning",as_of=as_of)
         signal_acq=latest(root,"acquisition",day,predicate=lambda row:row.get("stage")=="signal",as_of=as_of)
         pool=latest(root,"morning_pools",day,as_of=as_of);confirmation=latest(root,"confirmations",day,as_of=as_of)
@@ -35,7 +41,12 @@ def audit(root,day,*,as_of=None):
         for label,entity in (("morning",pool),("confirmation",confirmation)):
             state_path=root/"market_states"/day/f"{entity['market_state_id']}.json";state=MarketStateV1.from_mapping(json.loads(state_path.read_text(encoding="utf-8")));checks[f"{label}_market_state_id_matches"]=state.market_state_id==entity["market_state_id"];checks[f"{label}_market_state_snapshot_matches"]=state.snapshot_id==entity["snapshot_id"]
         for stage,entity_id in (("morning",pool["pool_id"]),("confirmation",confirmation["confirmation_id"])):
-            payload=build_payload(root,day,stage,as_of=as_of);receipt=root/"notifications"/day/f"{stage}.json"
+            task="morning_push" if stage=="morning" else "confirmation_push"
+            run=latest_runs.get(task)
+            if not run or run.get("outcome")!="SUCCESS":raise ValueError(f"missing successful {task} run fact")
+            run_details=run.get("details",{})
+            payload=build_payload(root,day,stage,as_of=datetime.fromisoformat(run["recorded_at"]));receipt=root/"notifications"/day/f"{stage}.json"
+            checks[f"{stage}_notification_run_matches"]=run_details.get("parent_entity_id")==entity_id and run_details.get("payload_sha256")==payload["payload_sha256"]
             checks[f"{stage}_payload_parent_matches"]=payload["parent_entity_id"]==entity_id
             if receipt.exists():
                 row=json.loads(receipt.read_text(encoding="utf-8"));checks[f"{stage}_receipt_accepted"]=row.get("outcome")=="ACCEPTED" and row.get("response_code")==200;checks[f"{stage}_receipt_lineage_matches"]=row.get("parent_entity_id")==entity_id and row.get("payload_sha256")==payload["payload_sha256"]

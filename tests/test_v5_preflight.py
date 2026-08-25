@@ -13,26 +13,27 @@ def test_preflight_retries_native_universe_refresh_before_failing(tmp_path):
   calls.append(1)
   if len(calls)<3:raise TimeoutError("transient")
   return {"universe_id":"univ1-ok","count":4930}
- with patch("v5.preflight.datetime") as clock,patch("v5.preflight.refresh_universe",side_effect=refresh),patch("v5.preflight.load_universe") as load,patch("v5.preflight.ShadowScheduler") as scheduler,patch("v5.preflight.SinaRealtimeSource"),patch("v5.preflight.EastmoneyRealtimeSource"):
+ with patch("v5.preflight.datetime") as clock,patch("v5.preflight.refresh_universe",side_effect=refresh),patch("v5.preflight.load_universe") as load,patch("v5.preflight.ShadowScheduler") as scheduler,patch("v5.preflight.SinaRealtimeSource"),patch("v5.preflight.TencentRealtimeSource"):
   clock.now.return_value=now;load.return_value.codes=tuple(str(x).zfill(6) for x in range(4000));load.return_value.sources=("eastmoney_realtime_market_directory",);scheduler.return_value.validate.return_value={"passed":True}
-  for source in (v5.preflight.SinaRealtimeSource.return_value,v5.preflight.EastmoneyRealtimeSource.return_value):source.capture.return_value.quotes=[]
+  for source in (v5.preflight.SinaRealtimeSource.return_value,v5.preflight.TencentRealtimeSource.return_value):source.capture.return_value.quotes=[]
   report=run(tmp_path,refresh_attempts=3,sleeper=lambda _:None,clock_checker=lambda:{"passed":True,"reason":"OK"})
  assert report["details"]["universe_refresh_attempts"]==3 and len(calls)==3
+ assert "eastmoney_transport" not in report["checks"]
 
 def test_preflight_never_contacts_market_sources_when_clock_gate_fails(tmp_path):
  trading_day=datetime(2026,8,14,8,30,tzinfo=CHINA_TZ)
- with patch("v5.preflight.datetime") as clock,patch("v5.preflight.refresh_universe") as refresh,patch("v5.preflight.SinaRealtimeSource") as sina,patch("v5.preflight.EastmoneyRealtimeSource") as eastmoney:
+ with patch("v5.preflight.datetime") as clock,patch("v5.preflight.refresh_universe") as refresh,patch("v5.preflight.SinaRealtimeSource") as sina,patch("v5.preflight.TencentRealtimeSource") as tencent:
   clock.now.return_value=trading_day
   report=run(tmp_path,clock_checker=lambda:{"passed":False,"reason":"WINDOWS_TIME_OFFSET_TOO_LARGE"})
  assert not report["passed"] and report["details"]["market_checks_skipped"]=="causal_clock_rejected"
- refresh.assert_not_called();sina.assert_not_called();eastmoney.assert_not_called()
+ refresh.assert_not_called();sina.assert_not_called();tencent.assert_not_called()
 
 def test_weekend_preflight_is_quiet_market_closed_diagnostic(tmp_path):
  weekend=datetime(2026,8,15,8,30,tzinfo=CHINA_TZ)
- with patch("v5.preflight.datetime") as clock,patch("v5.preflight.refresh_universe") as refresh,patch("v5.preflight.load_universe") as load,patch("v5.preflight.SinaRealtimeSource") as sina,patch("v5.preflight.EastmoneyRealtimeSource") as eastmoney:
+ with patch("v5.preflight.datetime") as clock,patch("v5.preflight.refresh_universe") as refresh,patch("v5.preflight.load_universe") as load,patch("v5.preflight.SinaRealtimeSource") as sina,patch("v5.preflight.TencentRealtimeSource") as tencent:
   clock.now.return_value=weekend;report=run(tmp_path,clock_checker=lambda:{"passed":True,"reason":"OK"})
  assert report["passed"] and report["mode"]=="MARKET_CLOSED_DIAGNOSTIC" and not report["universe_preparation"]
- refresh.assert_not_called();load.assert_not_called();sina.assert_not_called();eastmoney.assert_not_called()
+ refresh.assert_not_called();load.assert_not_called();sina.assert_not_called();tencent.assert_not_called()
 
 def test_preflight_report_is_content_addressed_and_idempotent(tmp_path):
  weekend=datetime(2026,8,15,8,30,tzinfo=CHINA_TZ)

@@ -5,7 +5,6 @@ import hashlib,json,os
 from pathlib import Path
 import time
 from .core import CHINA_TZ
-from .eastmoney_source import EastmoneyRealtimeSource
 from .sina_source import SinaRealtimeSource
 from .tencent_source import TencentRealtimeSource
 from .jobs import load_universe
@@ -17,9 +16,9 @@ def run(root,day=None,*,refresh_attempts=3,sleeper=None,clock_checker=None):
  root=Path(root);now=datetime.now(CHINA_TZ);day=day or now.date().isoformat();checks={};details={};trading_day=(day==now.date().isoformat() and TradingCalendar().is_open(now.date()) is True);details["trading_day"]=trading_day
  clock=(clock_checker or check_clock)();checks["causal_clock"]=clock["passed"];details["clock_gate"]=clock
  if not trading_day:
-  checks["universe_refresh"]=True;checks["universe"]=True;checks["sina_transport"]=True;checks["tencent_transport"]=True;checks["eastmoney_transport"]=True;details["market_checks_skipped"]="market_closed_diagnostic"
+  checks["universe_refresh"]=True;checks["universe"]=True;checks["sina_transport"]=True;checks["tencent_transport"]=True;details["market_checks_skipped"]="market_closed_diagnostic"
  elif not clock["passed"]:
-  checks["universe_refresh"]=False;checks["universe"]=False;checks["sina_transport"]=False;checks["tencent_transport"]=False;checks["eastmoney_transport"]=False;details["market_checks_skipped"]="causal_clock_rejected"
+  checks["universe_refresh"]=False;checks["universe"]=False;checks["sina_transport"]=False;checks["tencent_transport"]=False;details["market_checks_skipped"]="causal_clock_rejected"
  else:
   sleeper=sleeper or time.sleep;errors=[]
   for attempt in range(1,max(1,int(refresh_attempts))+1):
@@ -36,7 +35,7 @@ def run(root,day=None,*,refresh_attempts=3,sleeper=None,clock_checker=None):
  # One known liquid symbol proves transport/parser availability only; it is
  # never accepted as full-market or strict-window evidence.
  if clock["passed"] and trading_day:
-  for name,source in (("sina",SinaRealtimeSource()),("tencent",TencentRealtimeSource()),("eastmoney",EastmoneyRealtimeSource(page_size=500,retries=0))):
+  for name,source in (("sina",SinaRealtimeSource()),("tencent",TencentRealtimeSource())):
    try:s=source.capture(["600000"],stage="signal",now=now);checks[name+"_transport"]=len(s.quotes)==1;details[name+"_quote_time"]=s.quotes[0].exchange_time if s.quotes else None
    except Exception as exc:checks[name+"_transport"]=False;details[name+"_error"]=type(exc).__name__
  report={"schema_version":"v5-readiness-preflight-v2","recorded_at":now.isoformat(),"trade_date":day,"mode":"TRADING_DAY_PREPARATION" if trading_day else "MARKET_CLOSED_DIAGNOSTIC","diagnostic_only":True,"strict_evidence":False,"universe_preparation":trading_day,"checks":checks,"details":details,"passed":all(checks.values())}

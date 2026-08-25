@@ -2,7 +2,7 @@
 
 | 模块 | 职责 | 当前状态 | 尚待真实验收 |
 |---|---|---|---|
-| `calendar.py`, `clock_gate.py`, `preflight.py` | 交易日、NTP、股票池和传输准备 | 已接循环生产 | 完整交易日08:30 |
+| `calendar.py`, `clock_gate.py`, `preflight.py` | 交易日、NTP、东方财富股票目录及新浪/腾讯严格行情传输准备 | 已接循环生产；已删除无业务职责的东方财富单股报价硬门禁 | 连续交易日08:30 |
 | `universe_refresh.py`, `universe.py` | 5215量级沪深A股独立股票池 | 真实数据通过 | 连续稳定性 |
 | `sina_source.py`, `tencent_source.py` | 独立全市场报价 | 2026-08-21严格14:49覆盖99.808%、一致99.770%通过 | 连续09:25与14:49 |
 | `market_snapshot.py`, `data_production.py` | 版本化快照、覆盖/时效/价格共识 | 严格14:49真实窗口通过 | 09:25窗口与连续稳定性 |

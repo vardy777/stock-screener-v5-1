@@ -2,7 +2,7 @@
   "schema_version": "project-state-v2",
   "project": "a-share-overnight-v5",
   "display_name": "A股隔夜交易研究系统 V5",
-  "updated_at": "2026-08-21T18:40:00+08:00",
+  "updated_at": "2026-08-25T21:40:00+08:00",
   "production_status": "research_locked",
   "runtime_owner": "v5",
   "broker_orders_enabled": false,
@@ -14,17 +14,21 @@
     "2026-08-18": {"readiness": "success", "morning_pool": "success", "morning_push": "HTTP_200_ACCEPTED", "feature_freeze": "failed_dual_source_quality", "confirmation_push": "not_produced", "full_day": "failed"},
     "2026-08-19_to_2026-08-20": "no_v5_runs_due_expired_one_day_schedule",
     "2026-08-21": {"strict_morning_pool": "missing", "recovery_observation": "13:02_HTTP_200_ACCEPTED_non_strict", "feature_freeze": "14:49_SUCCESS", "dual_source_coverage": 0.9980824544582934, "dual_source_consistency": 0.9976989453499521, "confirmation": "fail_closed_missing_mother_pool_alert_HTTP_200_ACCEPTED", "paper_buy": "not_run_no_confirmation", "health": "failed_expected_alert_HTTP_200_ACCEPTED", "maintenance": "15:10_SUCCESS_113_FILES_NO_INVALID", "live_acceptance": "15:20_INCOMPLETE_TRUTHFUL_NO_VALIDATION_ERRORS", "full_day": "cannot_pass_without_09:25_mother_pool"},
-    "next_full_live_acceptance": "2026-08-24"
+    "2026-08-24": {"readiness": "success", "morning_push": "HTTP_200_ACCEPTED", "confirmation_push": "HTTP_200_ACCEPTED", "nine_business_tasks": "8_success_1_health_false_failure", "lineage_recalculation_after_fix": "passed_read_only", "full_day": "immutable_acceptance_failed_before_fix"},
+    "2026-08-25": {"readiness": "failed_obsolete_eastmoney_quote_probe_after_universe_refresh_success", "morning_push": "HTTP_200_ACCEPTED", "confirmation_push": "HTTP_200_ACCEPTED", "nine_business_tasks": "8_success_1_health_false_failure", "lineage_recalculation_after_fix": "passed_read_only", "full_day": "immutable_acceptance_failed_before_fix"},
+    "next_full_live_acceptance": "2026-08-26"
   },
-  "quality": {"tests_passed": 402, "tests_failed": 0, "production_static_audit": "v7_passed_v4_runtime_safe_not_all_os_disabled", "runtime_run_fact_validation": "content_address_and_latest_attempt_enforced", "strict_round_trips": 0, "strategy_effectiveness": "unproven", "historical_hourly_proxy": {"strict_evidence": false, "period": "2026-07-09_to_2026-08-05", "sessions": 20, "trades": 14, "win_rate": 0.214285714285714, "average_return": -0.0169068096892119, "net_pnl": -7146.27, "verdict": "negative_warning_not_admission_evidence"}, "volume_price_challenger": {"strategy_id": "volume_price_v1", "mode": "shadow_no_push", "baseline_changed": false, "separate_ledger": true, "target_trade_date": "2026-08-24", "context_coverage": 0.9810162991371045, "reference_match_rate": 0.9882720875684128, "offline_acceptance": "passed", "live_acceptance": "pending"}},
+  "quality": {"tests_passed": 447, "tests_failed": 0, "production_static_audit": "v7_passed_v4_runtime_safe_not_all_os_disabled", "runtime_run_fact_validation": "content_address_and_latest_attempt_enforced", "strict_round_trips": 0, "strategy_effectiveness": "unproven", "historical_hourly_proxy": {"strict_evidence": false, "period": "2026-07-09_to_2026-08-05", "sessions": 20, "trades": 14, "win_rate": 0.214285714285714, "average_return": -0.0169068096892119, "net_pnl": -7146.27, "verdict": "negative_warning_not_admission_evidence"}, "volume_price_challenger": {"strategy_id": "volume_price_v1", "mode": "shadow_no_push", "baseline_changed": false, "separate_ledger": true, "target_trade_date": "2026-08-24", "context_coverage": 0.9810162991371045, "reference_match_rate": 0.9882720875684128, "offline_acceptance": "passed", "live_acceptance": "pending"}},
   "known_issues": [
     {"id": "V5-SCHED-001", "severity": "P0", "title": "dated shadow tasks expired after 2026-08-18", "status": "fixed_recurring_tail_tasks_ran_2026-08-21_full_day_continuity_pending_2026-08-24"},
     {"id": "V5-DATA-001", "severity": "P0", "title": "2026-08-18 signal dual-source quality rejected", "status": "fixed_2026-08-21_strict_1449_passed_0925_continuity_pending"},
-    {"id": "V5-LIVE-001", "severity": "P0", "title": "no complete successful V5 production day", "status": "open_requires_2026-08-24_full_window"},
+    {"id": "V5-LIVE-001", "severity": "P0", "title": "no complete successful V5 production day", "status": "open_requires_2026-08-26_full_window_after_false_failure_fix"},
+    {"id": "V5-AUDIT-001", "severity": "P0", "title": "health audit rebuilt notification at audit wall clock and falsely rejected stale payload", "status": "fixed_2026-08-25_requires_next_live_health_acceptance"},
+    {"id": "V5-PREFLIGHT-002", "severity": "P1", "title": "obsolete Eastmoney single-quote probe blocked readiness although directory and strict sources were healthy", "status": "fixed_2026-08-25_directory_gate_and_sina_tencent_transport_retained"},
     {"id": "V5-STRAT-001", "severity": "P1", "title": "current momentum Top1 policy underperformed in 20-session hourly proxy", "status": "open_baseline_frozen_volume_price_challenger_offline_ready_live_comparison_pending"},
     {"id": "V5-RETIRE-001", "severity": "P1", "title": "V4 protected Windows task definitions remain installed", "status": "eight_ready_tasks_code_guarded_before_business_imports_current_token_access_denied"},
     {"id": "V5-RETIRE-002", "severity": "P2", "title": "privileged retired dashboard process still owns 127.0.0.1:8898", "status": "dashboard_task_disabled_process_termination_access_denied_v5_8899_unaffected"}
   ],
   "hard_gates": {"minimum_market_coverage": 0.95, "future_data_forbidden": true, "historical_strict_window_backfill_forbidden": true, "model_publication_allowed": false, "broker_or_live_trading_allowed": false},
-  "next_tasks": ["complete 2026-08-24 08:30 through 15:20 live acceptance", "require both PushPlus immutable HTTP 200 ACCEPTED receipts", "verify V5-only paper no-op or fill and next-open exit", "accumulate strict round trips before any strategy effectiveness claim"]
+  "next_tasks": ["complete 2026-08-26 08:30 through 15:20 live acceptance with corrected audit", "require both PushPlus immutable HTTP 200 ACCEPTED receipts", "verify V5-only paper no-op or fill and next-open exit", "accumulate strict round trips before any strategy effectiveness claim"]
 }

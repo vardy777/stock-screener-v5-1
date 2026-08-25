@@ -10,6 +10,7 @@ from v5.decision_flow import MorningPoolV5,ConfirmationV5
 from v5.market_snapshot import QuoteV1,MarketSnapshotV1
 from v5.contracts import AcquisitionSessionV1
 from v5.storage import V5FactStore
+from v5.shadow_schedule import ShadowScheduler
 
 NOW=datetime(2026,8,14,9,25,tzinfo=CHINA_TZ)
 def write(path,value):path.parent.mkdir(parents=True,exist_ok=True);path.write_text(json.dumps(value),encoding="utf-8")
@@ -32,9 +33,12 @@ def test_daily_lineage_acceptance_proves_snapshot_decision_and_notification_chai
         write(root/f"confirmations/{day}/c.json",confirmation_entity.to_dict())
         write(root/f"frozen/{day}/signal.json",{"snapshot_id":signal,"acquisition_session_id":s_acq.session_id})
         from v5.notification import build_payload
-        for stage,parent in (("morning",pool),("confirmation",confirmation)):
-            payload=build_payload(root,day,stage);write(root/f"notifications/{day}/{stage}.json",{"outcome":"ACCEPTED","response_code":200,"parent_entity_id":parent,"payload_sha256":payload["payload_sha256"]})
-        assert audit(root,day)["passed"]
+        scheduler=ShadowScheduler(root)
+        for stage,parent,run_at in (("morning",pool,morning_at+timedelta(seconds=30)),("confirmation",confirmation,signal_at+timedelta(minutes=1,seconds=30))):
+            payload=build_payload(root,day,stage,as_of=run_at)
+            scheduler.record(f"{stage}_push",day,"SUCCESS",run_at,{"parent_entity_id":parent,"payload_sha256":payload["payload_sha256"]})
+            write(root/f"notifications/{day}/{stage}.json",{"outcome":"ACCEPTED","response_code":200,"parent_entity_id":parent,"payload_sha256":payload["payload_sha256"]})
+        assert audit(root,day,as_of=signal_at+timedelta(minutes=4))["passed"]
         row=json.loads((root/f"confirmations/{day}/c.json").read_text());row["snapshot_id"]="ms1-wrong";write(root/f"confirmations/{day}/c.json",row);assert not audit(root,day)["passed"]
 
 def test_daily_lineage_rejects_tampered_acquisition_hash_before_projection(tmp_path):
