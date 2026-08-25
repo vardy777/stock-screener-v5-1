@@ -17,6 +17,7 @@ from .fact_reader import latest
 from .ownership import require as require_ownership
 from .calendar import TradingCalendar
 from .market_state import MarketStateV1
+from .factor_research import observations_from_snapshot,analyze as analyze_factors
 
 NATIVE_UNIVERSE_SOURCE = "eastmoney_realtime_market_directory"
 
@@ -52,6 +53,7 @@ def produce(root,stage,*,now=None,sources=None):
     if not result.accepted:raise ContractViolation("V5 dual-source consensus rejected")
     store.save_snapshot(result.primary);market=MarketStateV1.from_snapshot(result.primary);store.save_market_state(market);funnel=CandidateFunnel()
     fact=funnel.run(result.primary,market_state_id=market.market_state_id,market_valid=market.trade_allowed,stage="morning");store.save_funnel(fact)
+    observations=observations_from_snapshot(result.primary);diagnostics=analyze_factors(observations)|{"trade_date":day,"snapshot_id":result.primary.snapshot_id,"cohort":"full_eligible_09_25_cross_section","strict_labels_joined":False,"observations":observations};_save_immutable(root,"factor_diagnostics",day,"fac1-",diagnostics)
     completed=datetime.fromisoformat(result.primary.batch_completed_at).astimezone(CHINA_TZ)
     entity=MorningPoolV5.from_funnel(fact,created_at=completed);store.save_pool(entity);return entity.to_dict()
 
@@ -73,14 +75,26 @@ def freeze(root,*,now=None,sources=None):
     finally:tmp.unlink(missing_ok=True)
     return pointer_value
 
-def paper_buy(root,*,now=None):
-    root=Path(root);require_ownership(root/"ownership.json","paper_writer");current=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=current.date().isoformat();confirmation=_latest(root,"confirmations",day);pointer=json.loads((root/"frozen"/day/"signal.json").read_text(encoding="utf-8"));snapshot_path=root/"snapshots"/day/f"{pointer['snapshot_id']}.json"
+def paper_buy(root,*,now=None,sources=None):
+    root=Path(root);require_ownership(root/"ownership.json","paper_writer");current=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=current.date().isoformat();confirmation=_latest(root,"confirmations",day);pointer=json.loads((root/"frozen"/day/"signal.json").read_text(encoding="utf-8"))
     validated=ConfirmationV5(confirmation["trade_date"],confirmation["decided_at"],confirmation["morning_pool_id"],confirmation["funnel_id"],confirmation["snapshot_id"],confirmation["market_state_id"],tuple(confirmation["candidates"]),tuple(confirmation["changes"]),confirmation["outcome"])
     if confirmation.get("confirmation_id")!=validated.confirmation_id:raise ContractViolation("V5 paper buy confirmation hash mismatch")
     if confirmation.get("snapshot_id")!=pointer.get("snapshot_id"):raise ContractViolation("V5 paper buy frozen lineage mismatch")
     if confirmation.get("outcome")=="EMPTY" and not confirmation.get("candidates"):
         return {"outcome":"NO_CANDIDATE","confirmation_id":confirmation.get("confirmation_id", ""),"events":[]}
-    event=PaperProduction(root).buy(confirmation,load_snapshot(snapshot_path),at=current,eligible_sell_date=TradingCalendar().next_open(current.date()).isoformat());return event.__dict__
+    codes={confirmation["candidates"][0]["code"]}
+    challenger_dir=root/"challengers"/"volume_price_v1"/"confirmations"/day
+    for path in challenger_dir.glob("*.json") if challenger_dir.exists() else ():
+        row=json.loads(path.read_text(encoding="utf-8"));candidates=row.get("candidates",[])
+        if candidates:codes.add(candidates[0]["code"])
+    sources=sources or (SinaRealtimeSource(),TencentRealtimeSource());universe=UniverseV1.build(trade_date=day,created_at=current,codes=sorted(codes),sources=["v5_final_execution_symbols"]);result=ConsensusAcquirer(*sources).acquire(universe,stage="buy_execution",now=current)
+    consensus_path=_save_immutable(root,"consensus",day,"cons1-",result.report)
+    if not result.accepted or set(result.report.get("consistent_codes",()))!=codes:raise ContractViolation("V5 final-symbol buy consensus rejected")
+    store=V5FactStore(root);store.save_snapshot(result.primary);executed_at=datetime.fromisoformat(result.primary.batch_completed_at).astimezone(CHINA_TZ)
+    event=PaperProduction(root).buy(confirmation,result.primary,at=executed_at,eligible_sell_date=TradingCalendar().next_open(current.date()).isoformat())
+    context={"schema_version":"v5-paper-execution-context-v1","side":"BUY","trade_date":day,"recorded_at":executed_at.isoformat(),"decision_id":confirmation["confirmation_id"],"decision_snapshot_id":confirmation["snapshot_id"],"execution_snapshot_id":result.primary.snapshot_id,"consensus_fact":str(consensus_path.relative_to(root)),"consistent_codes":sorted(codes),"order_id":event.order_id}
+    context_path=_save_immutable(root,"execution_contexts",day,"exec1-",context)
+    return event.__dict__|{"execution_snapshot_id":result.primary.snapshot_id,"decision_snapshot_id":confirmation["snapshot_id"],"execution_context":str(context_path.relative_to(root))}
 
 def paper_sell(root,*,now=None,sources=None):
     root=Path(root);require_ownership(root/"ownership.json","paper_writer");current=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=current.date().isoformat();positions=PaperProduction(root).ledger.state()["positions"]
@@ -97,12 +111,17 @@ def paper_sell(root,*,now=None,sources=None):
     if not codes:return {"events":[],"baselines":[],"snapshot_id":"","outcome":"NO_POSITIONS_OR_BASELINE"}
     sources=sources or (SinaRealtimeSource(),TencentRealtimeSource());universe=UniverseV1.build(trade_date=day,created_at=current,codes=codes,sources=["v5_open_positions_and_baseline"]);result=ConsensusAcquirer(*sources).acquire(universe,stage="sell",now=current)
     _save_immutable(root,"consensus",day,"cons1-",result.report);attempts=result.report.get("attempts",[]);session=AcquisitionSessionV1.build(trade_date=day,stage="sell",requested_at=current,expected_codes=len(universe.codes),selected_snapshot_id=result.primary.snapshot_id if result.accepted else "",accepted=result.accepted,source_attempts=attempts);store=V5FactStore(root);store.save_session(session)
-    if not result.accepted:raise ContractViolation("V5 paper sell consensus rejected")
+    if not result.accepted or set(result.report.get("consistent_codes",()))!=set(codes):raise ContractViolation("V5 final-symbol sell consensus rejected")
     store.save_snapshot(result.primary);executed_at=datetime.fromisoformat(result.primary.batch_completed_at).astimezone(CHINA_TZ);production=PaperProduction(root);events=production.sell_all(result.primary,at=executed_at)
     if len(events)!=len(positions):raise ContractViolation("V5 paper sell missing executable bid")
     outcomes=[event.outcome for event in events]
     baselines=[]
     if outcomes and all(value=="FILLED" for value in outcomes):
         for confirmation in confirmations:
-            buy_snapshot=load_snapshot(root/"snapshots"/confirmation["trade_date"]/f"{confirmation['snapshot_id']}.json");baselines.append(production.save_baseline(confirmation,buy_snapshot,result.primary,at=executed_at))
+            contexts=[]
+            for path in (root/"execution_contexts"/confirmation["trade_date"]).glob("*.json") if (root/"execution_contexts"/confirmation["trade_date"]).exists() else ():
+                value=json.loads(path.read_text(encoding="utf-8"))
+                if value.get("decision_id")==confirmation["confirmation_id"] and value.get("side")=="BUY":contexts.append(value)
+            if not contexts:raise ContractViolation("V5 baseline buy execution context missing")
+            context=max(contexts,key=lambda value:value["recorded_at"]);buy_snapshot=load_snapshot(root/"snapshots"/confirmation["trade_date"]/f"{context['execution_snapshot_id']}.json");baselines.append(production.save_baseline(confirmation,buy_snapshot,result.primary,at=executed_at,decision_snapshot_id=context["decision_snapshot_id"]))
     return {"events":[event.__dict__ for event in events],"baselines":baselines,"snapshot_id":result.primary.snapshot_id,"outcome":"FILLED" if outcomes and all(value=="FILLED" for value in outcomes) else "PARTIALLY_FILLED" if "FILLED" in outcomes else "UNFILLED"}

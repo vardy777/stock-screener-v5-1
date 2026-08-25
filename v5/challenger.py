@@ -136,10 +136,10 @@ def project_confirmation(root, now):
 def challenger_root(root): return Path(root) / "challengers" / STRATEGY_ID
 
 
-def paper_buy(root, now):
+def paper_buy(root, now, execution_snapshot=None):
     root = Path(root); day = now.date().isoformat(); confirmation = _load_one(root, "confirmations", day, "v5chcd1-", "confirmation_id")
     if confirmation["outcome"] == "EMPTY": return {"outcome": "NO_CANDIDATE", "confirmation_id": confirmation["confirmation_id"]}
-    snapshot = load_snapshot(root / "snapshots" / day / f"{confirmation['snapshot_id']}.json"); event = PaperProduction(challenger_root(root)).buy(confirmation, snapshot, at=now, eligible_sell_date=TradingCalendar().next_open(now.date()).isoformat()); return event.__dict__
+    snapshot = execution_snapshot or load_snapshot(root / "snapshots" / day / f"{confirmation['snapshot_id']}.json"); event = PaperProduction(challenger_root(root)).buy(confirmation, snapshot, at=now, eligible_sell_date=TradingCalendar().next_open(now.date()).isoformat()); return event.__dict__
 
 
 def position_codes(root): return {row["code"] for row in PaperProduction(challenger_root(root)).ledger.state()["positions"]}
@@ -189,4 +189,7 @@ def projection(root, day, *, as_of=None):
     context_ready = False
     try: context_ready = load_context(root, day).get("challenger_context_ready") is True
     except ContractViolation: pass
-    return {"strategy_id": STRATEGY_ID, "label": "量价挑战者", "mode": "shadow_no_push", "context_ready": context_ready, "stage": "confirmation" if confirmation else "morning" if pool else "waiting", "candidate_count": len(candidates), "candidates": candidates, "outcome": active.get("outcome", "OBSERVE") if active else "WAITING", "account": ledger.state(as_of=as_of), "performance": performance.to_dict(), "pool_id": pool.get("pool_id", "") if pool else "", "confirmation_id": confirmation.get("confirmation_id", "") if confirmation else ""}
+    from .paired_comparison import build_pairs
+    from .statistical_protocol import evaluate
+    pairs = build_pairs(PaperProduction(root).ledger, ledger)
+    return {"strategy_id": STRATEGY_ID, "label": "量价挑战者", "mode": "shadow_no_push", "context_ready": context_ready, "stage": "confirmation" if confirmation else "morning" if pool else "waiting", "candidate_count": len(candidates), "candidates": candidates, "outcome": active.get("outcome", "OBSERVE") if active else "WAITING", "account": ledger.state(as_of=as_of), "performance": performance.to_dict(), "paired_evaluation": evaluate(pairs), "paired_days": pairs, "pool_id": pool.get("pool_id", "") if pool else "", "confirmation_id": confirmation.get("confirmation_id", "") if confirmation else ""}

@@ -8,6 +8,7 @@ from pathlib import Path
 import msvcrt,time
 from .core import ContractViolation
 from .core import CHINA_TZ
+from .order_quantity import floor_quantity,valid_buy,valid_sell
 
 D=lambda x:Decimal(str(x));CENT=Decimal("0.01")
 def _id(prefix,value):return prefix+hashlib.sha256(json.dumps(value,sort_keys=True,separators=(",",":")).encode()).hexdigest()[:24]
@@ -103,7 +104,8 @@ class PaperLedger:
             buy=open_buys.pop(key,None)
             if buy is None:raise ContractViolation("paper sell has no matching buy")
             invested=-D(buy["cash_flow"]);proceeds=D(event["cash_flow"]);pnl=(proceeds-invested).quantize(CENT)
-            trips.append({"schema_version":"v5-paper-round-trip-v1","decision_id":event["decision_id"],"code":event["code"],"buy_trade_date":buy["trade_date"],"sell_trade_date":event["trade_date"],"buy_event_id":event_ids[buy["order_id"]],"sell_event_id":row["event_id"],"shares":event["shares"],"invested":float(invested),"proceeds":float(proceeds),"net_pnl":float(pnl),"net_return":float(pnl/invested) if invested else 0.0})
+            trade_return=float(pnl/invested) if invested else 0.0
+            trips.append({"schema_version":"v5-paper-round-trip-v2","decision_id":event["decision_id"],"code":event["code"],"buy_trade_date":buy["trade_date"],"sell_trade_date":event["trade_date"],"buy_event_id":event_ids[buy["order_id"]],"sell_event_id":row["event_id"],"shares":event["shares"],"invested":float(invested),"proceeds":float(proceeds),"net_pnl":float(pnl),"trade_net_return":trade_return,"account_net_return":float(pnl/self.initial),"return_basis":"net_pnl_divided_by_invested_capital","net_return":trade_return})
         return trips
 
 class PaperEngine:
@@ -121,13 +123,14 @@ class PaperEngine:
         if order.trade_date!=current.date().isoformat():raise ContractViolation("paper execution trade date mismatch")
         clock=(current.hour,current.minute,current.second)
         if order.side=="BUY" and not ((14,50,0)<=clock<=(14,51,59)):raise ContractViolation("paper buy outside strict window")
-        if order.side=="SELL" and not ((9,30,0)<=clock<=(11,30,0) or (13,0,0)<=clock<=(15,0,0)):raise ContractViolation("paper sell outside continuous auction")
+        if order.side=="SELL" and not ((9,30,0)<=clock<=(9,30,59)):raise ContractViolation("paper sell outside strict 09:30 minute")
         self.ledger.save_order(order)
         for row in self.ledger.events():
             if row["event"]["order_id"]==order.order_id:return PaperEventV1(**row["event"])
         state=self.ledger.state();positions={x["code"]:x for x in state["positions"]};price=D(order.reference_price)*(D(1)+self.slippage if order.side=="BUY" else D(1)-self.slippage);notional=(price*order.shares).quantize(CENT);commission=max(self.minimum_commission,(notional*self.commission_rate).quantize(CENT));tax=(notional*self.stamp_tax).quantize(CENT) if order.side=="SELL" else D(0)
         reason=""
-        if order.shares<=0 or order.shares%100:reason="INVALID_BOARD_LOT"
+        if order.side=="BUY" and not valid_buy(order.code,order.shares):reason="INVALID_BOARD_LOT"
+        elif order.side=="SELL" and order.code in positions and not valid_sell(order.code,order.shares,int(positions[order.code]["shares"])):reason="INVALID_BOARD_LOT"
         elif order.side=="BUY" and (order.code in positions):reason="DUPLICATE_POSITION"
         elif order.side=="BUY" and notional+commission>self.ledger.initial/D(3):reason="ONE_THIRD_CAP"
         elif order.side=="BUY" and notional+commission>D(str(state["cash"])):reason="INSUFFICIENT_CASH"
@@ -136,5 +139,5 @@ class PaperEngine:
         event=self._reject(order,reason,current) if reason else PaperEventV1(order.order_id,"FILLED","FILLED",current.isoformat(),order.code,order.side,order.shares,str(price.quantize(CENT)),str(commission),str(tax),str((-notional-commission if order.side=="BUY" else notional-commission-tax).quantize(CENT)),order.decision_id,order.trade_date,order.eligible_sell_date)
         self.ledger.append(event);return event
     def buy_order(self,*,decision_id,code,trade_date,at,ask1,snapshot_id,eligible_sell_date):
-        budget=min(self.ledger.initial/D(3),D(str(self.ledger.state()["cash"])));price=D(ask1)*(D(1)+self.slippage);shares=int(((budget-self.minimum_commission)/price/100).to_integral_value(rounding=ROUND_DOWN))*100
+        budget=min(self.ledger.initial/D(3),D(str(self.ledger.state()["cash"])));price=D(ask1)*(D(1)+self.slippage);shares=floor_quantity(code,(budget-self.minimum_commission)/price)
         return PaperOrderV1(decision_id,"BUY",code,trade_date,at.isoformat(),str(ask1),shares,snapshot_id,eligible_sell_date)

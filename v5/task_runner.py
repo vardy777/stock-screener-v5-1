@@ -30,7 +30,7 @@ WINDOWS={
     "confirmation_push":((14,50,0),(14,52,59)),
     "health_check":((14,53,0),(15,9,59)),
     "maintenance":((15,10,0),(23,59,59)),
-    "paper_sell":((9,30,0),(9,35,59)),
+    "paper_sell":((9,30,0),(9,30,59)),
     "paper_buy":((14,50,0),(14,51,59)),
 }
 SAFE_DEPENDENCIES={"morning_push":("morning_pool",),"confirmation":("morning_pool","feature_freeze"),"confirmation_push":("confirmation",),"paper_buy":("confirmation",)}
@@ -74,7 +74,8 @@ def run(root,task,*,now=None,failure_alert_env=None,clock_checker=None):
         elif task=="paper_buy":
             details=paper_buy(root,now=now)
             if details.get("outcome") not in {"FILLED","NO_CANDIDATE"}:raise RuntimeError(f"V5 paper buy rejected: {details.get('reason',details.get('outcome'))}")
-            details["challenger"]=run_challenger_isolated(root,"paper_buy",now,lambda:challenger_paper_buy(root,now))
+            execution_snapshot_id=details.get("execution_snapshot_id","")
+            details["challenger"]=run_challenger_isolated(root,"paper_buy",now,(lambda:challenger_paper_buy(root,now,load_snapshot(root/"snapshots"/day/f"{execution_snapshot_id}.json"))) if execution_snapshot_id else (lambda:{"outcome":"NO_SHARED_EXECUTION_SNAPSHOT"}))
         elif task=="paper_sell":
             details=paper_sell(root,now=now)
             if details.get("outcome") not in {"FILLED","NO_POSITIONS_OR_BASELINE"}:raise RuntimeError(f"V5 paper sell incomplete: {details.get('outcome')}")

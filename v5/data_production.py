@@ -79,7 +79,8 @@ class ConsensusAcquirer:
             if abs((datetime.fromisoformat(a.provider_time)-datetime.fromisoformat(b.provider_time)).total_seconds())>self.maximum_time_difference_seconds:time_bad.add(code)
         consistent=(len(common)-len(price_bad|time_bad))/denominator
         accepted=match>=self.minimum_match and consistent>=self.minimum_match
-        report.update({"matched_codes":len(common),"expected_codes":denominator,"match_ratio":match,"price_conflicts":len(price_bad),"time_conflicts":len(time_bad),"conflict_codes":sorted(price_bad|time_bad),"consistent_ratio":consistent,"accepted":accepted})
+        conflict_codes=price_bad|time_bad
+        report.update({"matched_codes":len(common),"expected_codes":denominator,"match_ratio":match,"price_conflicts":len(price_bad),"time_conflicts":len(time_bad),"conflict_codes":sorted(conflict_codes),"consistent_codes":sorted(set(common)-conflict_codes),"consistent_ratio":consistent,"accepted":accepted})
         primary=max(snapshots,key=lambda snapshot:(datetime.fromisoformat(snapshot.batch_completed_at),snapshot.snapshot_id))
         report["selected_snapshot_id"]=primary.snapshot_id if accepted else ""
         return ConsensusResult(accepted,primary if accepted else None,report)

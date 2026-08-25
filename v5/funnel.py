@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Iterable
 from .contracts import CandidateFunnelV1
 from .data_production import acquisition_accepted
+MOMENTUM_WEIGHT=.45;LIQUIDITY_WEIGHT=.30;CLOSE_LOCATION_WEIGHT=.25
 @dataclass(frozen=True)
 class FunnelPolicyV1:
     min_amount:float=5_000_000.0;max_candidates:int=20;maximum_intraday_change:float=.095;maximum_range:float=.15;maximum_symbol_quote_age_seconds:float=120.;version:str="v5-funnel-policy-v4"
@@ -48,7 +49,7 @@ class CandidateFunnel:
             if stage=="confirmation":
                 prior=baseline[q.code];contrib=dict(prior.get("factor_contributions",{}));score=float(prior["score"]);sort_key=-int(prior["rank"])
             else:
-                contrib={"momentum":round(momentum[q.code]*.45,6),"liquidity":round(liquidity[q.code]*.30,6),"close_location":round(location[q.code]*.25,6)};score=sum(contrib.values());sort_key=score
+                contrib={"momentum":round(momentum[q.code]*MOMENTUM_WEIGHT,6),"liquidity":round(liquidity[q.code]*LIQUIDITY_WEIGHT,6),"close_location":round(location[q.code]*CLOSE_LOCATION_WEIGHT,6)};score=sum(contrib.values());sort_key=score
             ranked.append((sort_key,q.code,item,contrib,score))
         ranked.sort(reverse=True);selected=[];total=max(len(ranked),1)
         for rank,(_,code,item,contrib,score) in enumerate(ranked[:self.policy.max_candidates],1):
@@ -58,5 +59,5 @@ class CandidateFunnel:
             frozen_rank=int(baseline[q.code]["rank"]) if stage=="confirmation" else rank;frozen_percentile=float(baseline[q.code].get("score_percentile",0)) if stage=="confirmation" else round((total-rank+1)/total,6)
             selected.append({"code":q.code,"name":q.name,"rank":frozen_rank,"change_pct":round(item["change"]*100,4),"amount":q.amount,"last_price":q.last_price,"bid1":q.bid1,"ask1":q.ask1,"quote_time":q.exchange_time,"provider":q.provider,"score":round(score,6),"score_percentile":frozen_percentile,"factor_values":{"intraday_change":round(item["change"],6),"amount":q.amount,"day_range":round(item["range"],6),"close_location":round(item["close_location"],6)},"factor_contributions":contrib,"rank_basis":"frozen_morning_full_market_v3" if stage=="confirmation" else "frozen_v5_rule_factors_v3","input_snapshot_id":snapshot.snapshot_id,"reasons":["可交易","流动性通过","市场门禁通过","沿用早盘全市场排名"] if stage=="confirmation" else ["可交易","流动性通过","市场门禁通过"],"risks":risks or ["隔夜跳空与市场反转风险"],"v5_candidate_origin":"V5"})
         stages.append({"name":"ranked","input_count":len(features),"passed_count":len(selected),"rejected":{"below_top_n":max(0,len(features)-len(selected))}})
-        parameters={"min_amount":self.policy.min_amount,"max_candidates":self.policy.max_candidates,"maximum_intraday_change":self.policy.maximum_intraday_change,"maximum_range":self.policy.maximum_range,"maximum_symbol_quote_age_seconds":self.policy.maximum_symbol_quote_age_seconds,"momentum_weight":.45,"liquidity_weight":.30,"close_location_weight":.25,"confirmation_reuses_morning_rank":True}
+        parameters={"min_amount":self.policy.min_amount,"max_candidates":self.policy.max_candidates,"maximum_intraday_change":self.policy.maximum_intraday_change,"maximum_range":self.policy.maximum_range,"maximum_symbol_quote_age_seconds":self.policy.maximum_symbol_quote_age_seconds,"momentum_weight":MOMENTUM_WEIGHT,"liquidity_weight":LIQUIDITY_WEIGHT,"close_location_weight":CLOSE_LOCATION_WEIGHT,"confirmation_reuses_morning_rank":True}
         return CandidateFunnelV1.build(snapshot=snapshot,market_state_id=market_state_id,stage=stage,accepted=bool(market_valid and acquisition_accepted(snapshot)),policy_version=self.policy.version,policy_parameters=parameters,stages=stages,candidates=selected)
