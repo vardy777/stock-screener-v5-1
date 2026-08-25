@@ -11,6 +11,10 @@ def test_double_empty_is_an_eligible_zero_zero_opportunity_day(tmp_path):
     row=opportunity(tmp_path);observation=save_sell_observation(tmp_path,trade_date="2026-08-26",observed_at="2026-08-26T09:30:10+08:00",snapshot_id="",codes=[]);pair=save_pairing(tmp_path,row,recorded_at="2026-08-26T09:30:10+08:00",sell_execution_snapshot_id="",sell_observation_id=observation["observation_id"],baseline_return=0,challenger_return=0,baseline_traded=False,challenger_traded=False,lineage_valid=True)
     assert row["eligible"] is True and pair["eligible"] is True and pair["baseline_return"]==pair["challenger_return"]==0 and len(load_pairs(tmp_path))==1
 
+def test_breadth_proxy_cannot_mark_large_index_decline_without_index_fact(tmp_path):
+    row=opportunity(tmp_path,large_index_decline=True,index_decline_status="UNKNOWN",index_benchmark_id="")
+    assert row["large_index_decline"] is False and row["index_decline_status"]=="UNKNOWN"
+
 def test_single_side_trade_requires_shared_buy_and_sell_window_lineage(tmp_path):
     missing=opportunity(tmp_path,challenger_code="000001",buy_execution_snapshot_id="")
     rejected=save_pairing(tmp_path,missing,recorded_at="2026-08-26T09:30:10+08:00",sell_execution_snapshot_id="",sell_observation_id="",baseline_return=0,challenger_return=.01,baseline_traded=False,challenger_traded=True,lineage_valid=False);assert rejected["eligible"] is False

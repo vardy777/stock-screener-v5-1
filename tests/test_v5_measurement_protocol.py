@@ -6,6 +6,8 @@ from v5.paper import PaperLedger,PaperEngine,PaperOrderV1
 from v5.baseline_policy import registry,BASELINE_HASH,assert_runtime_frozen
 from v5.statistical_protocol import StatisticalProtocolV1,evaluate
 from v5.factor_research import analyze,observations_from_snapshot,join_strict_labels,_rank
+from v5.index_benchmark import save as save_index_benchmark,resolve as resolve_index_benchmark,source_observation
+import hashlib,json
 from v5.regime_coverage import report
 
 def test_board_quantity_rules_are_not_one_size_fits_all():
@@ -40,7 +42,7 @@ def test_preregistered_protocol_cannot_promote_insufficient_data():
 
 def _promotable():
     markets=("STRONG","NEUTRAL","WEAK");turnovers=("HIGH","NORMAL","LOW")
-    return [{"trade_date":f"2026-{1+i//28:02d}-{1+i%28:02d}","pairing_id":str(i),"baseline_return":0,"challenger_return":.01,"same_window":True,"lineage_valid":True,"eligible":True,"market_regime":markets[i%3],"turnover_regime":turnovers[(i//3)%3],"large_index_decline":i<3} for i in range(60)]
+    return [{"trade_date":f"2026-{1+i//28:02d}-{1+i%28:02d}","pairing_id":str(i),"baseline_return":0,"challenger_return":.01,"same_window":True,"lineage_valid":True,"eligible":True,"market_regime":markets[i%3],"turnover_regime":turnovers[(i//3)%3],"index_decline_status":"VERIFIED_DECLINE" if i<3 else "VERIFIED_NOT_DECLINE","index_benchmark_id":f"idx-{i}"} for i in range(60)]
 
 def test_protocol_promotes_only_after_coverage_and_real_walk_forward():
     result=evaluate(_promotable());assert result["decision"]=="PROMOTE" and result["walk_forward"]["development"]["count"]==36 and result["walk_forward"]["validation"]["count"]==12 and result["walk_forward"]["holdout"]["count"]==12
@@ -94,12 +96,32 @@ def test_baseline_freeze_protects_execution_sell_confirmation_and_quantity(monke
     monkeypatch.setattr(quantity,"floor_quantity",original_floor)
 
 def test_factor_label_join_is_causal_and_rejects_future_or_wrong_snapshot():
-    observation={"trade_date":"2026-08-25","snapshot_id":"morning-1","created_at":"2026-08-25T09:25:20+08:00","observations":[{"code":"000001","snapshot_id":"morning-1","observed_at":"2026-08-25T09:25:10+08:00","intraday_change":.01,"amount":1e7,"close_location":.5}]};label={"code":"000001","buy_trade_date":"2026-08-25","morning_snapshot_id":"morning-1","strict_exit_window":True,"sell_recorded_at":"2026-08-26T09:30:10+08:00","net_return":.02}
+    observation={"trade_date":"2026-08-25","snapshot_id":"morning-1","created_at":"2026-08-25T09:25:20+08:00","observations":[{"code":"000001","snapshot_id":"morning-1","observed_at":"2026-08-25T09:25:10+08:00","intraday_change":.01,"amount":1e7,"amount_percentile":.5,"close_location":.5}]};unsigned={"code":"000001","buy_trade_date":"2026-08-25","morning_snapshot_id":"morning-1","strict_exit_window":True,"sell_recorded_at":"2026-08-26T09:30:10+08:00","net_return":.02};label=unsigned|{"label_id":"flabel1-"+hashlib.sha256(json.dumps(unsigned,ensure_ascii=False,sort_keys=True,separators=(",",":")).encode()).hexdigest()[:24]}
     joined=join_strict_labels(observation,[label],as_of="2026-08-26T10:00:00+08:00");assert joined["label_status"]=="AVAILABLE"
     try:join_strict_labels(observation,[label],as_of="2026-08-25T15:00:00+08:00")
     except ValueError as exc:assert "future" in str(exc)
     else:raise AssertionError("future exit label must be rejected")
-    assert join_strict_labels(observation,[label|{"morning_snapshot_id":"other"}],as_of="2026-08-26T10:00:00+08:00")["label_status"]=="INSUFFICIENT_STRICT_LABELS"
+    wrong=unsigned|{"morning_snapshot_id":"other"};wrong=wrong|{"label_id":"flabel1-"+hashlib.sha256(json.dumps(wrong,ensure_ascii=False,sort_keys=True,separators=(",",":")).encode()).hexdigest()[:24]}
+    assert join_strict_labels(observation,[wrong],as_of="2026-08-26T10:00:00+08:00")["label_status"]=="INSUFFICIENT_STRICT_LABELS"
+    try:join_strict_labels(observation,[label|{"net_return":9}],as_of="2026-08-26T10:00:00+08:00")
+    except ValueError as exc:assert "content-address" in str(exc)
+    else:raise AssertionError("forged strict label dictionary must be rejected")
+
+def test_amount_percentile_is_scale_invariant_and_uses_average_tie_rank():
+    base=[{"intraday_change":0,"amount":value,"close_location":.5} for value in (10,20,20,40)]
+    scaled=[dict(row)|{"amount":row["amount"]*1000} for row in base]
+    left=analyze(base);right=analyze(scaled)
+    assert "amount_percentile" in left["factors"] and "amount" not in left["factors"]
+    assert left["factors"]["amount_percentile"]["distribution"]==right["factors"]["amount_percentile"]["distribution"]
+    assert _rank([10,20,20,40])==[0,1.5,1.5,3]
+
+def test_index_decline_requires_verified_csi300_fact_not_breadth_proxy(tmp_path):
+    unknown=resolve_index_benchmark(tmp_path,"2026-08-25",as_of="2026-08-25T14:50:00+08:00");assert unknown["status"]=="UNKNOWN" and unknown["large_index_decline"] is False
+    sources=[source_observation(observed_at="2026-08-25T14:49:29+08:00",previous_close=4000,last_price=3980,provider="source_a",source_snapshot_id="idxsnap-a"),source_observation(observed_at="2026-08-25T14:49:30+08:00",previous_close=4000,last_price=3979,provider="source_b",source_snapshot_id="idxsnap-b")]
+    fact=save_index_benchmark(tmp_path,trade_date="2026-08-25",observed_at="2026-08-25T14:49:30+08:00",source_observations=sources)
+    resolved=resolve_index_benchmark(tmp_path,"2026-08-25",as_of="2026-08-25T14:50:00+08:00");assert resolved["status"]=="VERIFIED_NOT_DECLINE" and resolved["large_index_decline"] is False and fact["change"]>-.02
+    rows=_promotable();rows[0]["index_decline_status"]="UNKNOWN";rows[0]["index_benchmark_id"]="";rows[1]["index_decline_status"]="UNKNOWN";rows[1]["index_benchmark_id"]="";rows[2]["index_decline_status"]="UNKNOWN";rows[2]["index_benchmark_id"]=""
+    result=evaluate(rows);assert result["large_decline_count"]==0 and result["decision"]!="PROMOTE"
 
 def test_factor_observations_are_point_in_time_and_unlabelled():
     class Quote:

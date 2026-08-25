@@ -2,7 +2,7 @@
 from __future__ import annotations
 from math import sqrt
 
-FACTORS=("intraday_change","amount","close_location")
+FACTORS=("intraday_change","amount_percentile","close_location")
 def observations_from_snapshot(snapshot,*,minimum_amount=5_000_000.0,maximum_change=.095,maximum_range=.15):
     rows=[]
     for q in snapshot.quotes:
@@ -10,6 +10,8 @@ def observations_from_snapshot(snapshot,*,minimum_amount=5_000_000.0,maximum_cha
         change=q.last_price/q.previous_close-1;day_range=(q.high_price-q.low_price)/q.previous_close
         if change>maximum_change or day_range>maximum_range:continue
         rows.append({"code":q.code,"snapshot_id":snapshot.snapshot_id,"observed_at":q.exchange_time,"intraday_change":change,"amount":q.amount,"close_location":(q.last_price-q.low_price)/max(q.high_price-q.low_price,.000001)})
+    ranks=_rank([row["amount"] for row in rows]);denominator=len(rows)-1
+    for row,rank in zip(rows,ranks):row["amount_percentile"]=rank/denominator if denominator>0 else .5
     return rows
 def _rank(values):
     order=sorted(range(len(values)),key=lambda i:values[i]);result=[0.]*len(values);start=0
@@ -30,7 +32,11 @@ def _summary(values):
     q=lambda p:values[round((n-1)*p)]
     return {"count":n,"min":values[0],"q25":q(.25),"median":q(.5),"q75":q(.75),"max":values[-1],"mean":sum(values)/n}
 def analyze(observations):
-    rows=list(observations);result={"schema_version":"v5-factor-diagnostics-v1","observation_count":len(rows),"factors":{},"correlations":{},"label_status":"AVAILABLE" if rows and all("net_return" in x for x in rows) else "INSUFFICIENT_STRICT_LABELS"}
+    rows=list(observations)
+    if rows and any("amount_percentile" not in row for row in rows):
+        ranks=_rank([float(row["amount"]) for row in rows]);denominator=len(rows)-1
+        rows=[dict(row)|{"amount_percentile":rank/denominator if denominator>0 else .5} for row,rank in zip(rows,ranks)]
+    result={"schema_version":"v5-factor-diagnostics-v2","amount_percentile_rule":"cross_section_average_rank_divided_by_n_minus_1; singleton=0.5; range=[0,1]","observation_count":len(rows),"factors":{},"correlations":{},"label_status":"AVAILABLE" if rows and all("net_return" in x for x in rows) else "INSUFFICIENT_STRICT_LABELS"}
     for factor in FACTORS:
         values=[float(x[factor]) for x in rows];entry={"distribution":_summary(values)}
         if factor=="close_location" and values:
@@ -48,12 +54,15 @@ def analyze(observations):
     return result
 
 def join_strict_labels(observation_fact,labels,*,as_of):
+    import hashlib,json
     from datetime import datetime
     observed_at=datetime.fromisoformat(observation_fact["created_at"]);cutoff=datetime.fromisoformat(as_of) if isinstance(as_of,str) else as_of
     if observed_at.tzinfo is None or cutoff.tzinfo is None:raise ValueError("causal timestamps must be timezone aware")
     if observed_at>cutoff:raise ValueError("observation is in the future")
     by_code={row["code"]:row for row in observation_fact.get("observations",[])};joined=[]
     for label in labels:
+        declared=label.get("label_id","");unsigned={key:value for key,value in label.items() if key!="label_id"};expected="flabel1-"+hashlib.sha256(json.dumps(unsigned,ensure_ascii=False,sort_keys=True,separators=(",",":")).encode()).hexdigest()[:24]
+        if declared!=expected:raise ValueError("strict label content-address verification failed")
         if label.get("strict_exit_window") is not True or label.get("buy_trade_date")!=observation_fact["trade_date"] or label.get("morning_snapshot_id")!=observation_fact["snapshot_id"]:continue
         exited=datetime.fromisoformat(label["sell_recorded_at"])
         if exited<=observed_at or exited>cutoff:raise ValueError("future or non-causal strict label")
