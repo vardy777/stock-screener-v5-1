@@ -12,8 +12,13 @@ def observations_from_snapshot(snapshot,*,minimum_amount=5_000_000.0,maximum_cha
         rows.append({"code":q.code,"snapshot_id":snapshot.snapshot_id,"observed_at":q.exchange_time,"intraday_change":change,"amount":q.amount,"close_location":(q.last_price-q.low_price)/max(q.high_price-q.low_price,.000001)})
     return rows
 def _rank(values):
-    order=sorted(range(len(values)),key=lambda i:(values[i],i));result=[0.]*len(values)
-    for rank,index in enumerate(order):result[index]=rank
+    order=sorted(range(len(values)),key=lambda i:values[i]);result=[0.]*len(values);start=0
+    while start<len(order):
+        end=start+1
+        while end<len(order) and values[order[end]]==values[order[start]]:end+=1
+        average=(start+end-1)/2
+        for index in order[start:end]:result[index]=average
+        start=end
     return result
 def _corr(a,b):
     if len(a)<2:return None
@@ -31,8 +36,25 @@ def analyze(observations):
         if factor=="close_location" and values:
             entry["near_constant"]=(max(values)-min(values)<.02 or (_summary(values)["q75"]-_summary(values)["q25"])<.01)
         if result["label_status"]=="AVAILABLE":
-            returns=[float(x["net_return"]) for x in rows];entry["rank_ic"]=_corr(_rank(values),_rank(returns));ordered=sorted(zip(values,returns));entry["quintile_returns"]=[sum(y for _,y in ordered[i::5])/len(ordered[i::5]) for i in range(min(5,len(ordered)))]
+            returns=[float(x["net_return"]) for x in rows];entry["rank_ic"]=_corr(_rank(values),_rank(returns));ordered=sorted(zip(values,returns));groups=[]
+            for group in range(min(5,len(ordered))):
+                start=group*len(ordered)//5;end=(group+1)*len(ordered)//5;chunk=ordered[start:end]
+                if chunk:groups.append({"count":len(chunk),"minimum_factor":chunk[0][0],"maximum_factor":chunk[-1][0],"mean_return":sum(y for _,y in chunk)/len(chunk)})
+            entry["quintile_returns"]=groups
         result["factors"][factor]=entry
     for i,left in enumerate(FACTORS):
         for right in FACTORS[i+1:]:result["correlations"][f"{left}__{right}"]=_corr([float(x[left]) for x in rows],[float(x[right]) for x in rows])
     return result
+
+def join_strict_labels(observation_fact,labels,*,as_of):
+    from datetime import datetime
+    observed_at=datetime.fromisoformat(observation_fact["created_at"]);cutoff=datetime.fromisoformat(as_of) if isinstance(as_of,str) else as_of
+    if observed_at.tzinfo is None or cutoff.tzinfo is None:raise ValueError("causal timestamps must be timezone aware")
+    if observed_at>cutoff:raise ValueError("observation is in the future")
+    by_code={row["code"]:row for row in observation_fact.get("observations",[])};joined=[]
+    for label in labels:
+        if label.get("strict_exit_window") is not True or label.get("buy_trade_date")!=observation_fact["trade_date"] or label.get("morning_snapshot_id")!=observation_fact["snapshot_id"]:continue
+        exited=datetime.fromisoformat(label["sell_recorded_at"])
+        if exited<=observed_at or exited>cutoff:raise ValueError("future or non-causal strict label")
+        if label["code"] in by_code:joined.append(dict(by_code[label["code"]])|{"net_return":float(label["net_return"]),"sell_recorded_at":label["sell_recorded_at"]})
+    return {"schema_version":"v5-factor-labelled-cohort-v1","trade_date":observation_fact["trade_date"],"snapshot_id":observation_fact["snapshot_id"],"as_of":cutoff.isoformat(),"label_status":"AVAILABLE" if joined else "INSUFFICIENT_STRICT_LABELS","rows":joined,"diagnostics":analyze(joined if joined else observation_fact.get("observations",[]))}

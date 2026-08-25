@@ -72,15 +72,25 @@ class ConsensusAcquirer:
         report={"schema_version":"v5-source-consensus-v1","universe_id":universe.universe_id,"attempts":attempts,"accepted":False}
         if None in snapshots:return ConsensusResult(False,None,report)
         left,right=({q.code:q for q in snap.quotes} for snap in snapshots);common=sorted(set(left)&set(right));denominator=len(universe.codes);match=len(common)/denominator
-        price_bad=set();time_bad=set()
+        price_bad=set();time_bad=set();book_bad=set();state_bad=set()
         for code in common:
             a,b=left[code],right[code];base=max(a.last_price,b.last_price)
             if base<=0 or abs(a.last_price-b.last_price)/base>self.maximum_price_deviation:price_bad.add(code)
             if abs((datetime.fromisoformat(a.provider_time)-datetime.fromisoformat(b.provider_time)).total_seconds())>self.maximum_time_difference_seconds:time_bad.add(code)
-        consistent=(len(common)-len(price_bad|time_bad))/denominator
+            if any(datetime.fromisoformat(value).date().isoformat()!=universe.trade_date for value in (a.exchange_time,b.exchange_time,a.provider_time,b.provider_time)):time_bad.add(code)
+            if a.halted or b.halted or a.limit_up!=b.limit_up or a.limit_down!=b.limit_down:state_bad.add(code)
+            if stage=="buy_execution":
+                executable=a.ask1>0 and b.ask1>0 and a.ask1_volume>0 and b.ask1_volume>0
+                reference=max(a.ask1,b.ask1)
+                if not executable or abs(a.ask1-b.ask1)/reference>self.maximum_price_deviation:book_bad.add(code)
+            elif stage=="sell":
+                executable=a.bid1>0 and b.bid1>0 and a.bid1_volume>0 and b.bid1_volume>0
+                reference=max(a.bid1,b.bid1)
+                if not executable or abs(a.bid1-b.bid1)/reference>self.maximum_price_deviation:book_bad.add(code)
+        conflicts=price_bad|time_bad|book_bad|state_bad
+        consistent=(len(common)-len(conflicts))/denominator
         accepted=match>=self.minimum_match and consistent>=self.minimum_match
-        conflict_codes=price_bad|time_bad
-        report.update({"matched_codes":len(common),"expected_codes":denominator,"match_ratio":match,"price_conflicts":len(price_bad),"time_conflicts":len(time_bad),"conflict_codes":sorted(conflict_codes),"consistent_codes":sorted(set(common)-conflict_codes),"consistent_ratio":consistent,"accepted":accepted})
+        report.update({"matched_codes":len(common),"expected_codes":denominator,"match_ratio":match,"price_conflicts":len(price_bad),"time_conflicts":len(time_bad),"execution_book_conflicts":len(book_bad),"state_conflicts":len(state_bad),"conflict_codes":sorted(conflicts),"consistent_codes":sorted(set(common)-conflicts),"consistent_ratio":consistent,"execution_side":"BUY" if stage=="buy_execution" else "SELL" if stage=="sell" else "NONE","accepted":accepted})
         primary=max(snapshots,key=lambda snapshot:(datetime.fromisoformat(snapshot.batch_completed_at),snapshot.snapshot_id))
         report["selected_snapshot_id"]=primary.snapshot_id if accepted else ""
         return ConsensusResult(accepted,primary if accepted else None,report)

@@ -190,6 +190,7 @@ def projection(root, day, *, as_of=None):
     try: context_ready = load_context(root, day).get("challenger_context_ready") is True
     except ContractViolation: pass
     from .paired_comparison import build_pairs
+    from .opportunity import load_pairs
     from .statistical_protocol import evaluate
-    pairs = build_pairs(PaperProduction(root).ledger, ledger)
+    pairs = build_pairs(PaperProduction(root).ledger, ledger, pairing_facts=load_pairs(root))
     return {"strategy_id": STRATEGY_ID, "label": "量价挑战者", "mode": "shadow_no_push", "context_ready": context_ready, "stage": "confirmation" if confirmation else "morning" if pool else "waiting", "candidate_count": len(candidates), "candidates": candidates, "outcome": active.get("outcome", "OBSERVE") if active else "WAITING", "account": ledger.state(as_of=as_of), "performance": performance.to_dict(), "paired_evaluation": evaluate(pairs), "paired_days": pairs, "pool_id": pool.get("pool_id", "") if pool else "", "confirmation_id": confirmation.get("confirmation_id", "") if confirmation else ""}

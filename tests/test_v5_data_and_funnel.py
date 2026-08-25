@@ -58,6 +58,15 @@ class V5DataAndFunnelTests(unittest.TestCase):
         rejected=ConsensusAcquirer(Source("sina",left),Source("eastmoney",conflict)).acquire(universe,stage="signal",now=NOW)
         self.assertFalse(rejected.accepted);self.assertEqual(rejected.report["price_conflicts"],1)
 
+    def test_execution_consensus_rejects_equal_last_price_but_conflicting_or_empty_book(self):
+        universe=UniverseV1.build(trade_date="2026-08-13",created_at=NOW,codes=["000001"],sources=["test"])
+        buy_left=snapshot([quote("000001",provider="sina",ask1=10.20,ask1_volume=10000)],1);buy_right=snapshot([quote("000001",provider="tencent",ask1=10.40,ask1_volume=10000)],1)
+        buy=ConsensusAcquirer(Source("sina",buy_left),Source("tencent",buy_right)).acquire(universe,stage="buy_execution",now=NOW)
+        self.assertFalse(buy.accepted);self.assertEqual(buy.report["execution_book_conflicts"],1)
+        sell_left=snapshot([quote("000001",provider="sina",bid1=10.20,bid1_volume=10000)],1);sell_right=snapshot([quote("000001",provider="tencent",bid1=10.20,bid1_volume=0)],1)
+        sell=ConsensusAcquirer(Source("sina",sell_left),Source("tencent",sell_right)).acquire(universe,stage="sell",now=NOW)
+        self.assertFalse(sell.accepted);self.assertEqual(sell.report["consistent_codes"],[])
+
     def test_consensus_rejects_same_source_identity_even_with_two_objects(self):
         good=snapshot([quote("000001"),quote("000002")])
         with self.assertRaisesRegex(ValueError,"distinct source identities"):

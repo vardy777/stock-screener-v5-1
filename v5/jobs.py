@@ -18,6 +18,8 @@ from .ownership import require as require_ownership
 from .calendar import TradingCalendar
 from .market_state import MarketStateV1
 from .factor_research import observations_from_snapshot,analyze as analyze_factors
+from .baseline_policy import assert_runtime_frozen,BASELINE_ID,BASELINE_HASH
+from .opportunity import save_opportunity
 
 NATIVE_UNIVERSE_SOURCE = "eastmoney_realtime_market_directory"
 
@@ -45,6 +47,7 @@ def _save_immutable(root,kind,day,prefix,payload):
     finally:tmp.unlink(missing_ok=True)
     return entity_id,path
 def produce(root,stage,*,now=None,sources=None):
+    assert_runtime_frozen()
     if stage != "morning":
         raise ContractViolation("live production is morning-only; confirmation must consume the 14:49 frozen snapshot")
     current=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=current.date().isoformat();universe=load_universe(root,day,as_of=current,require_native=True);sources=sources or (SinaRealtimeSource(),TencentRealtimeSource());result=ConsensusAcquirer(*sources).acquire(universe,stage=stage,now=current)
@@ -58,6 +61,7 @@ def produce(root,stage,*,now=None,sources=None):
     entity=MorningPoolV5.from_funnel(fact,created_at=completed);store.save_pool(entity);return entity.to_dict()
 
 def confirm_frozen(root,*,now=None):
+    assert_runtime_frozen()
     current=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=current.date().isoformat();pointer_path=Path(root)/"frozen"/day/"signal.json"
     if not pointer_path.exists():raise ContractViolation("14:49 frozen snapshot missing")
     pointer=json.loads(pointer_path.read_text(encoding="utf-8"));snapshot_id=pointer["snapshot_id"];paths=list((Path(root)/"snapshots"/day).glob(f"{snapshot_id}.json"))
@@ -76,25 +80,33 @@ def freeze(root,*,now=None,sources=None):
     return pointer_value
 
 def paper_buy(root,*,now=None,sources=None):
-    root=Path(root);require_ownership(root/"ownership.json","paper_writer");current=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=current.date().isoformat();confirmation=_latest(root,"confirmations",day);pointer=json.loads((root/"frozen"/day/"signal.json").read_text(encoding="utf-8"))
+    assert_runtime_frozen();root=Path(root);require_ownership(root/"ownership.json","paper_writer");current=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=current.date().isoformat();confirmation=_latest(root,"confirmations",day);pointer=json.loads((root/"frozen"/day/"signal.json").read_text(encoding="utf-8"))
     validated=ConfirmationV5(confirmation["trade_date"],confirmation["decided_at"],confirmation["morning_pool_id"],confirmation["funnel_id"],confirmation["snapshot_id"],confirmation["market_state_id"],tuple(confirmation["candidates"]),tuple(confirmation["changes"]),confirmation["outcome"])
     if confirmation.get("confirmation_id")!=validated.confirmation_id:raise ContractViolation("V5 paper buy confirmation hash mismatch")
     if confirmation.get("snapshot_id")!=pointer.get("snapshot_id"):raise ContractViolation("V5 paper buy frozen lineage mismatch")
-    if confirmation.get("outcome")=="EMPTY" and not confirmation.get("candidates"):
-        return {"outcome":"NO_CANDIDATE","confirmation_id":confirmation.get("confirmation_id", ""),"events":[]}
-    codes={confirmation["candidates"][0]["code"]}
+    baseline_candidates=confirmation.get("candidates",[]);baseline_code=baseline_candidates[0]["code"] if baseline_candidates else "";codes={baseline_code} if baseline_code else set();challenger_confirmation={};challenger_code=""
     challenger_dir=root/"challengers"/"volume_price_v1"/"confirmations"/day
     for path in challenger_dir.glob("*.json") if challenger_dir.exists() else ():
-        row=json.loads(path.read_text(encoding="utf-8"));candidates=row.get("candidates",[])
-        if candidates:codes.add(candidates[0]["code"])
+        row=json.loads(path.read_text(encoding="utf-8"));row["confirmation_id"]=row.get("confirmation_id",path.stem)
+        if not challenger_confirmation or row.get("decided_at","")>challenger_confirmation.get("decided_at",""):challenger_confirmation=row
+    candidates=challenger_confirmation.get("candidates",[]);challenger_code=candidates[0]["code"] if candidates else ""
+    if challenger_code:codes.add(challenger_code)
+    pool=_latest(root,"morning_pools",day);market_rows=[json.loads(path.read_text(encoding="utf-8")) for path in (root/"market_states"/day).glob("*.json")];market=next((row for row in market_rows if row.get("market_state_id")==confirmation.get("market_state_id")),market_rows[-1] if market_rows else {});regime="WEAK" if market.get("regime")=="RISK_OFF" else market.get("regime","UNKNOWN");turnover="HIGH" if market.get("total_amount",0)>=1_200_000_000_000 else "LOW" if market.get("total_amount",0)<=800_000_000_000 else "NORMAL"
+    if not codes:
+        opportunity=save_opportunity(root,trade_date=day,created_at=current.isoformat(),morning_pool_id=pool["pool_id"],morning_observed_at=pool["created_at"],decision_snapshot_id=confirmation["snapshot_id"],decision_snapshot_at=pointer.get("frozen_at",""),confirmation_at=confirmation["decided_at"],baseline_confirmation_id=confirmation["confirmation_id"],challenger_confirmation_id=challenger_confirmation.get("confirmation_id",""),baseline_code="",challenger_code="",buy_execution_snapshot_id="",buy_execution_at="",market_regime=regime,turnover_regime=turnover,large_index_decline=market.get("median_change",0)<=-.02)
+        return {"outcome":"NO_CANDIDATE","confirmation_id":confirmation["confirmation_id"],"events":[],"opportunity_id":opportunity["opportunity_id"]}
     sources=sources or (SinaRealtimeSource(),TencentRealtimeSource());universe=UniverseV1.build(trade_date=day,created_at=current,codes=sorted(codes),sources=["v5_final_execution_symbols"]);result=ConsensusAcquirer(*sources).acquire(universe,stage="buy_execution",now=current)
     consensus_path=_save_immutable(root,"consensus",day,"cons1-",result.report)
     if not result.accepted or set(result.report.get("consistent_codes",()))!=codes:raise ContractViolation("V5 final-symbol buy consensus rejected")
     store=V5FactStore(root);store.save_snapshot(result.primary);executed_at=datetime.fromisoformat(result.primary.batch_completed_at).astimezone(CHINA_TZ)
-    event=PaperProduction(root).buy(confirmation,result.primary,at=executed_at,eligible_sell_date=TradingCalendar().next_open(current.date()).isoformat())
-    context={"schema_version":"v5-paper-execution-context-v1","side":"BUY","trade_date":day,"recorded_at":executed_at.isoformat(),"decision_id":confirmation["confirmation_id"],"decision_snapshot_id":confirmation["snapshot_id"],"execution_snapshot_id":result.primary.snapshot_id,"consensus_fact":str(consensus_path.relative_to(root)),"consistent_codes":sorted(codes),"order_id":event.order_id}
-    context_path=_save_immutable(root,"execution_contexts",day,"exec1-",context)
-    return event.__dict__|{"execution_snapshot_id":result.primary.snapshot_id,"decision_snapshot_id":confirmation["snapshot_id"],"execution_context":str(context_path.relative_to(root))}
+    event=None;context_path=None
+    if baseline_code:
+        event=PaperProduction(root).buy(confirmation,result.primary,at=executed_at,eligible_sell_date=TradingCalendar().next_open(current.date()).isoformat())
+        context={"schema_version":"v5-paper-execution-context-v1","side":"BUY","trade_date":day,"recorded_at":executed_at.isoformat(),"decision_id":confirmation["confirmation_id"],"decision_snapshot_id":confirmation["snapshot_id"],"execution_snapshot_id":result.primary.snapshot_id,"consensus_fact":str(consensus_path[1].relative_to(root)),"consistent_codes":sorted(codes),"order_id":event.order_id,"frozen_baseline_id":BASELINE_ID,"frozen_parameter_hash":BASELINE_HASH}
+        context_path=_save_immutable(root,"execution_contexts",day,"exec1-",context)[1]
+    opportunity=save_opportunity(root,trade_date=day,created_at=executed_at.isoformat(),morning_pool_id=pool["pool_id"],morning_observed_at=pool["created_at"],decision_snapshot_id=confirmation["snapshot_id"],decision_snapshot_at=pointer.get("frozen_at",""),confirmation_at=confirmation["decided_at"],baseline_confirmation_id=confirmation["confirmation_id"],challenger_confirmation_id=challenger_confirmation.get("confirmation_id",""),baseline_code=baseline_code,challenger_code=challenger_code,buy_execution_snapshot_id=result.primary.snapshot_id,buy_execution_at=executed_at.isoformat(),market_regime=regime,turnover_regime=turnover,large_index_decline=market.get("median_change",0)<=-.02)
+    details=event.__dict__ if event else {"outcome":"NO_CANDIDATE","confirmation_id":confirmation["confirmation_id"],"events":[]}
+    return details|{"execution_snapshot_id":result.primary.snapshot_id,"decision_snapshot_id":confirmation["snapshot_id"],"execution_context":str(context_path.relative_to(root)) if context_path else "","opportunity_id":opportunity["opportunity_id"]}
 
 def paper_sell(root,*,now=None,sources=None):
     root=Path(root);require_ownership(root/"ownership.json","paper_writer");current=(now or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ);day=current.date().isoformat();positions=PaperProduction(root).ledger.state()["positions"]
@@ -124,4 +136,5 @@ def paper_sell(root,*,now=None,sources=None):
                 if value.get("decision_id")==confirmation["confirmation_id"] and value.get("side")=="BUY":contexts.append(value)
             if not contexts:raise ContractViolation("V5 baseline buy execution context missing")
             context=max(contexts,key=lambda value:value["recorded_at"]);buy_snapshot=load_snapshot(root/"snapshots"/confirmation["trade_date"]/f"{context['execution_snapshot_id']}.json");baselines.append(production.save_baseline(confirmation,buy_snapshot,result.primary,at=executed_at,decision_snapshot_id=context["decision_snapshot_id"]))
-    return {"events":[event.__dict__ for event in events],"baselines":baselines,"snapshot_id":result.primary.snapshot_id,"outcome":"FILLED" if outcomes and all(value=="FILLED" for value in outcomes) else "PARTIALLY_FILLED" if "FILLED" in outcomes else "UNFILLED"}
+    outcome="NO_BASELINE_POSITIONS_SHARED_SNAPSHOT" if not positions else "FILLED" if outcomes and all(value=="FILLED" for value in outcomes) else "PARTIALLY_FILLED" if "FILLED" in outcomes else "UNFILLED"
+    return {"events":[event.__dict__ for event in events],"baselines":baselines,"snapshot_id":result.primary.snapshot_id,"outcome":outcome}

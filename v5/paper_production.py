@@ -8,7 +8,7 @@ from .core import ContractViolation
 from .market_snapshot import MarketSnapshotV1,QuoteV1
 from .paper import PaperLedger,PaperEngine,PaperOrderV1
 from .order_quantity import floor_quantity
-from .baseline_policy import BASELINE_ID,BASELINE_HASH
+from .baseline_policy import BASELINE_ID,BASELINE_HASH,assert_runtime_frozen
 import hashlib,os
 
 def load_snapshot(path):
@@ -19,6 +19,7 @@ def load_snapshot(path):
 class PaperProduction:
     def __init__(self,root):self.root=Path(root);self.ledger=PaperLedger(self.root/"paper");self.engine=PaperEngine(self.ledger)
     def buy(self,confirmation,snapshot,*,at,eligible_sell_date):
+        assert_runtime_frozen()
         if confirmation.get("outcome")!="BUY_CANDIDATE" or not confirmation.get("candidates"):raise ContractViolation("final V5 buy candidate required")
         top=confirmation["candidates"][0];quote=next((x for x in snapshot.quotes if x.code==top["code"]),None)
         if not quote or quote.ask1<=0 or quote.ask1_volume<=0:raise ContractViolation("frozen executable ask required")
@@ -37,6 +38,7 @@ class PaperProduction:
             events.append(self.engine.execute(order,at=at))
         return events
     def save_baseline(self,confirmation,buy_snapshot,sell_snapshot,*,at,decision_snapshot_id=None):
+        assert_runtime_frozen()
         rows=[];candidates=list(confirmation.get("candidates",[]))
         if not candidates:raise ContractViolation("baseline confirmed candidates required")
         # Production buys exactly the frozen Top1.  The admission baseline must

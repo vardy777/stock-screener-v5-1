@@ -21,6 +21,9 @@ from .challenger import (
     run_isolated as run_challenger_isolated,
 )
 from .paper_production import load_snapshot
+from .opportunity import finalize_due
+from .paper_production import PaperProduction
+from .challenger import challenger_root
 
 WINDOWS={
     "morning_pool":((9,25,0),(9,25,39)),
@@ -75,16 +78,17 @@ def run(root,task,*,now=None,failure_alert_env=None,clock_checker=None):
             details=paper_buy(root,now=now)
             if details.get("outcome") not in {"FILLED","NO_CANDIDATE"}:raise RuntimeError(f"V5 paper buy rejected: {details.get('reason',details.get('outcome'))}")
             execution_snapshot_id=details.get("execution_snapshot_id","")
-            details["challenger"]=run_challenger_isolated(root,"paper_buy",now,(lambda:challenger_paper_buy(root,now,load_snapshot(root/"snapshots"/day/f"{execution_snapshot_id}.json"))) if execution_snapshot_id else (lambda:{"outcome":"NO_SHARED_EXECUTION_SNAPSHOT"}))
+            details["challenger"]=run_challenger_isolated(root,"paper_buy",now,lambda:challenger_paper_buy(root,now,load_snapshot(root/"snapshots"/day/f"{execution_snapshot_id}.json") if execution_snapshot_id else None))
         elif task=="paper_sell":
             details=paper_sell(root,now=now)
-            if details.get("outcome") not in {"FILLED","NO_POSITIONS_OR_BASELINE"}:raise RuntimeError(f"V5 paper sell incomplete: {details.get('outcome')}")
+            if details.get("outcome") not in {"FILLED","NO_POSITIONS_OR_BASELINE","NO_BASELINE_POSITIONS_SHARED_SNAPSHOT"}:raise RuntimeError(f"V5 paper sell incomplete: {details.get('outcome')}")
             snapshot_id=details.get("snapshot_id","")
             details["challenger"]=run_challenger_isolated(
                 root,"paper_sell",now,
                 (lambda:challenger_paper_sell(root,load_snapshot(root/"snapshots"/day/f"{snapshot_id}.json"),now))
                 if snapshot_id else (lambda:{"outcome":"NO_POSITIONS","events":[]}),
             )
+            details["pairings"]=finalize_due(root,day,now.isoformat(),snapshot_id,PaperProduction(root).ledger,PaperProduction(challenger_root(root)).ledger,TradingCalendar())
         elif task=="health_check":details=health(root,day,now);outcome="SUCCESS" if details["passed"] else "FAILED"
         elif task=="maintenance":details=maintenance(root,day,now);outcome="SUCCESS" if details["passed"] else "FAILED"
         else:raise ValueError("unsupported V5 task")
