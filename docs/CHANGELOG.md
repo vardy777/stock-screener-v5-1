@@ -1,5 +1,49 @@
 # 项目变更日志
 
+- 2026-09-01：V5.1最后一轮strict canonical contract收口。修复`AcquisitionSessionV1.build`与`CandidateFunnelV1.build`对`accepted`执行`bool(...)`导致字符串`"false"`被接受为True的问题；canonical写入与直接构造现在统一要求精确boolean、integer、string及enum类型。同步收紧Security Master、Master evidence、execution observation身份字段和verification record_count/string-sequence边界、calendar配置boolean。新增31项对抗测试；V5.1专项142项、全仓649项通过。生产所有权、Scheduler、8899、严格日及券商状态未改变；RC冻结仍需独立干净提交边界。
+
+- 2026-09-01：完成V5.1第一批Production Readiness离线修复。D日15:20验收降为PreliminaryDayAcceptance，只有D+1严格退出、持仓关闭、账本对账及完整交易血缘重建后的RoundTripAcceptance才可形成严格日证据；合法ACTIVE_FLAT也要求D+1无持仓观察闭环。稳定基础设施提升到`shared_core`，V5与V5.1使用同一实现且V5.1直接`v5.*`运行时依赖为0。持久化读取器拒绝隐式布尔/数字转换和字段漂移。新增确定性、自包含、无密钥的UNFROZEN发布包及单命令验收。专项111项、全量618项通过；Scheduler、8899、V5生产所有权、真实事实和券商订单均未修改，仍NOT CUTOVER READY。
+
+- 2026-08-31：完成V5.1 Security Master证据链和单点故障离线修复。SSE/SZSE官方目录改为各自交易所的权威基础Master，Eastmoney降为可选第三方交叉核验；第三方停机产生可观察降级，不再阻断完整官方基础，官方停机、身份冲突、重复代码、缺失实体或内容哈希错误继续失败关闭。新增可复算SHA-256的不可变原始响应blob、逐证券MasterMatch及Verification引用解析，新增08:10/08:30/08:50/09:05/09:20禁用且仅报告的SHADOW恢复定义。V5.1专项90项、全量597项通过；Windows Scheduler、8899、V5账本和通知均未修改。V5.1仍直接依赖V5日历/行情/漏斗/账本/供应商模块，尚未满足V5可退役独立性门禁，因此不可切换；真实SHADOW窗口与策略有效性亦待验证。
+
+- 2026-08-30：完成V5.1独立Security Master生产适配器。Eastmoney仅负责发现，上海证券逐只由SSE官方源核验，深圳证券逐只由SZSE官方XLSX核验；provider family固定为`eastmoney`/`sse`/`szse`，名称仅做NFKC、空白及ST前缀规范化，代码、交易所、名称与上市日期冲突或来源停机均失败关闭，BSE按契约排除。真实非严格诊断取得SSE 2,505条、SZSE 2,897条有效记录；Eastmoney在75秒预算内于第5页失败，未发布交叉源事实。V5.1专项86项、全仓593项通过；Scheduler、8899和V5生产所有权未改变，真实SHADOW窗口与切换授权仍待完成。
+
+- 2026-08-27：完成V5.1最终三项契约收口。Tradability对仓库中同一交易日/证券的全部as-of状态强制唯一，调用方不能用单条参数隐藏第二条冲突事实；Master freshness日期只由已验证TradingCalendar生成当日与上一开放日，业务代码不再接收可扩大的日期列表；新增ImmutableReadModelBuilder及内容寻址run/failure/execution-result事实，8901实现只从保存的run、failure、confirmation、selection、execution事实推导WAITING/ACTIVE_FLAT/TRADED/FAIL_CLOSED。
+
+- 2026-08-27：完成V5.1独立验收P0/P1契约修复。Security Master verification新增as-of、真实版本、有效期与来源血缘；DailySecurityStatus正式内容寻址存储并与Tradability逐ID解析；正式布尔拒绝字符串/0/1。冻结09:35快照最大年龄30秒、14:49:00–14:49:59不可变freeze、执行报价最大年龄5秒。删除看板事故日期硬编码，状态改由完成/失败/确认/成交事实推导。CloseScan新增独立candidate/run事实，comparison强制策略版本并拒绝重复STRICT交易日。未修改Windows Scheduler或8899，真实窗口和第二轮独立验收待完成。
+
+- 2026-08-27：启动V5.1隔离架构升级。新增Persistent Security Master、验证周期、Daily Tradability、09:35母池、决策后执行快照、CloseScan独立选择/账本、STRICT配对统计和V5.1-only五页面看板；保留V5/G1事实，未修改Windows Scheduler或8899生产所有权。
+
+- 2026-08-27：G1-1 P0独立复审补洞。正式股票池必须由独立权威当日证券清单驱动，彻底避免从已有状态事实反推清单而漏检“整只证券无状态事实”；清单自身为空、字符串化或重复也失败关闭。四类Fact直接构造边界补充严格布尔/枚举校验；DailyBar冻结契约移除可由真实涨跌停价格派生的`hit_*`字段。G1专项61项、全量504项通过。G1-1继续in_progress，历史来源批准数仍为0，未进入G1-2。
+
+- 2026-08-26：修复V5全市场目录刷新可靠性：12秒串行分页改为75秒默认预算、8路受控并发、单页重试、隔离同日续传、重复/缺页/总数门禁及不可变成功/失败诊断事实；东方财富多域名明确保持同一供应商身份。新增08:10、08:30、08:50、09:05、09:15恢复触发与09:20绝对硬截止；2026-08-27已只对既有 `AStock-V5-Readiness-Daily` 部署5个触发器，执行程序和参数未变，其他10个V5任务未改动。生产日状态区分等待、主动空仓、已交易和失败关闭。离线504项测试通过；真实窗口与独立备用目录源仍待验收，`research_locked`、95%门槛、券商禁用及冻结基线不变。
+
+- 2026-08-25：G1-1 P0时点契约加固。正式股票池遇到应存在证券状态缺失/歧义时整日失败关闭，新增仅诊断用的跳过原因、缺失/歧义计数与覆盖率；同一证券状态有效区间重叠在存储构造时拒绝；数据源清单只接受真实JSON boolean。Fact模型补齐退市日、成交额、真实涨跌停价格、配股价和财务修订标记，并同步导入与边界验证。G1专项55项、全量474项通过。G1-1继续in_progress，历史来源批准数仍为0，未进入G1-2。
+
+- 2026-08-24：G1-1接入无需账户的公开腾讯未复权日线采集器，仅产生明确 `approved_for_g1_research=false` 的诊断观测，用于与本地归档交叉核验；不把当前抓取时间伪装成历史可用时点。
+
+- 2026-08-24：公开腾讯原始日线与Phase1归档对000001在2023-12-28至2024-01-05的6个重叠交易日收盘价逐日一致。该结果仅支持行情口径交叉核验，不能弥补历史证券状态、公司行为和披露时点缺失，数据源继续未批准。
+
+- 2026-08-23：G1-1补齐已批准公司行为导入边界。除权、分红、送转与配股事件必须来自已批准的公司行为来源，并保留独立公告/可用/除权时点和供应商ID；公司行为不能通过复权价格序列隐式注入。
+
+- 2026-08-23：G1-1新增已批准历史日线导入边界。导入器只接受时点验证且获批准的日线来源，并强制逐行 `available_at`、供应商记录ID、原始OHLCV和严格布尔交易状态；未批准的Phase1归档在导入前失败关闭。
+
+- 2026-08-23：G1-1新增 Phase1 分时归档隔离扫描器。扫描器只能生成带 `quarantined=true` 的解析质量报告和日线候选，类型上不能产生正式 `DailyBarFact`；候选不允许进入因子、策略、组合或回测。完成对4,997份本地文件的只读质量盘点：3,081,511个诊断会话候选、0无效行；报告明确 `approved_for_g1_research=false`。全量438项测试通过。
+
+- 2026-08-23：G1-1完成历史数据接入决策说明。明确优先检查已有Wind/CSMAR合法权限；Tushare Pro仅作为待字段验收的低成本候选；Phase1归档永久仅限诊断。冻结证券状态、原始行情、公司行为和财务披露的最小字段以及30证券抽样、公告前不可见、公司行为重建和不可成交案例等批准门禁；未注册账号、购买服务或下载外部数据。
+
+- 2026-08-23：G1治理测试增加运行时导入审计，禁止G1导入V5候选漏斗、决策、通知、模拟执行和调度模块，防止两条研究线发生业务耦合。
+
+- 2026-08-23：G1-1新增原始 `DailyBarFact`、`CorporateActionFact` 与时点日线读取器。日线强制可用时点、OHLC边界、成交/停牌和涨跌停一致性；公司行为强制公开/可用顺序并与复权价格解耦。未导入或批准任何本地行情归档，历史研究门禁保持关闭。G1专项30项、全量432项测试通过。
+
+- 2026-08-23：G1-1建立时点证券与披露事实契约。新增 `SecurityStatusFact`、`FinancialDisclosureFact`、`PointInTimeStore` 和可交易股票池 fail-closed 规则；强制时区、可用时点、有效区间、ST/退市/停牌/北交所排除及上市天数门禁，财务数据按公开可用时点读取。盘点确认本地V5实时事实和旧缓存均不能充当长期历史回测的权威输入，因此未产生任何历史策略结果；历史证券状态和披露时点数据仍是G1-1开放门禁。
+
+- 2026-08-23：G1-1新增版本化数据源清单和历史研究就绪门禁。历史研究必须同时具备时点验证且批准的证券状态、日线、公司行为和财务披露四类单一来源；覆盖不足、未验证、未批准或多来源冲突均失败关闭。当前清单只登记V5短窗口实时事实和遗留缓存，均明确禁止作为G1长期历史研究权威输入。
+
+- 2026-08-23：G1-1盘点并登记Phase1本地分时行情归档：4,997个证券文件、可见覆盖约2023-12-28至2026-08-07。该来源未通过时点验证且缺少同期证券状态、公司行为和披露事实，保持 `approved_for_g1_research=false`；新增清单加载校验，未产生任何策略回测。
+
+- 2026-08-23：正式启动独立 G1 多策略组合研究项目。冻结 G1 V1 产品章程、架构、路线图和机器状态，建立 `g1` 独立命名空间、四类证据隔离及不可变组合研究政策：5—15只、单票不超过10%、单行业不超过25%、持有2—10个交易日。G1-0治理验收完成，全量408项测试通过，项目进入G1-1时点数据阶段。G1保持 `research_locked`，禁止券商、PushPlus和生产调度；V5继续拥有全部生产入口、候选、账本、通知和8899看板。
+
 - 2026-08-21：新增独立“量价挑战者”研究线 `volume_price_v1`。挑战者消费与V5冻结基线完全相同的09:25、14:49和次日09:30快照，14:50确认强制为自身早盘母池子集；叠加因果5/10日均线、收益、成交量结构和不过热过滤，使用独立10万元影子账本，不发送PushPlus、不连接券商、故障不阻断基线。完成2026-08-24上下文5215只股票构建，5116只有效，覆盖98.10%、独立参考匹配98.83%。8899新增两线对照；全量402项、独立性审计和生产静态审计通过，真实窗口仍待2026-08-24。
 
 - 2026-08-13：启动独立 V5 产品闭环重构（影子开发、只读复用V4）。新增多源严格采集会话、全市场可解释候选漏斗和内容寻址V5事实存储；95%/时间因果等全局硬门槛保持，停牌/涨跌停/盘口缺失改为逐标的漏斗淘汰，避免单只证券关闭整个市场。新增V5产品章程和机器状态；未切换生产调度、8898、PushPlus或P3账本，`research_locked`不变。
@@ -171,3 +215,30 @@
 - Upgraded the 15:20 acceptance summary to v2 task truth. Every immutable run artifact must match its content-derived `run_id` and filename; the summary exposes attempt count, ever-success, latest outcome and latest run ID per task. Completion requires each required task's latest valid attempt to be SUCCESS, so an earlier success cannot hide a later failure and edited run JSON cannot manufacture completion. Full suite: 363 passed.
 - Applied the same immutable validation to 08:30 readiness evidence consumed at 15:20. Filename, content-derived report ID, trade date, `diagnostic_only=true` and `strict_evidence=false` are mandatory; corrupted or edited passed reports are excluded, surfaced as validation errors and cannot satisfy completion. Full suite: 364 passed.
 - Made top-level notification truth in the 15:20 summary depend on the full daily lineage audit, not merely receipt fields. A stage is true only when HTTP 200/ACCEPTED, parent entity, payload hash, rebuilt decision entity, snapshot and market-state lineage all agree; forged 200 receipts remain false. Full suite: 365 passed.
+# 2026-08-28 — V5.1 offline Runtime repair
+
+- Enforced physical mode/cohort isolation, Windows held-handle stage locking,
+  strict idempotent entity validation, dual-source daily-status evidence and
+  conservative sell execution persistence.
+- Added immutable health, acceptance and legal flat-stage outcomes; dashboard
+  now distinguishes current missed windows, historical/non-trading no-evidence,
+  partial lineage, quarantine and recovered latest attempts.
+- Added ownership-gated V5.1 notification stages. No real notification was
+  sent and V5 remains notification/production owner.
+- Offline result: 61 V5.1 tests and 568 repository tests passed. Real-window
+  acceptance remains pending; cutover readiness is NO; effectiveness is
+  unproven.
+
+## Independent Runtime re-review
+
+- Corrected BUY execution chronology so fill time is captured after the real
+  provider acquisition; the five-second quote-age boundary remains unchanged.
+- Added immutable execution-stage intent/result/rejection counts and explicit
+  `ALL_FILLED`, `PARTIAL_FILL`, `NO_STRICT_FILL`, `EXECUTION_REJECTED`,
+  `FAIL_CLOSED`, and true zero-intent `ACTIVE_FLAT` semantics.
+- Health and Acceptance now consume the execution-stage fact and require one
+  unique audit result or rejection per intent.
+- REPLAY/TEST are rejected from production/shadow roots and descendants.
+- New result: 73 V5.1 tests and 580 repository tests passed. Runtime is
+  implemented, but final acceptance remains blocked by the missing live
+  independent SSE/SZSE Security Master verification path.

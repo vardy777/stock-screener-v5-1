@@ -1,36 +1,245 @@
 {
-  "schema_version": "project-state-v2",
-  "project": "a-share-overnight-v5",
-  "display_name": "A股隔夜交易研究系统 V5",
-  "updated_at": "2026-08-26T00:20:00+08:00",
-  "production_status": "research_locked",
-  "runtime_owner": "v5",
-  "broker_orders_enabled": false,
-  "dashboard": {"url": "http://127.0.0.1:8899/", "entrypoint": "python -m v5.dashboard", "status": "production_read_only"},
-  "notifications": {"owner": "v5", "required": ["09:25 morning observation", "14:50 confirmation"], "success_contract": "HTTP 200 and ACCEPTED immutable receipt", "v4_channels_retired_in_code": true},
-  "schedule": {"owner": "v5", "mode": "weekday_recurring_with_exchange_calendar_runtime_gate", "eleven_tasks_registered": true, "paper_tasks_registered": true, "broker_tasks_registered": false, "static_audit": "v7_passed_runtime_safe_os_v4_not_fully_disabled"},
-  "live_evidence": {
-    "complete_successful_days": 0,
-    "2026-08-18": {"readiness": "success", "morning_pool": "success", "morning_push": "HTTP_200_ACCEPTED", "feature_freeze": "failed_dual_source_quality", "confirmation_push": "not_produced", "full_day": "failed"},
-    "2026-08-19_to_2026-08-20": "no_v5_runs_due_expired_one_day_schedule",
-    "2026-08-21": {"strict_morning_pool": "missing", "recovery_observation": "13:02_HTTP_200_ACCEPTED_non_strict", "feature_freeze": "14:49_SUCCESS", "dual_source_coverage": 0.9980824544582934, "dual_source_consistency": 0.9976989453499521, "confirmation": "fail_closed_missing_mother_pool_alert_HTTP_200_ACCEPTED", "paper_buy": "not_run_no_confirmation", "health": "failed_expected_alert_HTTP_200_ACCEPTED", "maintenance": "15:10_SUCCESS_113_FILES_NO_INVALID", "live_acceptance": "15:20_INCOMPLETE_TRUTHFUL_NO_VALIDATION_ERRORS", "full_day": "cannot_pass_without_09:25_mother_pool"},
-    "2026-08-24": {"readiness": "success", "morning_push": "HTTP_200_ACCEPTED", "confirmation_push": "HTTP_200_ACCEPTED", "nine_business_tasks": "8_success_1_health_false_failure", "lineage_recalculation_after_fix": "passed_read_only", "full_day": "immutable_acceptance_failed_before_fix"},
-    "2026-08-25": {"readiness": "failed_obsolete_eastmoney_quote_probe_after_universe_refresh_success", "morning_push": "HTTP_200_ACCEPTED", "confirmation_push": "HTTP_200_ACCEPTED", "nine_business_tasks": "8_success_1_health_false_failure", "lineage_recalculation_after_fix": "passed_read_only", "full_day": "immutable_acceptance_failed_before_fix"},
-    "next_full_live_acceptance": "2026-08-26"
-  },
-  "quality": {"tests_passed": 473, "tests_failed": 0, "production_static_audit": "v7_passed_v4_runtime_safe_not_all_os_disabled", "runtime_run_fact_validation": "content_address_and_latest_attempt_enforced", "measurement_contract": "v2_executable_book_consensus_and_immutable_opportunity_pairing_offline_passed_live_pending", "frozen_baseline": "v5_baseline_funnel_v4_frozen_2026_08_25_external_manifest_enforced", "challenger_protocol": "v5-challenger-prereg-2026-08-25-v2", "strict_round_trips": 0, "strategy_effectiveness": "unproven", "historical_hourly_proxy": {"strict_evidence": false, "period": "2026-07-09_to_2026-08-05", "sessions": 20, "trades": 14, "win_rate": 0.214285714285714, "average_return": -0.0169068096892119, "net_pnl": -7146.27, "verdict": "negative_warning_not_admission_evidence"}, "volume_price_challenger": {"strategy_id": "volume_price_v1", "mode": "shadow_no_push", "baseline_changed": false, "separate_ledger": true, "paired_same_window_protocol": true, "target_trade_date": "2026-08-24", "context_coverage": 0.9810162991371045, "reference_match_rate": 0.9882720875684128, "offline_acceptance": "passed", "live_acceptance": "pending"}},
-  "known_issues": [
-    {"id": "V5-SCHED-001", "severity": "P0", "title": "dated shadow tasks expired after 2026-08-18", "status": "fixed_recurring_tail_tasks_ran_2026-08-21_full_day_continuity_pending_2026-08-24"},
-    {"id": "V5-DATA-001", "severity": "P0", "title": "2026-08-18 signal dual-source quality rejected", "status": "fixed_2026-08-21_strict_1449_passed_0925_continuity_pending"},
-    {"id": "V5-LIVE-001", "severity": "P0", "title": "no complete successful V5 production day", "status": "open_requires_2026-08-26_full_window_after_false_failure_fix"},
-    {"id": "V5-AUDIT-001", "severity": "P0", "title": "health audit rebuilt notification at audit wall clock and falsely rejected stale payload", "status": "fixed_2026-08-25_requires_next_live_health_acceptance"},
-    {"id": "V5-PREFLIGHT-002", "severity": "P1", "title": "obsolete Eastmoney single-quote probe blocked readiness although directory and strict sources were healthy", "status": "fixed_2026-08-25_directory_gate_and_sina_tencent_transport_retained"},
-    {"id": "V5-MEASURE-001", "severity": "P0", "title": "baseline and strict returns previously used incompatible capital bases", "status": "fixed_offline_v2_contract_live_window_validation_pending"},
-    {"id": "V5-EXEC-001", "severity": "P0", "title": "decision snapshot previously doubled as buy execution snapshot", "status": "fixed_offline_targeted_dual_source_execution_capture_live_window_validation_pending"},
-    {"id": "V5-STRAT-001", "severity": "P1", "title": "current momentum Top1 policy underperformed in 20-session hourly proxy", "status": "open_baseline_immutably_frozen_volume_price_challenger_preregistered_live_paired_comparison_pending"},
-    {"id": "V5-RETIRE-001", "severity": "P1", "title": "V4 protected Windows task definitions remain installed", "status": "eight_ready_tasks_code_guarded_before_business_imports_current_token_access_denied"},
-    {"id": "V5-RETIRE-002", "severity": "P2", "title": "privileged retired dashboard process still owns 127.0.0.1:8898", "status": "dashboard_task_disabled_process_termination_access_denied_v5_8899_unaffected"}
-  ],
-  "hard_gates": {"minimum_market_coverage": 0.95, "future_data_forbidden": true, "historical_strict_window_backfill_forbidden": true, "model_publication_allowed": false, "broker_or_live_trading_allowed": false},
-  "next_tasks": ["validate targeted dual-source buy execution capture inside 14:50 strict window", "validate strict sell capture and fill inside 09:30:00-09:30:59", "join strict exit labels to immutable 09:25 full-cross-section factor diagnostics", "accumulate paired baseline and volume_price_v1 opportunity days across strong neutral weak and high normal low turnover regimes", "do not change frozen baseline or claim effectiveness before preregistered evidence passes"]
+    "schema_version": "project-state-v2",
+    "project": "a-share-overnight-v5",
+    "display_name": "A\u80a1\u9694\u591c\u4ea4\u6613\u7814\u7a76\u7cfb\u7edf V5",
+    "updated_at": "2026-08-31T20:54:14+08:00",
+    "production_status": "research_locked",
+    "runtime_owner": "v5",
+    "broker_orders_enabled": false,
+    "dashboard": {
+        "url": "http://127.0.0.1:8899/",
+        "entrypoint": "python -m v5.dashboard",
+        "status": "production_read_only"
+    },
+    "notifications": {
+        "owner": "v5",
+        "required": [
+            "09:25 morning observation",
+            "14:50 confirmation"
+        ],
+        "success_contract": "HTTP 200 and ACCEPTED immutable receipt",
+        "v4_channels_retired_in_code": true
+    },
+    "schedule": {
+        "owner": "v5",
+        "mode": "weekday_recurring_with_exchange_calendar_runtime_gate",
+        "eleven_tasks_registered": true,
+        "readiness_recovery_triggers": [
+            "08:10:00",
+            "08:30:00",
+            "08:50:00",
+            "09:05:00",
+            "09:15:00"
+        ],
+        "readiness_recovery_deployed_at": "2026-08-27T00:20:00+08:00",
+        "readiness_hard_cutoff": "09:20:00",
+        "paper_tasks_registered": true,
+        "broker_tasks_registered": false,
+        "static_audit": "v7_passed_runtime_safe_os_v4_not_fully_disabled"
+    },
+    "live_evidence": {
+        "complete_successful_days": 0,
+        "2026-08-18": {
+            "readiness": "success",
+            "morning_pool": "success",
+            "morning_push": "HTTP_200_ACCEPTED",
+            "feature_freeze": "failed_dual_source_quality",
+            "confirmation_push": "not_produced",
+            "full_day": "failed"
+        },
+        "2026-08-19_to_2026-08-20": "no_v5_runs_due_expired_one_day_schedule",
+        "2026-08-21": {
+            "strict_morning_pool": "missing",
+            "recovery_observation": "13:02_HTTP_200_ACCEPTED_non_strict",
+            "feature_freeze": "14:49_SUCCESS",
+            "dual_source_coverage": 0.9980824544582934,
+            "dual_source_consistency": 0.9976989453499521,
+            "confirmation": "fail_closed_missing_mother_pool_alert_HTTP_200_ACCEPTED",
+            "paper_buy": "not_run_no_confirmation",
+            "health": "failed_expected_alert_HTTP_200_ACCEPTED",
+            "maintenance": "15:10_SUCCESS_113_FILES_NO_INVALID",
+            "live_acceptance": "15:20_INCOMPLETE_TRUTHFUL_NO_VALIDATION_ERRORS",
+            "full_day": "cannot_pass_without_09:25_mother_pool"
+        },
+        "2026-08-24": {
+            "readiness": "success",
+            "morning_push": "HTTP_200_ACCEPTED",
+            "confirmation_push": "HTTP_200_ACCEPTED",
+            "nine_business_tasks": "8_success_1_health_false_failure",
+            "lineage_recalculation_after_fix": "passed_read_only",
+            "full_day": "immutable_acceptance_failed_before_fix"
+        },
+        "2026-08-25": {
+            "readiness": "failed_obsolete_eastmoney_quote_probe_after_universe_refresh_success",
+            "morning_push": "HTTP_200_ACCEPTED",
+            "confirmation_push": "HTTP_200_ACCEPTED",
+            "nine_business_tasks": "8_success_1_health_false_failure",
+            "lineage_recalculation_after_fix": "passed_read_only",
+            "full_day": "immutable_acceptance_failed_before_fix"
+        },
+        "2026-08-26": {
+            "readiness": "failed_universe_refresh_12_second_serial_pagination_budget",
+            "morning_pool": "not_produced",
+            "feature_freeze": "failed_missing_universe",
+            "confirmation": "fail_closed",
+            "paper_buy": "not_run",
+            "full_day": "failed"
+        },
+        "next_full_live_acceptance": "next_open_session_after_reliability_fix"
+    },
+    "quality": {
+        "tests_passed": 649,
+        "tests_failed": 0,
+        "production_static_audit": "v7_passed_v4_runtime_safe_not_all_os_disabled",
+        "runtime_run_fact_validation": "content_address_and_latest_attempt_enforced",
+        "measurement_contract": "v2_executable_book_consensus_and_immutable_opportunity_pairing_offline_passed_live_pending",
+        "frozen_baseline": "v5_baseline_funnel_v4_frozen_2026_08_25_external_manifest_enforced",
+        "challenger_protocol": "v5-challenger-prereg-2026-08-25-v2",
+        "strict_round_trips": 0,
+        "strategy_effectiveness": "unproven",
+        "historical_hourly_proxy": {
+            "strict_evidence": false,
+            "period": "2026-07-09_to_2026-08-05",
+            "sessions": 20,
+            "trades": 14,
+            "win_rate": 0.214285714285714,
+            "average_return": -0.0169068096892119,
+            "net_pnl": -7146.27,
+            "verdict": "negative_warning_not_admission_evidence"
+        },
+        "volume_price_challenger": {
+            "strategy_id": "volume_price_v1",
+            "mode": "shadow_no_push",
+            "baseline_changed": false,
+            "separate_ledger": true,
+            "paired_same_window_protocol": true,
+            "target_trade_date": "2026-08-24",
+            "context_coverage": 0.9810162991371045,
+            "reference_match_rate": 0.9882720875684128,
+            "offline_acceptance": "passed",
+            "live_acceptance": "pending"
+        }
+    },
+    "v5_1_upgrade": {
+        "status": "offline_strict_contract_closure_pass_rc_freeze_boundary_pending",
+        "production_cutover_authorized": false,
+        "cutover_ready": false,
+        "real_window_strict_days": 0,
+        "strategy_effectiveness": "UNPROVEN",
+        "production_owner": "v5",
+        "official_sse_szse_master_live_source": "AUTHORITATIVE_BASE_INTEGRATED_REAL_WINDOW_PENDING",
+        "windows_scheduler_modified": false,
+        "dashboard_production_port_modified": false,
+        "system_version": "5.1",
+        "baseline_strategy_version": "v5.1-baseline-0935-v1",
+        "closescan_strategy_version": "v5.1-closescan-v1",
+        "evidence_boundary": "V5 legacy and V5.1 current are separate cohorts",
+        "official_master_sources": "SSE_and_SZSE_authoritative_exchange_base_Eastmoney_optional_third_party_cross_check_content_addressed_response_match_verification_lineage",
+        "offline_tests": "649 full-suite passed including 142 targeted V5.1 tests",
+        "shadow_recovery_plan": "REPORT_ONLY_DISABLED_08:10_08:30_08:50_09:05_09:20_NOT_REGISTERED",
+        "master_degradation_policy": "Eastmoney_unavailable_degraded_official_base_retained_official_outage_conflict_duplicate_or_bad_hash_fail_closed",
+        "v5_retirement_independence": "SHARED_CORE_MIGRATION_PASS_ZERO_DIRECT_V5_1_RUNTIME_IMPORTS_V5_REMAINS_PRODUCTION_OWNER_PENDING_CUTOVER_GATES",
+        "acceptance_contract": "D_1520_PRELIMINARY_ONLY_D_PLUS_1_ROUND_TRIP_ACCEPTANCE_IS_SOLE_STRICT_DAY_AUTHORITY",
+        "release_artifact": "UNFROZEN_SELF_CONTAINED_REPRODUCIBLE_OFFLINE_ACCEPTANCE_PASS_NOT_RC",
+        "dashboard_projection": "immutable_content_addressed_v5_1_only_fail_closed",
+        "pit_contract": "verification_verified_at_lte_as_of_and_all_master_status_lineage_resolves",
+        "morning_snapshot_max_age_seconds": 30,
+        "feature_freeze_window": "14:49:00-14:49:59 Asia/Shanghai",
+        "execution_quote_max_age_seconds": 5,
+        "dashboard_state_derivation": "immutable_completion_failure_confirmation_and_execution_facts_no_date_hardcoding",
+        "master_freshness_policy": "verified_trading_calendar_current_and_previous_open_session_only",
+        "status_uniqueness": "repository_level_trade_date_symbol_as_of_exactly_one",
+        "production_read_model": "immutable_saved_run_failure_confirmation_selection_observation_and_execution_result_facts_only",
+        "next_gate": "independent_review_then_freeze_exact_RC_then_3_to_5_natural_round_trip_shadow_days"
+    },
+    "known_issues": [
+        {
+            "id": "V5-UNIVERSE-002",
+            "severity": "P0",
+            "title": "serial directory pagination exhausted 12 second budget and cascaded into full-day fail-closed",
+            "status": "fixed_offline_75_second_budget_bounded_parallel_pages_page_retry_checkpoint_attempt_facts_and_premarket_recovery_policy_live_window_pending"
+        },
+        {
+            "id": "V5-UNIVERSE-003",
+            "severity": "P1",
+            "title": "universe directory lacks a verified independent provider backup",
+            "status": "official_sse_szse_adapters_integrated_and_real_diagnostics_pass_cross_source_natural_shadow_window_pending"
+        },
+        {
+            "id": "V5-SCHED-001",
+            "severity": "P0",
+            "title": "dated shadow tasks expired after 2026-08-18",
+            "status": "fixed_recurring_tail_tasks_ran_2026-08-21_full_day_continuity_pending_2026-08-24"
+        },
+        {
+            "id": "V5-DATA-001",
+            "severity": "P0",
+            "title": "2026-08-18 signal dual-source quality rejected",
+            "status": "fixed_2026-08-21_strict_1449_passed_0925_continuity_pending"
+        },
+        {
+            "id": "V5-LIVE-001",
+            "severity": "P0",
+            "title": "no complete successful V5 production day",
+            "status": "open_requires_2026-08-26_full_window_after_false_failure_fix"
+        },
+        {
+            "id": "V5-AUDIT-001",
+            "severity": "P0",
+            "title": "health audit rebuilt notification at audit wall clock and falsely rejected stale payload",
+            "status": "fixed_2026-08-25_requires_next_live_health_acceptance"
+        },
+        {
+            "id": "V5-PREFLIGHT-002",
+            "severity": "P1",
+            "title": "obsolete Eastmoney single-quote probe blocked readiness although directory and strict sources were healthy",
+            "status": "fixed_2026-08-25_directory_gate_and_sina_tencent_transport_retained"
+        },
+        {
+            "id": "V5-MEASURE-001",
+            "severity": "P0",
+            "title": "baseline and strict returns previously used incompatible capital bases",
+            "status": "fixed_offline_v2_contract_live_window_validation_pending"
+        },
+        {
+            "id": "V5-EXEC-001",
+            "severity": "P0",
+            "title": "decision snapshot previously doubled as buy execution snapshot",
+            "status": "fixed_offline_targeted_dual_source_execution_capture_live_window_validation_pending"
+        },
+        {
+            "id": "V5-STRAT-001",
+            "severity": "P1",
+            "title": "current momentum Top1 policy underperformed in 20-session hourly proxy",
+            "status": "open_baseline_immutably_frozen_volume_price_challenger_preregistered_live_paired_comparison_pending"
+        },
+        {
+            "id": "V5-RETIRE-001",
+            "severity": "P1",
+            "title": "V4 protected Windows task definitions remain installed",
+            "status": "eight_ready_tasks_code_guarded_before_business_imports_current_token_access_denied"
+        },
+        {
+            "id": "V5-RETIRE-002",
+            "severity": "P2",
+            "title": "privileged retired dashboard process still owns 127.0.0.1:8898",
+            "status": "dashboard_task_disabled_process_termination_access_denied_v5_8899_unaffected"
+        }
+    ],
+    "hard_gates": {
+        "minimum_market_coverage": 0.95,
+        "future_data_forbidden": true,
+        "historical_strict_window_backfill_forbidden": true,
+        "model_publication_allowed": false,
+        "broker_or_live_trading_allowed": false
+    },
+    "next_tasks": [
+        "validate universe refresh and all five premarket recovery triggers in the next real open-session window",
+        "validate Eastmoney discovery plus relevant SSE/SZSE official verification in the next natural SHADOW preflight window",
+        "validate targeted dual-source buy execution capture inside 14:50 strict window",
+        "validate strict sell capture and fill inside 09:30:00-09:30:59",
+        "join strict exit labels to immutable 09:25 full-cross-section factor diagnostics",
+        "accumulate paired baseline and volume_price_v1 opportunity days across strong neutral weak and high normal low turnover regimes",
+        "do not change frozen baseline or claim effectiveness before preregistered evidence passes"
+    ]
 }

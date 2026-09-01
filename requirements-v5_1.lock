@@ -1,0 +1,3 @@
+# V5.1 runtime uses the Python 3.12 standard library only.
+# Test/release acceptance dependency:
+pytest==8.4.2

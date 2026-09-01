@@ -1,0 +1,10 @@
+{
+  "schema_version": "v5.1-release-config-schema-v1",
+  "required": {
+    "research_locked": true,
+    "broker_orders": false,
+    "minimum_market_coverage": 0.95,
+    "production_cutover_authorized": false
+  },
+  "forbidden_secret_fields": ["pushplus_token", "broker_token", "password", "secret"]
+}

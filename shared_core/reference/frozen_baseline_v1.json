@@ -1,0 +1,10 @@
+{
+  "baseline_id": "v5_baseline_funnel_v4_frozen_2026_08_25",
+  "frozen_at": "2026-08-25T00:00:00+08:00",
+  "mutable": false,
+  "parameter_hash": "0a0b32659d4a6dade27fb21d4c27b380ecdf1fd5e3f3bd88a0c5c264776cdda9",
+  "parameters": {"capital_fraction": 0.3333333333333333, "close_location_weight": 0.25, "commission_rate": "0.0003", "confirmation_logic_version": "v5-baseline-confirmation-subset-v1", "confirmation_reuses_morning_rank": true, "liquidity_weight": 0.3, "max_candidates": 20, "maximum_intraday_change": 0.095, "maximum_range": 0.15, "maximum_symbol_quote_age_seconds": 120.0, "min_amount": 5000000.0, "minimum_commission": "5", "momentum_weight": 0.45, "order_quantity_rule_version": "v5-board-quantity-v1", "policy_version": "v5-funnel-policy-v4", "selection": "top1", "slippage": "0.0005", "stamp_tax": "0.0005"},
+  "protected_logic_hashes": {"CandidateFunnel.run": "8319d7eb924934f3045b89be708fe4264f6a01c4fb7a91f516031e5cc02da661", "PaperEngine.__init__": "a8dd4829ede1ac077b18a9bc45501fda9e43ff657090cc42aab2710034c89004", "PaperEngine.buy_order": "87b3fcea9504daddaea32147f51fcd1ce4e7f67fa05cc6e81d1d3f763d57e0e2", "PaperEngine.execute": "b252b9f450a6e55f289e5de425c37adf2db7cb1743751d7bb3cf91e0c69e11e3", "PaperProduction.buy": "085ef16f3c8b6a0312878e73d82a41b30ff23bfca986d9288c78e019f24636b6", "PaperProduction.save_baseline": "7cf184665f6722e2e6e3268187b58d3ad4219348fabc7d66274ceb8f7c9d73a7", "PaperProduction.sell_all": "a257d8a6063827939fc27214c72c7df6508def5bcb2a41250e90361e228f5e3c", "confirm_frozen": "1ba3f08021dc8428687518ae62559cb9bd3199ac907f86b987e716e281411cb2", "floor_quantity": "a058070cf3bee3272c8fd4ed8238b92adc65a1322b7c87adc8745eda6da54a1f", "valid_buy": "067d490c439ac32160e8a394ea061fb0196b5b5e462a151bbe38e45d01242a45", "valid_sell": "db19c3bcc569936898840a5e8844ede3589ecec202f4e033d90c5419d38c7154"},
+  "rule": "any_parameter_change_requires_a_new_challenger",
+  "schema_version": "v5-frozen-baseline-v1"
+}

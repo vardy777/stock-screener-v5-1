@@ -17,6 +17,14 @@ data/
 phase1/data/
 v3/data/
 v4/data/
+v5_1/data/
+v5_1/shadow_data/
+v5_1/replay/
+v5_1/test_data/
+
+# Generated V5.1 release/review artifacts
+.v51_review_stage_*/
+V5_1_*.zip
 
 # Logs and temporary files
 *.log
