@@ -121,7 +121,13 @@
         }
     },
     "v5_1_upgrade": {
-        "status": "offline_strict_contract_closure_pass_rc_freeze_boundary_pending",
+        "status": "v5_1_rc1_frozen_offline_acceptance_pass_natural_shadow_pending",
+        "offline_code_contract_readiness": "PASS",
+        "release_freeze_gate": "PASS",
+        "release_id": "V5.1-RC1",
+        "release_commit_sha": "14cbcf2615a68a50789997e26527f82074a2ca6e",
+        "release_clean_room_acceptance": "PASS",
+        "natural_shadow_status": "PENDING_CHATGPT_REVIEW",
         "production_cutover_authorized": false,
         "cutover_ready": false,
         "real_window_strict_days": 0,
@@ -140,7 +146,7 @@
         "master_degradation_policy": "Eastmoney_unavailable_degraded_official_base_retained_official_outage_conflict_duplicate_or_bad_hash_fail_closed",
         "v5_retirement_independence": "SHARED_CORE_MIGRATION_PASS_ZERO_DIRECT_V5_1_RUNTIME_IMPORTS_V5_REMAINS_PRODUCTION_OWNER_PENDING_CUTOVER_GATES",
         "acceptance_contract": "D_1520_PRELIMINARY_ONLY_D_PLUS_1_ROUND_TRIP_ACCEPTANCE_IS_SOLE_STRICT_DAY_AUTHORITY",
-        "release_artifact": "UNFROZEN_SELF_CONTAINED_REPRODUCIBLE_OFFLINE_ACCEPTANCE_PASS_NOT_RC",
+        "release_artifact": "V5_1_RC1_SHA256_092a83feb2a8b8bdf22404df409836100910197d7c9513f6338658bfc0c333c4",
         "dashboard_projection": "immutable_content_addressed_v5_1_only_fail_closed",
         "pit_contract": "verification_verified_at_lte_as_of_and_all_master_status_lineage_resolves",
         "morning_snapshot_max_age_seconds": 30,
@@ -150,7 +156,7 @@
         "master_freshness_policy": "verified_trading_calendar_current_and_previous_open_session_only",
         "status_uniqueness": "repository_level_trade_date_symbol_as_of_exactly_one",
         "production_read_model": "immutable_saved_run_failure_confirmation_selection_observation_and_execution_result_facts_only",
-        "next_gate": "independent_review_then_freeze_exact_RC_then_3_to_5_natural_round_trip_shadow_days"
+        "next_gate": "ChatGPT_review_exact_RC_identity_before_3_to_5_natural_round_trip_shadow_days"
     },
     "known_issues": [
         {
