@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from io import BytesIO
+from collections import Counter,defaultdict
 import base64,hashlib,json,re,time,unicodedata
 from urllib.parse import urlencode
 from urllib.request import Request,urlopen
@@ -47,8 +48,13 @@ def normalize_security_name(value):
 class OfficialMasterSource:
     provider_family="";exchange="";endpoint="";source_id="";retries=2;timeout=8
     def __init__(self,transport=None):self.transport=transport
+    def _runtime_error(self,code,exc):
+        diagnostic={"source":self.exchange,"stage":"OFFICIAL_SOURCE_REQUEST","endpoint":self.endpoint,"error_code":code,"underlying_exception_type":type(exc).__name__,"underlying_exception_message":str(exc)}
+        error=RuntimeError(f"{self.exchange} {code}: {type(exc).__name__}: {exc}");error.diagnostic=diagnostic;return error
     def _request(self,url,*,binary=False):
-        if self.transport:return self.transport(url)
+        if self.transport:
+            try:return self.transport(url)
+            except OSError as exc:raise self._runtime_error("OFFICIAL_SOURCE_UNAVAILABLE",exc) from exc
         request=Request(url,headers={"Referer":self.endpoint,"User-Agent":"Mozilla/5.0","Accept":"application/json,text/plain,*/*"})
         last=None
         for attempt in range(self.retries):
@@ -58,7 +64,7 @@ class OfficialMasterSource:
                     return response.status,body if binary else body.decode("utf-8-sig","replace")
             except OSError as exc:last=exc
             if attempt+1<self.retries:time.sleep(.25)
-        raise RuntimeError(f"{self.provider_family} official source unavailable: {type(last).__name__}") from last
+        raise self._runtime_error("OFFICIAL_SOURCE_UNAVAILABLE",last) from last
     def _get(self,url):return self._request(url)
     def _record(self,symbol,name,listing_date,retrieved_at):
         symbol=str(symbol or "").strip().zfill(6);name=str(name or "").strip();raw=str(listing_date or "").strip().replace("/","-").replace(".","-")
@@ -78,18 +84,78 @@ class OfficialMasterSource:
 
 class SSEOfficialMasterSource(OfficialMasterSource):
     provider_family="sse";exchange="SSE";source_id="sse_official_share_list";endpoint="https://query.sse.com.cn/sseQuery/commonQuery.do"
+    @staticmethod
+    def _row_id(row):return f"sse-row:{str(row.get('NUM') or 'UNKNOWN').strip()}"
+    @staticmethod
+    def _delisted(row,retrieved):
+        raw=str(row.get("DELIST_DATE") or "").strip().replace("/","-").replace(".","-")
+        if not raw or raw=="-":return False
+        if len(raw)==8 and raw.isdigit():raw=f"{raw[:4]}-{raw[4:6]}-{raw[6:]}"
+        try:return datetime.fromisoformat(raw).date()<=datetime.fromisoformat(retrieved).date()
+        except ValueError as exc:raise ValueError("invalid SSE DELIST_DATE") from exc
+    @staticmethod
+    def _company_signature(row):
+        return tuple(str(row.get(key) or "").strip() for key in ("A_STOCK_CODE","B_STOCK_CODE","COMPANY_CODE","COMPANY_ABBR","FULL_NAME","LIST_BOARD","DELIST_DATE","STATE_CODE","STATE_CODE_STOCK","PRODUCT_STATUS"))
+    @staticmethod
+    def _identity_signature(row):
+        return tuple(str(row.get(key) or "").strip() for key in ("A_STOCK_CODE","COMPANY_CODE","COMPANY_ABBR","FULL_NAME","SEC_NAME_FULL","LISTING_DATE","LIST_DATE","DELIST_DATE","STATE_CODE","STATE_CODE_STOCK","STOCK_TYPE","LIST_BOARD","PRODUCT_STATUS"))
+    def _failure(self,code,*,http_status,raw_sha256,raw_count,parsed_count,canonical_count,duplicate_count,classifications,conflicts,underlying="",underlying_type="ContractViolation",unique_count=None):
+        diagnostic={"source":"SSE","stage":"SSE_SECURITY_MASTER_CANONICALIZATION","endpoint":self.endpoint,"http_status":http_status,"raw_response_sha256":raw_sha256,"raw_record_count":raw_count,"parsed_record_count":parsed_count,"canonical_record_count":canonical_count,"unique_symbol_count":canonical_count if unique_count is None else unique_count,"duplicate_group_count":duplicate_count,"classification_counts":dict(sorted(Counter(classifications).items())),"conflicting_symbols_sample":sorted(conflicts)[:20],"error_code":code,"underlying_exception_type":underlying_type,"underlying_exception_message":underlying or code}
+        error=ContractViolation(json.dumps(diagnostic,sort_keys=True,separators=(",",":")));error.diagnostic=diagnostic;return error
+    def _canonical_record(self,row,retrieved,source_record_id):
+        record=self._record(row.get("A_STOCK_CODE"),row.get("COMPANY_ABBR") or row.get("SECURITY_ABBR_A"),row.get("LISTING_DATE") or row.get("LIST_DATE"),retrieved)
+        if record is None:return None
+        return {**record,"source_record_id":source_record_id,"master_status":"ACTIVE"}
     def discover(self):
         started=time.monotonic();retrieved=datetime.now(CHINA_TZ).isoformat();params={"sqlId":"COMMON_SSE_CP_GPJCTPZ_GPLB_GP_L","isPagination":"true","pageHelp.pageSize":"5000","pageHelp.pageNo":"1","pageHelp.beginPage":"1","pageHelp.endPage":"1"};status,raw=self._get(self.endpoint+"?"+urlencode(params))
-        if status!=200:raise RuntimeError(f"sse official HTTP {status}")
-        payload=self._json(raw);rows=payload.get("result") or payload.get("data") or [];valid=[];missing=[]
+        if status!=200:
+            exc=RuntimeError(f"HTTP {status}");error=self._runtime_error("OFFICIAL_SOURCE_HTTP_FAILURE",exc);error.diagnostic["http_status"]=status;raise error
+        raw_bytes=raw.encode("utf-8") if isinstance(raw,str) else raw;raw_sha=hashlib.sha256(raw_bytes).hexdigest()
+        try:payload=self._json(raw)
+        except Exception as exc:raise self._failure("OFFICIAL_SOURCE_PARSE_FAILURE",http_status=status,raw_sha256=raw_sha,raw_count=0,parsed_count=0,canonical_count=0,duplicate_count=0,classifications=(),conflicts=(),underlying=str(exc),underlying_type=type(exc).__name__) from exc
+        rows=payload.get("result") or payload.get("data") or [];parsed=[];missing=[]
         for row in rows:
-            raw_symbol=row.get("A_STOCK_CODE") or row.get("SECURITY_CODE_A") or row.get("COMPANY_CODE")
+            raw_symbol=row.get("A_STOCK_CODE") or row.get("SECURITY_CODE_A")
             record=self._record(raw_symbol,row.get("COMPANY_ABBR") or row.get("SECURITY_ABBR_A"),row.get("LISTING_DATE") or row.get("LIST_DATE"),retrieved)
-            if record:valid.append(record)
+            if record:parsed.append(row)
             else:missing.append({"symbol":str(raw_symbol or "UNKNOWN"),"reason":"MISSING_OR_INVALID_IDENTITY_METADATA"})
-        if not valid:raise ContractViolation("sse official directory has no valid identity records")
-        raw_bytes=raw.encode("utf-8") if isinstance(raw,str) else raw
-        return tuple(valid),{"provider_family":"sse","exchange":"SSE","endpoint":self.endpoint,"retrieved_at":retrieved,"raw_sha256":hashlib.sha256(raw_bytes).hexdigest(),"raw_content_b64":base64.b64encode(raw_bytes).decode("ascii"),"http_status":status,"records":len(rows),"valid_records":len(valid),"missing_identity_metadata":missing,"elapsed_seconds":round(time.monotonic()-started,3),"official_independent_source":True}
+        grouped=defaultdict(list)
+        for row in parsed:grouped[str(row.get("A_STOCK_CODE") or row.get("SECURITY_CODE_A")).strip().zfill(6)].append(row)
+        canonical=[];duplicate_facts=[];classifications=[];historical=0;excluded=0;conflicts=[]
+        duplicate_count=sum(len(group)>1 for group in grouped.values())
+        for symbol,group in sorted(grouped.items()):
+            ordered=sorted(group,key=lambda item:(self._identity_signature(item),self._row_id(item)))
+            try:current=[row for row in ordered if not self._delisted(row,retrieved)]
+            except ValueError as exc:raise self._failure("SSE_CANONICALIZATION_FAILURE",http_status=status,raw_sha256=raw_sha,raw_count=len(rows),parsed_count=len(parsed),canonical_count=len(canonical),duplicate_count=duplicate_count,classifications=classifications,conflicts=[symbol],underlying=str(exc),underlying_type=type(exc).__name__,unique_count=len(grouped)) from exc
+            historical+=len(ordered)-len(current);excluded+=len(ordered)-len(current)
+            if len(ordered)>1:
+                identities={self._identity_signature(row) for row in ordered};types=sorted(str(row.get("STOCK_TYPE") or "").strip() for row in ordered);same_company=len({self._company_signature(row) for row in ordered})==1
+                if len(current)==1 and len(ordered)>len(current):selected=current[0];kind="CURRENT_PLUS_DELISTED"
+                elif len(identities)==1:selected=ordered[0];kind="EXACT_DUPLICATE_SOURCE_ROW"
+                elif len(ordered)==2 and types==["1","2"] and same_company and str(ordered[0].get("B_STOCK_CODE") or "").strip().startswith("9"):
+                    selected=next(row for row in ordered if str(row.get("STOCK_TYPE") or "").strip()=="1");kind="CATEGORY_VARIANT"
+                else:
+                    current_a=[row for row in current if str(row.get("STOCK_TYPE") or "").strip()=="1"]
+                    kind="GENUINE_CURRENT_IDENTITY_CONFLICT" if len(current_a)>1 else "UNKNOWN";classifications.append(kind);conflicts.append(symbol);code="AMBIGUOUS_CURRENT_IDENTITY" if kind=="GENUINE_CURRENT_IDENTITY_CONFLICT" else "DUPLICATE_SECURITY_IDENTITY"
+                    raise self._failure(code,http_status=status,raw_sha256=raw_sha,raw_count=len(rows),parsed_count=len(parsed),canonical_count=len(canonical),duplicate_count=duplicate_count,classifications=classifications,conflicts=conflicts,unique_count=len(grouped))
+                canonicalized=selected in current;classifications.append(kind)
+                if canonicalized:excluded+=len(current)-1
+                decisions={"CURRENT_PLUS_DELISTED":"SELECT_SOLE_CURRENT_RECORD","EXACT_DUPLICATE_SOURCE_ROW":"COLLAPSE_EXACT_DUPLICATE","CATEGORY_VARIANT":"SELECT_A_SHARE_CATEGORY"}
+                decision=decisions[kind] if canonicalized else "EXCLUDE_DELISTED_CATEGORY_GROUP"
+                duplicate_facts.append({"symbol":symbol,"classification":kind,"source_record_ids":sorted(self._row_id(row) for row in ordered),"selected_source_record_id":self._row_id(selected),"excluded_source_record_ids":sorted(self._row_id(row) for row in ordered if row is not selected),"canonicalized":canonicalized,"decision":decision})
+                if not canonicalized:continue
+            else:
+                if not current:continue
+                selected=current[0]
+            source_id=f"sse:a-share:{symbol}"
+            record=self._canonical_record(selected,retrieved,source_id)
+            if record is None:raise self._failure("SSE_CANONICALIZATION_FAILURE",http_status=status,raw_sha256=raw_sha,raw_count=len(rows),parsed_count=len(parsed),canonical_count=len(canonical),duplicate_count=duplicate_count,classifications=classifications,conflicts=[symbol],unique_count=len(grouped))
+            canonical.append(record)
+        if not canonical:raise self._failure("OFFICIAL_SOURCE_EMPTY",http_status=status,raw_sha256=raw_sha,raw_count=len(rows),parsed_count=len(parsed),canonical_count=0,duplicate_count=duplicate_count,classifications=classifications,conflicts=(),underlying="sse official directory has no valid identity records",unique_count=len(grouped))
+        canonical=tuple(sorted(canonical,key=lambda item:item["code"]));codes=[item["code"] for item in canonical]
+        if len(codes)!=len(set(codes)):raise self._failure("DUPLICATE_SECURITY_IDENTITY",http_status=status,raw_sha256=raw_sha,raw_count=len(rows),parsed_count=len(parsed),canonical_count=len(canonical),duplicate_count=duplicate_count,classifications=classifications,conflicts=[code for code,count in Counter(codes).items() if count>1],unique_count=len(grouped))
+        diagnostic={"provider_family":"sse","exchange":"SSE","endpoint":self.endpoint,"retrieved_at":retrieved,"raw_sha256":raw_sha,"raw_content_b64":base64.b64encode(raw_bytes).decode("ascii"),"http_status":status,"records":len(rows),"valid_records":len(canonical),"raw_record_count":len(rows),"parsed_record_count":len(parsed),"canonical_record_count":len(canonical),"unique_symbol_count":len(grouped),"duplicate_group_count":duplicate_count,"classification_counts":dict(sorted(Counter(classifications).items())),"duplicate_classifications":duplicate_facts,"unexplained_duplicate_groups":0,"historical_or_delisted_record_count":historical,"excluded_record_count":excluded,"invalid_record_count":len(missing),"missing_identity_metadata":missing,"elapsed_seconds":round(time.monotonic()-started,3),"official_independent_source":True}
+        return canonical,diagnostic
 
 class SZSEOfficialMasterSource(OfficialMasterSource):
     provider_family="szse";exchange="SZSE";source_id="szse_official_company_list";endpoint="https://www.szse.cn/api/report/ShowReport"
@@ -135,7 +201,8 @@ class CrossVerifiedMasterDirectory:
     def discover(self):
         sse_rows,sse_diag=self.sse.discover();szse_rows,szse_diag=self.szse.discover()
         official=tuple(sorted((*sse_rows,*szse_rows),key=lambda x:x["code"]));codes=[x["code"] for x in official]
-        if not official or len(codes)!=len(set(codes)):raise ContractViolation("official master empty or duplicate symbol")
+        if not official:raise ContractViolation("OFFICIAL_SOURCE_EMPTY: official master merge empty")
+        if len(codes)!=len(set(codes)):raise ContractViolation("OFFICIAL_MERGE_DUPLICATE_SECURITY_IDENTITY")
         east_error=None
         try:discovered,east_diag=self.eastmoney.discover()
         except Exception as exc:

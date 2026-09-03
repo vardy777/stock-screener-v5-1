@@ -12,7 +12,8 @@
 - [x] STRICT-only paired statistics and agreement metrics.
 - [x] Multi-page dashboard contract with no G1 projection.
 - [x] Report-only scheduler migration plan.
-- [ ] Real SSE/SZSE endpoint acceptance.
+- [x] 2026-09-02 SSE/SZSE incident response captured and root cause reproduced.
+- [ ] RC2 real SSE/SZSE canonicalization smoke and freshness acceptance.
 - [ ] Second independent external review of the corrected implementation.
 - [ ] Explicit authorization to alter Windows tasks and port 8899.
 
@@ -31,4 +32,4 @@
 
 Until all live gates pass, the authoritative state is:
 
-`V5.1 OFFLINE ACCEPTANCE PASSED / NEXT REAL TRADING WINDOW PENDING`.
+`V5.1-RC1 INVALIDATED / RC2 ACCEPTANCE IN PROGRESS / REAL-WINDOW EVIDENCE 0`.

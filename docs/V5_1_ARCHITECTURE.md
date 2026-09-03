@@ -2,7 +2,8 @@
 
 ## Status and boundary
 
-`V5.1 OFFLINE RUNTIME REPAIR PASSED / REAL-WINDOW ACCEPTANCE PENDING / NOT CUTOVER READY`.
+`V5.1-RC1 INVALIDATED / RC2 MASTER CONTRACT REPAIR IN PROGRESS /
+REAL-WINDOW ACCEPTANCE PENDING / NOT CUTOVER READY`.
 V5 remains the production scheduler owner until a separately authorized atomic
 cutover. V5 facts are read-only legacy evidence. V5.1 facts must carry
 `system_version=5.1`, a V5.1 strategy version and `contract_version` and live
@@ -44,13 +45,17 @@ content tampering, future lineage or independent-source conflict fails closed.
 
 SSE and SZSE official lists form the authoritative base Master for their own
 exchanges. Eastmoney hosts form one `eastmoney` provider family and are an
-optional third-party cross-check, never a discovery prerequisite. Both official HTTP adapters were
-successfully diagnosed on 2026-08-30 (2,505 and 2,897 valid records
-respectively). Symbol, exchange, strictly normalized name and listing date must
+optional third-party cross-check, never a discovery prerequisite. On 2026-09-02
+the SSE response contained 2,516 raw rows, 2,506 RC1-valid rows, 2,462 unique
+A-symbols and 44 duplicate groups; SZSE contained 2,899 unique rows. RC1 erased
+the SSE share-category identity before uniqueness validation and is invalidated.
+RC2 classifies every duplicate group before deterministic canonicalization under
+`V5_1_SSE_SECURITY_MASTER_CANONICALIZATION_CONTRACT.md`; unknown or genuine
+current conflicts remain fail-closed. Symbol, exchange, strictly normalized name and listing date must
 match when third-party data is available; a conflict fails closed. Eastmoney
 transport failure is recorded as `DEGRADED_THIRD_PARTY_UNAVAILABLE` and does
 not discard a complete official base. Official-source outage, invalid identity,
-duplicate symbol or content-address mismatch fails closed. Eastmoney alone can
+unclassified duplicate symbol or content-address mismatch fails closed. Eastmoney alone can
 never satisfy Master verification. Directory responses and per-symbol matches
 are immutable content-addressed facts referenced by the verification fact.
 BSE remains excluded by contract.
