@@ -24,9 +24,14 @@ class ProductionRunFactV51:
 @dataclass(frozen=True)
 class ProductionFailureFactV51:
     trade_date:str;component:str;occurred_at:str;reason_code:str;runtime_mode:str="SHADOW";cohort:str="V51_SHADOW";strict_evidence:bool=False;system_version:str=SYSTEM_VERSION;contract_version:str=CONTRACT_VERSION;schema_version:str="v5.1-production-failure-v1"
+    diagnostic:dict|None=None
     def __post_init__(self):
         aware(self.occurred_at,"occurred_at");strict_bool(self.strict_evidence,"strict_evidence")
         if not self.component or not self.reason_code:raise ContractViolation("production failure identity required")
+        if self.diagnostic is not None:
+            if type(self.diagnostic) is not dict:raise ContractViolation("production failure diagnostic must be mapping")
+            forbidden={"raw_content_b64","token","authorization","secret"}&{str(key).lower() for key in self.diagnostic}
+            if forbidden:raise ContractViolation("production failure diagnostic contains forbidden material")
     @property
     def failure_id(self):return content_id("v51failure1",asdict(self))
     def to_dict(self):return {**asdict(self),"failure_id":self.failure_id}

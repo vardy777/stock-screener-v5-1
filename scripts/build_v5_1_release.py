@@ -7,7 +7,7 @@ from zipfile import ZIP_DEFLATED,ZipFile,ZipInfo
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/"V5_1_RELEASE_CANDIDATE_UNFROZEN.zip"
 EXCLUDED={"data","shadow_data","replay","test_data","__pycache__","logs","cache"}
-DOCS=("docs/V5_1_ARCHITECTURE.md","docs/V5_1_MIGRATION_ACCEPTANCE.md","docs/V5_1_RUNBOOK.md","docs/V5_1_PRODUCTION_CUTOVER.md","docs/V5_1_SHADOW_TASK_MANIFEST.md","docs/V5_1_ACCEPTANCE_CONTRACT.md","docs/V5_1_RELEASE_PROCESS.md")
+DOCS=("docs/V5_1_ARCHITECTURE.md","docs/V5_1_MIGRATION_ACCEPTANCE.md","docs/V5_1_RUNBOOK.md","docs/V5_1_PRODUCTION_CUTOVER.md","docs/V5_1_SHADOW_TASK_MANIFEST.md","docs/V5_1_ACCEPTANCE_CONTRACT.md","docs/V5_1_RELEASE_PROCESS.md","docs/V5_1_SSE_SECURITY_MASTER_CANONICALIZATION_CONTRACT.md")
 RELEASE_SCOPE=("shared_core","v5_1","tests/test_v5_1_*.py","requirements-v5_1.lock","scripts/build_v5_1_release.py",*DOCS)
 
 def digest(path):return hashlib.sha256(path.read_bytes()).hexdigest()

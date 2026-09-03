@@ -1,5 +1,7 @@
 # 项目变更日志
 
+- 2026-09-03：启动独立 V5.1-RC2 SSE Security Master 紧急修复。RC1 因 2026-09-02 官方 SSE 响应中的 44 组重复 A 代码被确认存在数据契约缺陷并保持不可变失效；新增逐组分类契约、完整事故规模回归 fixture、输入顺序不变性、明确退市历史与唯一当前身份、真正当前冲突/未知形态 fail-closed、分层因果诊断及失败事实诊断血缘。未修改策略、生产 Scheduler、8899、V5 账本、通知或券商边界；RC2 尚未冻结，自然窗口严格日仍为 0。
+
 - 2026-09-01：冻结`V5.1-RC1`。精确源码提交`14cbcf2615a68a50789997e26527f82074a2ca6e`、tree `985930b9bc0786393004d8e3ab76d83286537b54`；提交后构建的自包含artifact SHA-256为`092a83feb2a8b8bdf22404df409836100910197d7c9513f6338658bfc0c333c4`。全新clean-room目录中确认`shared_core`/`v5_1`仅从artifact导入，release-only acceptance、142项专项及649项全仓测试全部通过。release scope clean；仓库整体因无关G1/历史V5工作仍dirty。Natural SHADOW尚未启动，严格日仍为0，V5继续持有生产所有权。
 
 - 2026-09-01：V5.1最后一轮strict canonical contract收口。修复`AcquisitionSessionV1.build`与`CandidateFunnelV1.build`对`accepted`执行`bool(...)`导致字符串`"false"`被接受为True的问题；canonical写入与直接构造现在统一要求精确boolean、integer、string及enum类型。同步收紧Security Master、Master evidence、execution observation身份字段和verification record_count/string-sequence边界、calendar配置boolean。新增31项对抗测试；V5.1专项142项、全仓649项通过。生产所有权、Scheduler、8899、严格日及券商状态未改变；RC冻结仍需独立干净提交边界。

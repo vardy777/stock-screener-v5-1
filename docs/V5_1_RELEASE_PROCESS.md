@@ -17,7 +17,10 @@ Every blocking offline gate must report PASS and exit zero. Running without
 until natural shadow, real Scheduler audit, single-writer ownership, rollback
 drill and cutover authorization pass.
 
-The current artifact is deliberately `UNFROZEN`: the worktree is dirty and no
-RC is declared. After independent approval, a clean exact commit may become RC1.
-Any core data, runtime, execution, ledger, acceptance or Scheduler change then
-invalidates that RC and resets natural-window evidence.
+V5.1-RC1 is immutable but invalidated by the 2026-09-02 SSE Security Master
+data-contract incident. It must never be rebuilt in place. The RC2 candidate may
+be frozen only after the 44-group diagnostic, canonicalization contract,
+targeted/full tests, dependency/import scan and clean-room acceptance all pass.
+Any subsequent core data, runtime, execution, ledger, acceptance or Scheduler
+change invalidates that candidate and requires a new release identity. Natural
+window evidence remains zero and cannot be backfilled.

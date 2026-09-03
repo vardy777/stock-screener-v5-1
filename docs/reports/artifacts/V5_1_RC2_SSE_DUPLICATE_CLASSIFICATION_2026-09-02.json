@@ -1,0 +1,3172 @@
+{
+  "captured_at": "2026-09-03",
+  "classification_counts": {
+    "CATEGORY_VARIANT": 44,
+    "GENUINE_CURRENT_IDENTITY_CONFLICT": 0,
+    "UNKNOWN": 0
+  },
+  "duplicate_groups": [
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19961122",
+        "19970506"
+      ],
+      "all_names": [
+        "��ɽB��",
+        "��ɽ����"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:42",
+        "sse-row:43"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600054",
+          "B_STOCK_CODE": "900942",
+          "COMPANY_ABBR": "��ɽ����",
+          "COMPANY_CODE": "600054",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "��ɽ���η�չ�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19961122",
+          "NUM": "42",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "��ɽB��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600054",
+          "B_STOCK_CODE": "900942",
+          "COMPANY_ABBR": "��ɽ����",
+          "COMPANY_CODE": "600054",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "��ɽ���η�չ�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19970506",
+          "NUM": "43",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "��ɽ����",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:43",
+      "symbol": "600054"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19960726",
+        "19970703"
+      ],
+      "all_names": [
+        "������",
+        "������B"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:83",
+        "sse-row:84"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600094",
+          "B_STOCK_CODE": "900940",
+          "COMPANY_ABBR": "������",
+          "COMPANY_CODE": "600094",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ���������ҵ�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19960726",
+          "NUM": "83",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "������B",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600094",
+          "B_STOCK_CODE": "900940",
+          "COMPANY_ABBR": "������",
+          "COMPANY_CODE": "600094",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ���������ҵ�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19970703",
+          "NUM": "84",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "������",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:84",
+      "symbol": "600094"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "20250728"
+      ],
+      "all_listing_dates": [
+        "19980519",
+        "19990609"
+      ],
+      "all_names": [
+        "-"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:171",
+        "sse-row:172"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600190",
+          "B_STOCK_CODE": "900952",
+          "COMPANY_ABBR": "���н���",
+          "COMPANY_CODE": "600190",
+          "DELIST_DATE": "20250728",
+          "FULL_NAME": "���ݸ۹ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19980519",
+          "NUM": "171",
+          "PRODUCT_STATUS": "-",
+          "SEC_NAME_FULL": "-",
+          "STATE_CODE": "3",
+          "STATE_CODE_STOCK": "6",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600190",
+          "B_STOCK_CODE": "900952",
+          "COMPANY_ABBR": "���н���",
+          "COMPANY_CODE": "600190",
+          "DELIST_DATE": "20250728",
+          "FULL_NAME": "���ݸ۹ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19990609",
+          "NUM": "172",
+          "PRODUCT_STATUS": "-",
+          "SEC_NAME_FULL": "-",
+          "STATE_CODE": "3",
+          "STATE_CODE_STOCK": "6",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "3|6|-"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:172",
+      "symbol": "600190"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19970626",
+        "19991125"
+      ],
+      "all_names": [
+        "����B��",
+        "�����ع�"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:200",
+        "sse-row:201"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600221",
+          "B_STOCK_CODE": "900945",
+          "COMPANY_ABBR": "�����ع�",
+          "COMPANY_CODE": "600221",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "���Ϻ��տعɹɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19970626",
+          "NUM": "200",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "����B��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600221",
+          "B_STOCK_CODE": "900945",
+          "COMPANY_ABBR": "�����ع�",
+          "COMPANY_CODE": "600221",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "���Ϻ��տعɹɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19991125",
+          "NUM": "201",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "�����ع�",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:201",
+      "symbol": "600221"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19970108",
+        "20010228"
+      ],
+      "all_names": [
+        "����B��",
+        "����ʵҵ"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:247",
+        "sse-row:248"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600272",
+          "B_STOCK_CODE": "900943",
+          "COMPANY_ABBR": "����ʵҵ",
+          "COMPANY_CODE": "600272",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ�����ʵҵ�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19970108",
+          "NUM": "247",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "����B��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600272",
+          "B_STOCK_CODE": "900943",
+          "COMPANY_ABBR": "����ʵҵ",
+          "COMPANY_CODE": "600272",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ�����ʵҵ�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "20010228",
+          "NUM": "248",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "����ʵҵ",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:248",
+      "symbol": "600272"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19951020",
+        "20010426"
+      ],
+      "all_names": [
+        "������˹",
+        "����B��"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:269",
+        "sse-row:270"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600295",
+          "B_STOCK_CODE": "900936",
+          "COMPANY_ABBR": "������˹",
+          "COMPANY_CODE": "600295",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "���ɹŶ�����˹��Դ�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19951020",
+          "NUM": "269",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "����B��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600295",
+          "B_STOCK_CODE": "900936",
+          "COMPANY_ABBR": "������˹",
+          "COMPANY_CODE": "600295",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "���ɹŶ�����˹��Դ�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "20010426",
+          "NUM": "270",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "������˹",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:270",
+      "symbol": "600295"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19970805",
+        "20001221"
+      ],
+      "all_names": [
+        "��B��",
+        "���ع�"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:293",
+        "sse-row:294"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600320",
+          "B_STOCK_CODE": "900947",
+          "COMPANY_ABBR": "���ع�",
+          "COMPANY_CODE": "600320",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ����ع�(����)�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19970805",
+          "NUM": "293",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "��B��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600320",
+          "B_STOCK_CODE": "900947",
+          "COMPANY_ABBR": "���ع�",
+          "COMPANY_CODE": "600320",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ����ع�(����)�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "20001221",
+          "NUM": "294",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "���ع�",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:294",
+      "symbol": "600320"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "20220714"
+      ],
+      "all_listing_dates": [
+        "19990118",
+        "20010328"
+      ],
+      "all_names": [
+        "-"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:477",
+        "sse-row:478"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600555",
+          "B_STOCK_CODE": "900955",
+          "COMPANY_ABBR": "���к���",
+          "COMPANY_CODE": "600555",
+          "DELIST_DATE": "20220714",
+          "FULL_NAME": "�������¹ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19990118",
+          "NUM": "477",
+          "PRODUCT_STATUS": "-",
+          "SEC_NAME_FULL": "-",
+          "STATE_CODE": "3",
+          "STATE_CODE_STOCK": "6",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600555",
+          "B_STOCK_CODE": "900955",
+          "COMPANY_ABBR": "���к���",
+          "COMPANY_CODE": "600555",
+          "DELIST_DATE": "20220714",
+          "FULL_NAME": "�������¹ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "20010328",
+          "NUM": "478",
+          "PRODUCT_STATUS": "-",
+          "SEC_NAME_FULL": "-",
+          "STATE_CODE": "3",
+          "STATE_CODE_STOCK": "6",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "3|6|-"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:478",
+      "symbol": "600555"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19901219",
+        "19920221"
+      ],
+      "all_names": [
+        "����B��",
+        "��������"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:523",
+        "sse-row:524"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600602",
+          "B_STOCK_CODE": "900901",
+          "COMPANY_ABBR": "��������",
+          "COMPANY_CODE": "600602",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "���������ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19901219",
+          "NUM": "523",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "��������",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        },
+        {
+          "A_STOCK_CODE": "600602",
+          "B_STOCK_CODE": "900901",
+          "COMPANY_ABBR": "��������",
+          "COMPANY_CODE": "600602",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "���������ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19920221",
+          "NUM": "524",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "����B��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:523",
+      "symbol": "600602"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19920327",
+        "19920701"
+      ],
+      "all_names": [
+        "�б�B��",
+        "�б�����"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:526",
+        "sse-row:527"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600604",
+          "B_STOCK_CODE": "900902",
+          "COMPANY_ABBR": "�б�����",
+          "COMPANY_CODE": "600604",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ��б����¹ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19920327",
+          "NUM": "526",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "�б�����",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        },
+        {
+          "A_STOCK_CODE": "600604",
+          "B_STOCK_CODE": "900902",
+          "COMPANY_ABBR": "�б�����",
+          "COMPANY_CODE": "600604",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ��б����¹ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19920701",
+          "NUM": "527",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "�б�B��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:526",
+      "symbol": "600604"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19920728",
+        "19920805"
+      ],
+      "all_names": [
+        "�����",
+        "�����B"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:533",
+        "sse-row:534"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600610",
+          "B_STOCK_CODE": "900906",
+          "COMPANY_ABBR": "�����",
+          "COMPANY_CODE": "600610",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "���������ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19920728",
+          "NUM": "533",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "�����B",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600610",
+          "B_STOCK_CODE": "900906",
+          "COMPANY_ABBR": "�����",
+          "COMPANY_CODE": "600610",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "���������ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19920805",
+          "NUM": "534",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "�����",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:534",
+      "symbol": "600610"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19920722",
+        "19920807"
+      ],
+      "all_names": [
+        "����B��",
+        "���ڽ�ͨ"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:535",
+        "sse-row:536"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600611",
+          "B_STOCK_CODE": "900903",
+          "COMPANY_ABBR": "���ڽ�ͨ",
+          "COMPANY_CODE": "600611",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "���ڽ�ͨ(����)�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19920722",
+          "NUM": "535",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "����B��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600611",
+          "B_STOCK_CODE": "900903",
+          "COMPANY_ABBR": "���ڽ�ͨ",
+          "COMPANY_CODE": "600611",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "���ڽ�ͨ(����)�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19920807",
+          "NUM": "536",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "���ڽ�ͨ",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:536",
+      "symbol": "600611"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19920728",
+        "19920814"
+      ],
+      "all_names": [
+        "�Ϸ���",
+        "�Ϸ���B"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:537",
+        "sse-row:538"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600612",
+          "B_STOCK_CODE": "900905",
+          "COMPANY_ABBR": "�Ϸ���",
+          "COMPANY_CODE": "600612",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϸ���ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19920728",
+          "NUM": "537",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "�Ϸ���B",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600612",
+          "B_STOCK_CODE": "900905",
+          "COMPANY_ABBR": "�Ϸ���",
+          "COMPANY_CODE": "600612",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϸ���ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19920814",
+          "NUM": "538",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "�Ϸ���",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:538",
+      "symbol": "600612"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19920722",
+        "19920820"
+      ],
+      "all_names": [
+        "����B��",
+        "������ҩ"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:539",
+        "sse-row:540"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600613",
+          "B_STOCK_CODE": "900904",
+          "COMPANY_ABBR": "������ҩ",
+          "COMPANY_CODE": "600613",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ�������ҩͶ�ʹ����ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19920722",
+          "NUM": "539",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "����B��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600613",
+          "B_STOCK_CODE": "900904",
+          "COMPANY_ABBR": "������ҩ",
+          "COMPANY_CODE": "600613",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ�������ҩͶ�ʹ����ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19920820",
+          "NUM": "540",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "������ҩ",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:540",
+      "symbol": "600613"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "20210722"
+      ],
+      "all_listing_dates": [
+        "19920728",
+        "19920828"
+      ],
+      "all_names": [
+        "-"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:541",
+        "sse-row:542"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600614",
+          "B_STOCK_CODE": "900907",
+          "COMPANY_ABBR": "��������",
+          "COMPANY_CODE": "600614",
+          "DELIST_DATE": "20210722",
+          "FULL_NAME": "����Ƽ���չ�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19920728",
+          "NUM": "541",
+          "PRODUCT_STATUS": "-",
+          "SEC_NAME_FULL": "-",
+          "STATE_CODE": "3",
+          "STATE_CODE_STOCK": "6",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600614",
+          "B_STOCK_CODE": "900907",
+          "COMPANY_ABBR": "��������",
+          "COMPANY_CODE": "600614",
+          "DELIST_DATE": "20210722",
+          "FULL_NAME": "����Ƽ���չ�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19920828",
+          "NUM": "542",
+          "PRODUCT_STATUS": "-",
+          "SEC_NAME_FULL": "-",
+          "STATE_CODE": "3",
+          "STATE_CODE_STOCK": "6",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "3|6|-"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:542",
+      "symbol": "600614"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19921013",
+        "19930928"
+      ],
+      "all_names": [
+        "����B��",
+        "������Դ"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:545",
+        "sse-row:546"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600617",
+          "B_STOCK_CODE": "900913",
+          "COMPANY_ABBR": "������Դ",
+          "COMPANY_CODE": "600617",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "ɽ��ʡ������Դ�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19921013",
+          "NUM": "545",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "������Դ",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        },
+        {
+          "A_STOCK_CODE": "600617",
+          "B_STOCK_CODE": "900913",
+          "COMPANY_ABBR": "������Դ",
+          "COMPANY_CODE": "600617",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "ɽ��ʡ������Դ�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19930928",
+          "NUM": "546",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "����B��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:545",
+      "symbol": "600617"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19920820",
+        "19921113"
+      ],
+      "all_names": [
+        "�ȼ�B��",
+        "�ȼ��"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:547",
+        "sse-row:548"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600618",
+          "B_STOCK_CODE": "900908",
+          "COMPANY_ABBR": "�ȼ��",
+          "COMPANY_CODE": "600618",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ��ȼ���ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19920820",
+          "NUM": "547",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "�ȼ�B��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600618",
+          "B_STOCK_CODE": "900908",
+          "COMPANY_ABBR": "�ȼ��",
+          "COMPANY_CODE": "600618",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ��ȼ���ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19921113",
+          "NUM": "548",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "�ȼ��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:548",
+      "symbol": "600618"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19921116",
+        "19930118"
+      ],
+      "all_names": [
+        "����B��",
+        "�����ɷ�"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:549",
+        "sse-row:550"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600619",
+          "B_STOCK_CODE": "900910",
+          "COMPANY_ABBR": "�����ɷ�",
+          "COMPANY_CODE": "600619",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ�����(����)�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19921116",
+          "NUM": "549",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "�����ɷ�",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        },
+        {
+          "A_STOCK_CODE": "600619",
+          "B_STOCK_CODE": "900910",
+          "COMPANY_ABBR": "�����ɷ�",
+          "COMPANY_CODE": "600619",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ�����(����)�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19930118",
+          "NUM": "550",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "����B��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:549",
+      "symbol": "600619"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19920828",
+        "19921204"
+      ],
+      "all_names": [
+        "����B��",
+        "���꼯��"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:554",
+        "sse-row:555"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600623",
+          "B_STOCK_CODE": "900909",
+          "COMPANY_ABBR": "���꼯��",
+          "COMPANY_CODE": "600623",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ����꼯�Źɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19920828",
+          "NUM": "554",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "����B��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600623",
+          "B_STOCK_CODE": "900909",
+          "COMPANY_ABBR": "���꼯��",
+          "COMPANY_CODE": "600623",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ����꼯�Źɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19921204",
+          "NUM": "555",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "���꼯��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:555",
+      "symbol": "600623"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "20010425"
+      ],
+      "all_listing_dates": [
+        "19930106",
+        "19941110"
+      ],
+      "all_names": [
+        "-"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:557",
+        "sse-row:558"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600625",
+          "B_STOCK_CODE": "900931",
+          "COMPANY_ABBR": "PTˮ  ��",
+          "COMPANY_CODE": "600625",
+          "DELIST_DATE": "20010425",
+          "FULL_NAME": "�Ϻ�ˮ�ɵ����ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19930106",
+          "NUM": "557",
+          "PRODUCT_STATUS": "-",
+          "SEC_NAME_FULL": "-",
+          "STATE_CODE": "3",
+          "STATE_CODE_STOCK": "6",
+          "STOCK_TYPE": "1"
+        },
+        {
+          "A_STOCK_CODE": "600625",
+          "B_STOCK_CODE": "900931",
+          "COMPANY_ABBR": "PTˮ  ��",
+          "COMPANY_CODE": "600625",
+          "DELIST_DATE": "20010425",
+          "FULL_NAME": "�Ϻ�ˮ�ɵ����ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19941110",
+          "NUM": "558",
+          "PRODUCT_STATUS": "-",
+          "SEC_NAME_FULL": "-",
+          "STATE_CODE": "3",
+          "STATE_CODE_STOCK": "6",
+          "STOCK_TYPE": "2"
+        }
+      ],
+      "all_status_fields": [
+        "3|6|-"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:557",
+      "symbol": "600625"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19930326",
+        "19930531"
+      ],
+      "all_names": [
+        "�ֶ�����",
+        "����B��"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:572",
+        "sse-row:573"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600639",
+          "B_STOCK_CODE": "900911",
+          "COMPANY_ABBR": "�ֶ�����",
+          "COMPANY_CODE": "600639",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ����ų��ڼӹ��������ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19930326",
+          "NUM": "572",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "�ֶ�����",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        },
+        {
+          "A_STOCK_CODE": "600639",
+          "B_STOCK_CODE": "900911",
+          "COMPANY_ABBR": "�ֶ�����",
+          "COMPANY_CODE": "600639",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ����ų��ڼӹ��������ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19930531",
+          "NUM": "573",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "����B��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:572",
+      "symbol": "600639"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19930504",
+        "19930726"
+      ],
+      "all_names": [
+        "���B��",
+        "�����"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:582",
+        "sse-row:583"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600648",
+          "B_STOCK_CODE": "900912",
+          "COMPANY_ABBR": "�����",
+          "COMPANY_CODE": "600648",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ�����ż��Źɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19930504",
+          "NUM": "582",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "�����",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        },
+        {
+          "A_STOCK_CODE": "600648",
+          "B_STOCK_CODE": "900912",
+          "COMPANY_ABBR": "�����",
+          "COMPANY_CODE": "600648",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ�����ż��Źɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19930726",
+          "NUM": "583",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "���B��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:582",
+      "symbol": "600648"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19930607",
+        "19931018"
+      ],
+      "all_names": [
+        "������B",
+        "��������"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:585",
+        "sse-row:586"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600650",
+          "B_STOCK_CODE": "900914",
+          "COMPANY_ABBR": "��������",
+          "COMPANY_CODE": "600650",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ����������������ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19930607",
+          "NUM": "585",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "��������",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        },
+        {
+          "A_STOCK_CODE": "600650",
+          "B_STOCK_CODE": "900914",
+          "COMPANY_ABBR": "��������",
+          "COMPANY_CODE": "600650",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ����������������ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19931018",
+          "NUM": "586",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "������B",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:585",
+      "symbol": "600650"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19930628",
+        "19941122"
+      ],
+      "all_names": [
+        "½��B��",
+        "½����"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:599",
+        "sse-row:600"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600663",
+          "B_STOCK_CODE": "900932",
+          "COMPANY_ABBR": "½����",
+          "COMPANY_CODE": "600663",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ�½�������ó���������ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19930628",
+          "NUM": "599",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "½����",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        },
+        {
+          "A_STOCK_CODE": "600663",
+          "B_STOCK_CODE": "900932",
+          "COMPANY_ABBR": "½����",
+          "COMPANY_CODE": "600663",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ�½�������ó���������ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19941122",
+          "NUM": "600",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "½��B��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:599",
+      "symbol": "600663"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19931008",
+        "19931119"
+      ],
+      "all_names": [
+        "�Ϻ����",
+        "���B��"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:616",
+        "sse-row:617"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600679",
+          "B_STOCK_CODE": "900916",
+          "COMPANY_ABBR": "�Ϻ����",
+          "COMPANY_CODE": "600679",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ������ҵ(����)�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19931008",
+          "NUM": "616",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "�Ϻ����",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        },
+        {
+          "A_STOCK_CODE": "600679",
+          "B_STOCK_CODE": "900916",
+          "COMPANY_ABBR": "�Ϻ����",
+          "COMPANY_CODE": "600679",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ������ҵ(����)�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19931119",
+          "NUM": "617",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "���B��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:616",
+      "symbol": "600679"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "20190524"
+      ],
+      "all_listing_dates": [
+        "19931018",
+        "19941020"
+      ],
+      "all_names": [
+        "-"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:618",
+        "sse-row:619"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600680",
+          "B_STOCK_CODE": "900930",
+          "COMPANY_ABBR": "*ST����",
+          "COMPANY_CODE": "600680",
+          "DELIST_DATE": "20190524",
+          "FULL_NAME": "�Ϻ�������ͨ�Ƽ��ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19931018",
+          "NUM": "618",
+          "PRODUCT_STATUS": "-",
+          "SEC_NAME_FULL": "-",
+          "STATE_CODE": "3",
+          "STATE_CODE_STOCK": "6",
+          "STOCK_TYPE": "1"
+        },
+        {
+          "A_STOCK_CODE": "600680",
+          "B_STOCK_CODE": "900930",
+          "COMPANY_ABBR": "*ST����",
+          "COMPANY_CODE": "600680",
+          "DELIST_DATE": "20190524",
+          "FULL_NAME": "�Ϻ�������ͨ�Ƽ��ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19941020",
+          "NUM": "619",
+          "PRODUCT_STATUS": "-",
+          "SEC_NAME_FULL": "-",
+          "STATE_CODE": "3",
+          "STATE_CODE_STOCK": "6",
+          "STOCK_TYPE": "2"
+        }
+      ],
+      "all_status_fields": [
+        "3|6|-"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:618",
+      "symbol": "600680"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19931108",
+        "19931231"
+      ],
+      "all_names": [
+        "��ëB��",
+        "�Ϻ���ë"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:628",
+        "sse-row:629"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600689",
+          "B_STOCK_CODE": "900922",
+          "COMPANY_ABBR": "�Ϻ���ë",
+          "COMPANY_CODE": "600689",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ���ë��ҵ(����)�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19931108",
+          "NUM": "628",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "�Ϻ���ë",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        },
+        {
+          "A_STOCK_CODE": "600689",
+          "B_STOCK_CODE": "900922",
+          "COMPANY_ABBR": "�Ϻ���ë",
+          "COMPANY_CODE": "600689",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ���ë��ҵ(����)�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19931231",
+          "NUM": "629",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "��ëB��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:628",
+      "symbol": "600689"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "20220615"
+      ],
+      "all_listing_dates": [
+        "19931122",
+        "19931215"
+      ],
+      "all_names": [
+        "-"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:635",
+        "sse-row:636"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600695",
+          "B_STOCK_CODE": "900919",
+          "COMPANY_ABBR": "������ͥ",
+          "COMPANY_CODE": "600695",
+          "DELIST_DATE": "20220615",
+          "FULL_NAME": "�Ϻ���ͥͶ�ʿعɼ��Źɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19931122",
+          "NUM": "635",
+          "PRODUCT_STATUS": "-",
+          "SEC_NAME_FULL": "-",
+          "STATE_CODE": "3",
+          "STATE_CODE_STOCK": "6",
+          "STOCK_TYPE": "1"
+        },
+        {
+          "A_STOCK_CODE": "600695",
+          "B_STOCK_CODE": "900919",
+          "COMPANY_ABBR": "������ͥ",
+          "COMPANY_CODE": "600695",
+          "DELIST_DATE": "20220615",
+          "FULL_NAME": "�Ϻ���ͥͶ�ʿعɼ��Źɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19931215",
+          "NUM": "636",
+          "PRODUCT_STATUS": "-",
+          "SEC_NAME_FULL": "-",
+          "STATE_CODE": "3",
+          "STATE_CODE_STOCK": "6",
+          "STOCK_TYPE": "2"
+        }
+      ],
+      "all_status_fields": [
+        "3|6|-"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:635",
+      "symbol": "600695"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19931206",
+        "19970617"
+      ],
+      "all_names": [
+        "����B��",
+        "��������"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:639",
+        "sse-row:640"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600698",
+          "B_STOCK_CODE": "900946",
+          "COMPANY_ABBR": "��������",
+          "COMPANY_CODE": "600698",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "���������е�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19931206",
+          "NUM": "639",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "��������",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        },
+        {
+          "A_STOCK_CODE": "600698",
+          "B_STOCK_CODE": "900946",
+          "COMPANY_ABBR": "��������",
+          "COMPANY_CODE": "600698",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "���������е�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19970617",
+          "NUM": "640",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "����B��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:639",
+      "symbol": "600698"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19960422",
+        "19960701"
+      ],
+      "all_names": [
+        "����B��",
+        "������Դ"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:668",
+        "sse-row:669"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600726",
+          "B_STOCK_CODE": "900937",
+          "COMPANY_ABBR": "������Դ",
+          "COMPANY_CODE": "600726",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "������Դ�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19960422",
+          "NUM": "668",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "����B��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600726",
+          "B_STOCK_CODE": "900937",
+          "COMPANY_ABBR": "������Դ",
+          "COMPANY_CODE": "600726",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "������Դ�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19960701",
+          "NUM": "669",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "������Դ",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:669",
+      "symbol": "600726"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19960430",
+        "19960909"
+      ],
+      "all_names": [
+        "����B",
+        "�����Ƽ�"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:694",
+        "sse-row:695"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600751",
+          "B_STOCK_CODE": "900938",
+          "COMPANY_ABBR": "�����Ƽ�",
+          "COMPANY_CODE": "600751",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�����Ƽ��ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19960430",
+          "NUM": "694",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "����B",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600751",
+          "B_STOCK_CODE": "900938",
+          "COMPANY_ABBR": "�����Ƽ�",
+          "COMPANY_CODE": "600751",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�����Ƽ��ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19960909",
+          "NUM": "695",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "�����Ƽ�",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:695",
+      "symbol": "600751"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19941215",
+        "19961011"
+      ],
+      "all_names": [
+        "����B��",
+        "�����Ƶ�"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:698",
+        "sse-row:699"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600754",
+          "B_STOCK_CODE": "900934",
+          "COMPANY_ABBR": "�����Ƶ�",
+          "COMPANY_CODE": "600754",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ��������ʾƵ�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19941215",
+          "NUM": "698",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "����B��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600754",
+          "B_STOCK_CODE": "900934",
+          "COMPANY_ABBR": "�����Ƶ�",
+          "COMPANY_CODE": "600754",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ��������ʾƵ�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19961011",
+          "NUM": "699",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "�����Ƶ�",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:699",
+      "symbol": "600754"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19960809",
+        "19961126"
+      ],
+      "all_names": [
+        "����B��",
+        "����ͨ��"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:721",
+        "sse-row:722"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600776",
+          "B_STOCK_CODE": "900941",
+          "COMPANY_ABBR": "����ͨ��",
+          "COMPANY_CODE": "600776",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "����ͨ�Źɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19960809",
+          "NUM": "721",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "����B��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600776",
+          "B_STOCK_CODE": "900941",
+          "COMPANY_ABBR": "����ͨ��",
+          "COMPANY_CODE": "600776",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "����ͨ�Źɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19961126",
+          "NUM": "722",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "����ͨ��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:722",
+      "symbol": "600776"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19931115",
+        "19940128"
+      ],
+      "all_names": [
+        "ST��·",
+        "ST��·B"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:764",
+        "sse-row:765"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600818",
+          "B_STOCK_CODE": "900915",
+          "COMPANY_ABBR": "ST��·",
+          "COMPANY_CODE": "600818",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "��·�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19931115",
+          "NUM": "764",
+          "PRODUCT_STATUS": "   S  F  N          ",
+          "SEC_NAME_FULL": "ST��·B",
+          "STATE_CODE": "7",
+          "STATE_CODE_STOCK": "8",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600818",
+          "B_STOCK_CODE": "900915",
+          "COMPANY_ABBR": "ST��·",
+          "COMPANY_CODE": "600818",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "��·�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19940128",
+          "NUM": "765",
+          "PRODUCT_STATUS": "   S  F  N          ",
+          "SEC_NAME_FULL": "ST��·",
+          "STATE_CODE": "7",
+          "STATE_CODE_STOCK": "8",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "7|8|S  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:765",
+      "symbol": "600818"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19931210",
+        "19940128"
+      ],
+      "all_names": [
+        "ҫƤB��",
+        "ҫƤ����"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:766",
+        "sse-row:767"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600819",
+          "B_STOCK_CODE": "900918",
+          "COMPANY_ABBR": "ҫƤ����",
+          "COMPANY_CODE": "600819",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ�ҫƤ�������Źɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19931210",
+          "NUM": "766",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "ҫƤB��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600819",
+          "B_STOCK_CODE": "900918",
+          "COMPANY_ABBR": "ҫƤ����",
+          "COMPANY_CODE": "600819",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ�ҫƤ�������Źɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19940128",
+          "NUM": "767",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "ҫƤ����",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:767",
+      "symbol": "600819"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19940204",
+        "19940330"
+      ],
+      "all_names": [
+        "�Ϻ���ó",
+        "��ó�¹�"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:770",
+        "sse-row:771"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600822",
+          "B_STOCK_CODE": "900927",
+          "COMPANY_ABBR": "�Ϻ���ó",
+          "COMPANY_CODE": "600822",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ�����ó�׹ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19940204",
+          "NUM": "770",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "�Ϻ���ó",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        },
+        {
+          "A_STOCK_CODE": "600822",
+          "B_STOCK_CODE": "900927",
+          "COMPANY_ABBR": "�Ϻ���ó",
+          "COMPANY_CODE": "600822",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ�����ó�׹ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19940330",
+          "NUM": "771",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "��ó�¹�",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:770",
+      "symbol": "600822"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19940105",
+        "19940204"
+      ],
+      "all_names": [
+        "����B��",
+        "�����ɷ�"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:776",
+        "sse-row:777"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600827",
+          "B_STOCK_CODE": "900923",
+          "COMPANY_ABBR": "�����ɷ�",
+          "COMPANY_CODE": "600827",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ��������Źɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19940105",
+          "NUM": "776",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "����B��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600827",
+          "B_STOCK_CODE": "900923",
+          "COMPANY_ABBR": "�����ɷ�",
+          "COMPANY_CODE": "600827",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ��������Źɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19940204",
+          "NUM": "777",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "�����ɷ�",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:777",
+      "symbol": "600827"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19940131",
+        "19940224"
+      ],
+      "all_names": [
+        "�Ϻ�����",
+        "����B��"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:785",
+        "sse-row:786"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600835",
+          "B_STOCK_CODE": "900925",
+          "COMPANY_ABBR": "�Ϻ�����",
+          "COMPANY_CODE": "600835",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ�����ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19940131",
+          "NUM": "785",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "����B��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600835",
+          "B_STOCK_CODE": "900925",
+          "COMPANY_ABBR": "�Ϻ�����",
+          "COMPANY_CODE": "600835",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ�����ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19940224",
+          "NUM": "786",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "�Ϻ�����",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:786",
+      "symbol": "600835"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19931228",
+        "19940311"
+      ],
+      "all_names": [
+        "����B��",
+        "�����¿�"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:792",
+        "sse-row:793"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600841",
+          "B_STOCK_CODE": "900920",
+          "COMPANY_ABBR": "�����¿�",
+          "COMPANY_CODE": "600841",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ��¶��������Ƽ��ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19931228",
+          "NUM": "792",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "����B��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600841",
+          "B_STOCK_CODE": "900920",
+          "COMPANY_ABBR": "�����¿�",
+          "COMPANY_CODE": "600841",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ��¶��������Ƽ��ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19940311",
+          "NUM": "793",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "�����¿�",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:793",
+      "symbol": "600841"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19940118",
+        "19940311"
+      ],
+      "all_names": [
+        "�Ϲ�B��",
+        "�Ϲ��건"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:795",
+        "sse-row:796"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600843",
+          "B_STOCK_CODE": "900924",
+          "COMPANY_ABBR": "�Ϲ��건",
+          "COMPANY_CODE": "600843",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϲ��건(����)�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19940118",
+          "NUM": "795",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "�Ϲ�B��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600843",
+          "B_STOCK_CODE": "900924",
+          "COMPANY_ABBR": "�Ϲ��건",
+          "COMPANY_CODE": "600843",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϲ��건(����)�ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19940311",
+          "NUM": "796",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "�Ϲ��건",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:796",
+      "symbol": "600843"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19931228",
+        "19940311"
+      ],
+      "all_names": [
+        "��úB��",
+        "��ú�Ƽ�"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:797",
+        "sse-row:798"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600844",
+          "B_STOCK_CODE": "900921",
+          "COMPANY_ABBR": "��ú�Ƽ�",
+          "COMPANY_CODE": "600844",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "���ɹŽ�ú�����Ƽ��ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19931228",
+          "NUM": "797",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "��úB��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600844",
+          "B_STOCK_CODE": "900921",
+          "COMPANY_ABBR": "��ú�Ƽ�",
+          "COMPANY_CODE": "600844",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "���ɹŽ�ú�����Ƽ��ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19940311",
+          "NUM": "798",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "��ú�Ƽ�",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:798",
+      "symbol": "600844"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19940311",
+        "19940315"
+      ],
+      "all_names": [
+        "����B",
+        "��������"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:799",
+        "sse-row:800"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600845",
+          "B_STOCK_CODE": "900926",
+          "COMPANY_ABBR": "��������",
+          "COMPANY_CODE": "600845",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ����������ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19940311",
+          "NUM": "799",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "��������",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        },
+        {
+          "A_STOCK_CODE": "600845",
+          "B_STOCK_CODE": "900926",
+          "COMPANY_ABBR": "��������",
+          "COMPANY_CODE": "600845",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ����������ɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19940315",
+          "NUM": "800",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "����B",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:799",
+      "symbol": "600845"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19940324",
+        "19940429"
+      ],
+      "all_names": [
+        "�Ϻ��ٸ�",
+        "�ٸ�B��"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:803",
+        "sse-row:804"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600848",
+          "B_STOCK_CODE": "900928",
+          "COMPANY_ABBR": "�Ϻ��ٸ�",
+          "COMPANY_CODE": "600848",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ��ٸۿعɹɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19940324",
+          "NUM": "803",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "�Ϻ��ٸ�",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        },
+        {
+          "A_STOCK_CODE": "600848",
+          "B_STOCK_CODE": "900928",
+          "COMPANY_ABBR": "�Ϻ��ٸ�",
+          "COMPANY_CODE": "600848",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ��ٸۿعɹɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19940429",
+          "NUM": "804",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "�ٸ�B��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:803",
+      "symbol": "600848"
+    },
+    {
+      "all_board_fields": [
+        "1"
+      ],
+      "all_delisting_related_fields": [
+        "-"
+      ],
+      "all_listing_dates": [
+        "19931208",
+        "19940404"
+      ],
+      "all_names": [
+        "����B��",
+        "�����ɷ�"
+      ],
+      "all_product_types": [
+        "1",
+        "2"
+      ],
+      "all_security_categories": [
+        "1",
+        "2"
+      ],
+      "all_source_record_ids": [
+        "sse-row:806",
+        "sse-row:807"
+      ],
+      "all_source_rows_relevant_to_identity": [
+        {
+          "A_STOCK_CODE": "600851",
+          "B_STOCK_CODE": "900917",
+          "COMPANY_ABBR": "�����ɷ�",
+          "COMPANY_CODE": "600851",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ��������Źɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19931208",
+          "NUM": "806",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "����B��",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "2"
+        },
+        {
+          "A_STOCK_CODE": "600851",
+          "B_STOCK_CODE": "900917",
+          "COMPANY_ABBR": "�����ɷ�",
+          "COMPANY_CODE": "600851",
+          "DELIST_DATE": "-",
+          "FULL_NAME": "�Ϻ��������Źɷ����޹�˾",
+          "LIST_BOARD": "1",
+          "LIST_DATE": "19940404",
+          "NUM": "807",
+          "PRODUCT_STATUS": "   D  F  N          ",
+          "SEC_NAME_FULL": "�����ɷ�",
+          "STATE_CODE": "2",
+          "STATE_CODE_STOCK": "4",
+          "STOCK_TYPE": "1"
+        }
+      ],
+      "all_status_fields": [
+        "2|4|D  F  N"
+      ],
+      "canonicalization_decision": "SELECT_A_SHARE_CATEGORY",
+      "classification": "CATEGORY_VARIANT",
+      "decision_reason": "Exactly one official STOCK_TYPE=1 A-share row and one STOCK_TYPE=2 B-share category row share the same A code, B code, company, board, delisting and status identity.",
+      "raw_row_count": 2,
+      "selected_source_record_id": "sse-row:807",
+      "symbol": "600851"
+    }
+  ],
+  "incident_counts": {
+    "duplicate_group_count": 44,
+    "parsed_record_count": 2506,
+    "raw_record_count": 2516,
+    "unique_symbol_count": 2462
+  },
+  "incident_date": "2026-09-02",
+  "incident_full_response_sha256": "0b980fb8cabff9cbba6980a4c5a5a4539767d8c227f5affa1962729ff554cbbe",
+  "live_paginated_evidence": {
+    "blocks": [
+      {
+        "block_count": 500,
+        "first_symbol": null,
+        "last_symbol": null,
+        "page": 5,
+        "raw_sha256": "c3f6d1717153ac3b9f16e755dc4f5cf8a60bebb5e39cf819d46683f22020451f"
+      },
+      {
+        "block_count": 500,
+        "first_symbol": null,
+        "last_symbol": null,
+        "page": 10,
+        "raw_sha256": "b0c04ddfd46a58cb7e7518befe3d716e42b6c3c9134540493370d7e2de2e1c1b"
+      },
+      {
+        "block_count": 500,
+        "first_symbol": null,
+        "last_symbol": null,
+        "page": 15,
+        "raw_sha256": "c6ff1ae3e1c2dd2a725c921826c3ac5a70944c3aadf22f611c2bd691aa2647ba"
+      },
+      {
+        "block_count": 500,
+        "first_symbol": "603496",
+        "last_symbol": "688126",
+        "page": 20,
+        "raw_sha256": "ee17109bfccaacddf84c5488e28a32fea1fd904aba39bd24871ab1e250f0b675"
+      }
+    ],
+    "note": "Duplicate groups were all located in the first 1000 official rows; later sampled blocks contain no duplicate group. Incident total counts and full-response hash are retained from the immutable 2026-09-02 failure evidence."
+  },
+  "schema_version": "v5.1-rc2-sse-duplicate-classification-v1",
+  "source": "SSE official security directory",
+  "unexplained_groups": 0
+}

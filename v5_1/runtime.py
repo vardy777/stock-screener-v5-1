@@ -77,7 +77,8 @@ class V51Runtime:
     def _record(self,day,stage,now,outcome,entity_id=""):
         fact=ProductionRunFactV51(day,stage,now.isoformat(),outcome,entity_id,self.mode,self.cohort,self.strict_evidence);self.store.save("production_runs",fact);return fact
     def _failure(self,day,stage,now,exc):
-        fact=ProductionFailureFactV51(day,stage,now.isoformat(),f"{type(exc).__name__}:{exc}",self.mode,self.cohort,self.strict_evidence);self.store.save("production_failures",fact);return fact
+        diagnostic=getattr(exc,"diagnostic",None)
+        fact=ProductionFailureFactV51(day,stage,now.isoformat(),f"{type(exc).__name__}:{exc}",self.mode,self.cohort,self.strict_evidence,diagnostic=diagnostic);self.store.save("production_failures",fact);return fact
     def _validated_runs(self,day):
         rows=[]
         for path in sorted((self.root/"production_runs"/day).glob("*.json")) if (self.root/"production_runs"/day).exists() else ():
