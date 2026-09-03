@@ -2,7 +2,7 @@
     "schema_version": "project-state-v2",
     "project": "a-share-overnight-v5",
     "display_name": "A\u80a1\u9694\u591c\u4ea4\u6613\u7814\u7a76\u7cfb\u7edf V5",
-    "updated_at": "2026-09-03T08:25:00+08:00",
+    "updated_at": "2026-09-03T08:40:53+08:00",
     "production_status": "research_locked",
     "runtime_owner": "v5",
     "broker_orders_enabled": false,
@@ -121,13 +121,13 @@
         }
     },
     "v5_1_upgrade": {
-        "status": "v5_1_rc1_invalidated_rc2_frozen_offline_pass_provider_smoke_failed",
+        "status": "v5_1_rc1_invalidated_rc2_frozen_transport_validity_unresolved_case_c",
         "offline_code_contract_readiness": "PASS",
         "release_freeze_gate": "PASS",
         "release_id": "V5.1-RC2",
         "release_commit_sha": "12992a22ae0cacc1a1a5160fdf46d7c6c28fbfc8",
         "release_clean_room_acceptance": "PASS",
-        "natural_shadow_status": "NO_GO_OFFICIAL_SSE_FULL_REQUEST_TIMEOUT_PENDING_NEW_REVIEWED_RC",
+        "natural_shadow_status": "NO_GO_RC2_SSE_FULL_AND_PAGINATED_TRANSPORT_UNSTABLE_CASE_C",
         "production_cutover_authorized": false,
         "cutover_ready": false,
         "real_window_strict_days": 0,
@@ -156,7 +156,7 @@
         "master_freshness_policy": "verified_trading_calendar_current_and_previous_open_session_only",
         "status_uniqueness": "repository_level_trade_date_symbol_as_of_exactly_one",
         "production_read_model": "immutable_saved_run_failure_confirmation_selection_observation_and_execution_result_facts_only",
-        "next_gate": "ChatGPT_review_bounded_deterministic_SSE_pagination_transport_before_new_RC_and_Natural_SHADOW"
+        "next_gate": "ChatGPT_review_RC2_transport_case_C_before_any_RC3_or_Natural_SHADOW"
     },
     "known_issues": [
         {

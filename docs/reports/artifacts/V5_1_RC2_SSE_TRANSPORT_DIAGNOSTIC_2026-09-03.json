@@ -1,0 +1,115 @@
+{
+  "schema_version": "v5.1-rc2-sse-transport-diagnostic-v1",
+  "diagnostic_only": true,
+  "strict_evidence": false,
+  "release_id": "V5.1-RC2",
+  "release_commit": "12992a22ae0cacc1a1a5160fdf46d7c6c28fbfc8",
+  "release_tree": "b220df7b75d920e5b5fe75c33bc320ee14083c81",
+  "artifact_sha256": "493feeea08130e6d2779a7c2377651aab3dade83ebdb3e527de5bfe86932726b",
+  "endpoint": "https://query.sse.com.cn/sseQuery/commonQuery.do",
+  "full_query_fingerprint": "e0dfcf03b7d8d4742b6ef594486d3652ebf1a3626123fd18912e746ee7283443",
+  "frozen_adapter_timeout_seconds": 8,
+  "frozen_adapter_attempts": 2,
+  "full_directory_attempts": [
+    {
+      "attempt_number": 1,
+      "request_start_at": "2026-09-03T08:29:06.168047+08:00",
+      "request_end_at": "2026-09-03T08:29:42.092005+08:00",
+      "elapsed_ms": 35922,
+      "http_status": null,
+      "bytes_received": null,
+      "raw_record_count_if_parseable": null,
+      "exception_type": "RuntimeError",
+      "underlying_exception_type": "TimeoutError",
+      "exception_message": "SSE OFFICIAL_SOURCE_UNAVAILABLE: TimeoutError: The read operation timed out",
+      "failure_stage": "HTTP_RESPONSE_OR_READ",
+      "final_result": "FAIL"
+    },
+    {
+      "attempt_number": 2,
+      "request_start_at": "2026-09-03T08:29:36.349994+08:00",
+      "request_end_at": "2026-09-03T08:29:41.571233+08:00",
+      "elapsed_ms": 5218,
+      "http_status": 200,
+      "bytes_received": 2877394,
+      "raw_record_count_if_parseable": 2516,
+      "parsed_record_count": 2506,
+      "unique_symbol_count": 2462,
+      "canonical_record_count": 2316,
+      "duplicate_group_count": 44,
+      "classification_counts": {"CATEGORY_VARIANT": 44},
+      "raw_response_sha256": "9304ae58c157d9047c15eee634c121190ec770d477da0c3bd0b78358c7888d0c",
+      "final_result": "PASS"
+    },
+    {
+      "attempt_number": 3,
+      "request_start_at": "2026-09-03T08:29:41+08:00",
+      "request_end_at": "2026-09-03T08:34:00+08:00",
+      "elapsed_ms_lower_bound": 240000,
+      "http_status": null,
+      "bytes_received": null,
+      "raw_record_count_if_parseable": null,
+      "exception_type": "OperatorDiagnosticTimeout",
+      "exception_message": "No result after the bounded external diagnostic observation period; process interrupted without creating runtime evidence.",
+      "failure_stage": "UNRESOLVED_BLOCKING_IO",
+      "final_result": "FAIL"
+    }
+  ],
+  "pagination_probe": {
+    "endpoint_supported": true,
+    "requested_page_size": 100,
+    "provider_cache_size": 5,
+    "provider_page_count": 26,
+    "provider_total_count": 2516,
+    "provider_sort": null,
+    "sort_parameter_probe": "UNRESOLVED_OR_UNSUPPORTED",
+    "block_end_pages": [5, 10, 15, 20, 25, 26],
+    "first_complete_crawl": {
+      "started_at": "2026-09-03T08:35:22.930924+08:00",
+      "completed_at": "2026-09-03T08:37:23.277715+08:00",
+      "raw_row_count": 2516,
+      "unique_source_row_count": 2516,
+      "transport_duplicate_count": 0,
+      "source_num_sequence_complete": true,
+      "total_count_stable": true,
+      "page_count_stable": true,
+      "repeated_first_block_semantic_equal": true,
+      "result": "PASS",
+      "pages": [
+        {"page_number": 5, "row_count": 500, "first_row_identity": "1", "last_row_identity": "500", "elapsed_ms": 12797, "retry_count": 0, "content_hash": "a056505740a4c170a5cd75f4e20af1092319113d706b1c935426cd9990555538"},
+        {"page_number": 10, "row_count": 500, "first_row_identity": "501", "last_row_identity": "1000", "elapsed_ms": 4797, "retry_count": 1, "content_hash": "306c149af4ae64df4e8968929af06c762e29aa45a4ac72e2322cde6be54d1aa6"},
+        {"page_number": 15, "row_count": 500, "first_row_identity": "1001", "last_row_identity": "1500", "elapsed_ms": 4750, "retry_count": 0, "content_hash": "ff295b7f4afc7211d027d14f64990dc41d899a0d62caf536c0d7a9791b0f46db"},
+        {"page_number": 20, "row_count": 500, "first_row_identity": "1501", "last_row_identity": "2000", "elapsed_ms": 5156, "retry_count": 0, "content_hash": "4a4677b8aeddd0e38744755448fcfdbf5b8828fb58f76cd7e30e215dda90add9"},
+        {"page_number": 25, "row_count": 500, "first_row_identity": "2001", "last_row_identity": "2500", "elapsed_ms": 13954, "retry_count": 0, "content_hash": "8501121cc84a9d388f27d8cb83cd74109935a8e27ee531db0da33b011804ce20"},
+        {"page_number": 26, "row_count": 16, "first_row_identity": "2501", "last_row_identity": "2516", "elapsed_ms": 2671, "retry_count": 0, "content_hash": "bcfc1456210291609ba41c47fbdfe7cd41f3309135d482f015ca0719c2409a92"}
+      ]
+    },
+    "second_complete_crawl": {
+      "max_attempts_per_block": 3,
+      "result": "FAIL",
+      "exception_type": "TimeoutError",
+      "exception_message": "The read operation timed out",
+      "failed_block": "NOT_CAPTURED_BY_DIAGNOSTIC_HARNESS",
+      "complete_page_set_established": false
+    }
+  },
+  "answers": {
+    "full_request_stably_recovers": false,
+    "full_request_repeatedly_unstable": true,
+    "pagination_stably_succeeds": false,
+    "provider_returns_total_count": true,
+    "page_ordering_stable": "UNRESOLVED_PROVIDER_SORT_NULL",
+    "same_page_repeat_semantic_equal": true,
+    "adjacent_page_transport_duplicates": false,
+    "page_gap_in_successful_crawl": false,
+    "pagination_drift": "UNRESOLVED_BECAUSE_SECOND_CRAWL_FAILED",
+    "timeout_stage": "HTTP_RESPONSE_OR_READ"
+  },
+  "decision": {
+    "case": "C",
+    "full_request_root_cause": "PROVIDER_OR_NETWORK_INSTABILITY_UNRESOLVED",
+    "rc2_validity": "UNRESOLVED",
+    "rc3_required": false,
+    "natural_shadow_entry": "NO-GO"
+  }
+}
