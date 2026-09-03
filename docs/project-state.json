@@ -2,7 +2,7 @@
     "schema_version": "project-state-v2",
     "project": "a-share-overnight-v5",
     "display_name": "A\u80a1\u9694\u591c\u4ea4\u6613\u7814\u7a76\u7cfb\u7edf V5",
-    "updated_at": "2026-08-31T20:54:14+08:00",
+    "updated_at": "2026-09-03T08:25:00+08:00",
     "production_status": "research_locked",
     "runtime_owner": "v5",
     "broker_orders_enabled": false,
@@ -88,7 +88,7 @@
         "next_full_live_acceptance": "next_open_session_after_reliability_fix"
     },
     "quality": {
-        "tests_passed": 649,
+        "tests_passed": 666,
         "tests_failed": 0,
         "production_static_audit": "v7_passed_v4_runtime_safe_not_all_os_disabled",
         "runtime_run_fact_validation": "content_address_and_latest_attempt_enforced",
@@ -121,19 +121,19 @@
         }
     },
     "v5_1_upgrade": {
-        "status": "v5_1_rc1_frozen_offline_acceptance_pass_natural_shadow_pending",
+        "status": "v5_1_rc1_invalidated_rc2_frozen_offline_pass_provider_smoke_failed",
         "offline_code_contract_readiness": "PASS",
         "release_freeze_gate": "PASS",
-        "release_id": "V5.1-RC1",
-        "release_commit_sha": "14cbcf2615a68a50789997e26527f82074a2ca6e",
+        "release_id": "V5.1-RC2",
+        "release_commit_sha": "12992a22ae0cacc1a1a5160fdf46d7c6c28fbfc8",
         "release_clean_room_acceptance": "PASS",
-        "natural_shadow_status": "PENDING_CHATGPT_REVIEW",
+        "natural_shadow_status": "NO_GO_OFFICIAL_SSE_FULL_REQUEST_TIMEOUT_PENDING_NEW_REVIEWED_RC",
         "production_cutover_authorized": false,
         "cutover_ready": false,
         "real_window_strict_days": 0,
         "strategy_effectiveness": "UNPROVEN",
         "production_owner": "v5",
-        "official_sse_szse_master_live_source": "AUTHORITATIVE_BASE_INTEGRATED_REAL_WINDOW_PENDING",
+        "official_sse_szse_master_live_source": "SZSE_PASS_2899_UNIQUE_SSE_CANONICALIZATION_OFFLINE_PASS_FULL_REQUEST_SMOKE_TIMEOUT",
         "windows_scheduler_modified": false,
         "dashboard_production_port_modified": false,
         "system_version": "5.1",
@@ -141,12 +141,12 @@
         "closescan_strategy_version": "v5.1-closescan-v1",
         "evidence_boundary": "V5 legacy and V5.1 current are separate cohorts",
         "official_master_sources": "SSE_and_SZSE_authoritative_exchange_base_Eastmoney_optional_third_party_cross_check_content_addressed_response_match_verification_lineage",
-        "offline_tests": "649 full-suite passed including 142 targeted V5.1 tests",
+        "offline_tests": "666 full-suite passed including 159 targeted V5.1 tests; clean-room release acceptance passed",
         "shadow_recovery_plan": "REPORT_ONLY_DISABLED_08:10_08:30_08:50_09:05_09:20_NOT_REGISTERED",
         "master_degradation_policy": "Eastmoney_unavailable_degraded_official_base_retained_official_outage_conflict_duplicate_or_bad_hash_fail_closed",
         "v5_retirement_independence": "SHARED_CORE_MIGRATION_PASS_ZERO_DIRECT_V5_1_RUNTIME_IMPORTS_V5_REMAINS_PRODUCTION_OWNER_PENDING_CUTOVER_GATES",
         "acceptance_contract": "D_1520_PRELIMINARY_ONLY_D_PLUS_1_ROUND_TRIP_ACCEPTANCE_IS_SOLE_STRICT_DAY_AUTHORITY",
-        "release_artifact": "V5_1_RC1_SHA256_092a83feb2a8b8bdf22404df409836100910197d7c9513f6338658bfc0c333c4",
+        "release_artifact": "V5_1_RC2_SHA256_493feeea08130e6d2779a7c2377651aab3dade83ebdb3e527de5bfe86932726b",
         "dashboard_projection": "immutable_content_addressed_v5_1_only_fail_closed",
         "pit_contract": "verification_verified_at_lte_as_of_and_all_master_status_lineage_resolves",
         "morning_snapshot_max_age_seconds": 30,
@@ -156,7 +156,7 @@
         "master_freshness_policy": "verified_trading_calendar_current_and_previous_open_session_only",
         "status_uniqueness": "repository_level_trade_date_symbol_as_of_exactly_one",
         "production_read_model": "immutable_saved_run_failure_confirmation_selection_observation_and_execution_result_facts_only",
-        "next_gate": "ChatGPT_review_exact_RC_identity_before_3_to_5_natural_round_trip_shadow_days"
+        "next_gate": "ChatGPT_review_bounded_deterministic_SSE_pagination_transport_before_new_RC_and_Natural_SHADOW"
     },
     "known_issues": [
         {
