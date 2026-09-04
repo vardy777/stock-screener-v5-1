@@ -1,0 +1,21 @@
+{
+  "diagnostic_only": true,
+  "strict_evidence": false,
+  "natural_shadow_evidence": false,
+  "research_acceptance_evidence": false,
+  "requested_sample_window": "INTRADAY",
+  "actual_sample_window": "POST_CLOSE",
+  "classification_note": "The supervisor fired at 18:30 Asia/Shanghai; timestamps are authoritative. The invocation label was stale, so this evidence is retained as POST_CLOSE and is not counted as INTRADAY.",
+  "started_at": "2026-09-04T18:32:36.918320+08:00",
+  "completed_at": "2026-09-04T18:35:25.818810+08:00",
+  "full_request_attempts": [
+    {"attempt_number":1,"started_at":"2026-09-04T18:32:36.918320+08:00","completed_at":"2026-09-04T18:32:53.212855+08:00","elapsed_ms":16297,"endpoint":"https://query.sse.com.cn/sseQuery/commonQuery.do","query_fingerprint":"e0dfcf03b7d8d4742b6ef594486d3652ebf1a3626123fd18912e746ee7283443","connect_timeout":8,"read_timeout":8,"http_status":null,"response_bytes":null,"raw_row_count":null,"parsed_row_count":null,"canonical_row_count":null,"duplicate_groups":null,"exception_type":"RuntimeError","exception_message":"SSE OFFICIAL_SOURCE_UNAVAILABLE: URLError: <urlopen error _ssl.c:983: The handshake operation timed out>","failure_stage":"OFFICIAL_SOURCE_REQUEST","result":"FAIL"},
+    {"attempt_number":2,"started_at":"2026-09-04T18:32:53.212855+08:00","completed_at":"2026-09-04T18:33:09.475218+08:00","elapsed_ms":16250,"endpoint":"https://query.sse.com.cn/sseQuery/commonQuery.do","query_fingerprint":"e0dfcf03b7d8d4742b6ef594486d3652ebf1a3626123fd18912e746ee7283443","connect_timeout":8,"read_timeout":8,"http_status":null,"response_bytes":null,"raw_row_count":null,"parsed_row_count":null,"canonical_row_count":null,"duplicate_groups":null,"exception_type":"RuntimeError","exception_message":"SSE OFFICIAL_SOURCE_UNAVAILABLE: URLError: <urlopen error _ssl.c:983: The handshake operation timed out>","failure_stage":"OFFICIAL_SOURCE_REQUEST","result":"FAIL"},
+    {"attempt_number":3,"started_at":"2026-09-04T18:33:09.475218+08:00","completed_at":"2026-09-04T18:33:25.734155+08:00","elapsed_ms":16266,"endpoint":"https://query.sse.com.cn/sseQuery/commonQuery.do","query_fingerprint":"e0dfcf03b7d8d4742b6ef594486d3652ebf1a3626123fd18912e746ee7283443","connect_timeout":8,"read_timeout":8,"http_status":null,"response_bytes":null,"raw_row_count":null,"parsed_row_count":null,"canonical_row_count":null,"duplicate_groups":null,"exception_type":"RuntimeError","exception_message":"SSE OFFICIAL_SOURCE_UNAVAILABLE: URLError: <urlopen error _ssl.c:983: The handshake operation timed out>","failure_stage":"OFFICIAL_SOURCE_REQUEST","result":"FAIL"}
+  ],
+  "pagination_crawls": [
+    {"crawl_id":"post-close-1","started_at":"2026-09-04T18:33:25.734155+08:00","completed_at":"2026-09-04T18:34:25.772945+08:00","result":"FAIL","failed_page":5,"attempts":3,"timeout_events":3,"elapsed_ms":60038,"exception_type":"URLError","exception_message":"SSL handshake timed out"},
+    {"crawl_id":"post-close-2","started_at":"2026-09-04T18:34:25.772945+08:00","completed_at":"2026-09-04T18:35:25.818810+08:00","result":"FAIL","failed_page":5,"attempts":3,"timeout_events":3,"elapsed_ms":60046,"exception_type":"URLError","exception_message":"SSL handshake timed out"}
+  ],
+  "result_summary": {"full_attempts":3,"full_passes":0,"full_timeouts":3,"pagination_crawls":2,"pagination_passes":0,"pagination_timeouts":2}
+}
